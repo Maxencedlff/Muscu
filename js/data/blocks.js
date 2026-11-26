@@ -58,13 +58,13 @@ function nextOcc(xs, exLike) {
   return same.length ? Math.min(BLOCK_OCC_MAX, Math.max(...same.map(occOf)) + 1) : 1;
 }
 
-// Nom affiché d'un bloc dans sa liste xs : « Extension quadriceps · 2 » pour le 2e bloc du même exercice en lisant
+// Nom affiché d'un bloc dans sa liste xs : « Extension quadriceps (2e) » pour le 2e bloc du même exercice en lisant
 // de haut en bas, le nom seul pour le premier ou un exercice présent une fois
 function blockName(ex, xs) {
   const name = String(ex?.name ?? '');
   const same = (xs || []).filter(e => e && sameExercise(e, ex));
   const i = same.indexOf(ex);
-  return same.length > 1 && i > 0 ? `${name} · ${i + 1}` : name;
+  return same.length > 1 && i > 0 ? `${name} (${i + 1}e)` : name;   // pas « (2e) » : il se confondait avec le séparateur « · »
 }
 
 // Nouveau bloc ex de la liste xs du programme : si l'exercice y est déjà, même suivi (exId = celui du premier bloc)
@@ -124,8 +124,11 @@ function exerciseGroups(xs) {
 }
 
 // Séances notées par une version d'avant les blocs depuis un programme qui en a : leur exercice porte l'id du bloc
-// (exId = id). Rattaché au suivi commun, avec le rang et le rôle du bloc (séries marquées). Idempotent ; renvoie le
-// nombre d'exercices corrigés (0 : rien n'a changé). xs : listes d'exercices à corriger (historique par défaut).
+// (exId = id). Rattaché au suivi commun et au rang du bloc, RIEN d'autre : ni rôle ni série marquée. Une version d'avant
+// qui fait « Modifier » sur une séance à deux blocs les ramène au même exercice du programme (sameEx) et peut y
+// enregistrer les vraies séries sous l'id du bloc de pré-fatigue : les marquer ferait disparaître le record (audit du
+// 26/11, B1). Idempotent ; renvoie le nombre d'exercices corrigés (0 : rien n'a changé). lists : listes d'exercices à
+// corriger (historique par défaut).
 function relinkBlockHistory(d, lists = null) {
   const map = new Map();
   Object.values(d?.programmes || {}).forEach(p => Object.values(p?.exercises || {}).forEach(xs => (Array.isArray(xs) ? xs : [])
@@ -137,7 +140,6 @@ function relinkBlockHistory(d, lists = null) {
     if (!b) return;
     x.exId = b.exId;
     if (occOf(b) > 1 && x.occ === undefined) x.occ = occOf(b);
-    if (blockRole(b) && !blockRole(x) && !(x.sets || []).some(isWarmupSet)) setBlockRole(x, blockRole(b));
     n++;
   }));
   return n;

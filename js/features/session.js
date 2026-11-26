@@ -127,7 +127,8 @@ function plannedSet(src, prev) {
 // rang (échauffements retirés des deux côtés). Bloc de pré-fatigue ou d'échauffement (js/data/blocks.js) : ses séries,
 // et la nouvelle est marquée comme elles
 function pushPlannedSet(ex) {
-  const last = lastPerf(activeSession.programme, activeSession.category, ex)?.ex;
+  const lp = lastPerf(activeSession.programme, activeSession.category, ex)?.ex;
+  const last = lp && blockRole(lp) === blockRole(ex) ? lp : null;   // rôle changé depuis : la dernière fois ne vaut plus
   if (blockRole(ex)) {
     ex.sets.push({ ...plannedSet(ex.sets.at(-1), blockPrevSets(last)[ex.sets.length]), warmup: true });
     return;
@@ -146,7 +147,8 @@ function buildSets(progKey, cat, exLike, n, fallback = {}) {
   const m = measureOf(exLike), last = lastPerf(progKey, cat, exLike);
   // Bloc du même exercice (js/data/blocks.js) : SA dernière fois ; bloc de pré-fatigue ou d'échauffement : ses séries
   // (toutes marquées), jamais la charge de travail de l'exercice en repli
-  const prevSets = last && measureOf(last.ex) === m ? blockPrevSets(last.ex) : [];
+  // Rôle changé depuis (pré-fatigue devenue normale, ou l'inverse) : la dernière fois ne vaut plus (audit M1)
+  const prevSets = last && measureOf(last.ex) === m && blockRole(last.ex) === blockRole(exLike) ? blockPrevSets(last.ex) : [];
   const base = m === 'reps' && !blockRole(exLike) ? { weight: fallback.lastWeight || '', reps: fallback.lastReps || '' } : { weight: '', reps: '' };
   return Array.from({ length: n }, (_, i) => {
     const src = prevSets[i] ?? prevSets.at(-1) ?? base;
@@ -276,7 +278,7 @@ function exBadges(ex) {
   if (all !== ex.sets) for (const k of [...badges.keys()]) if (!ex.sets.includes(k)) badges.delete(k);
   return badges;
 }
-// Nom affiché d'un exercice de la séance : « Extension quadriceps · 2 » pour son 2e bloc (js/data/blocks.js)
+// Nom affiché d'un exercice de la séance : « Extension quadriceps (2e) » pour son 2e bloc (js/data/blocks.js)
 function exLabel(ex) { return blockName(ex, activeSession?.exercises); }
 
 // Objectif de reps (ou de durée) d'une série : la même série la dernière fois, sinon l'objectif par

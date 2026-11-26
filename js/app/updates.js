@@ -33,10 +33,25 @@ function registerServiceWorker() {
 const LATEST_NATIVE_BUILD = 24;            // lien TestFlight : TESTFLIGHT_URL (js/data/min-build.js)
 const NATIVE_BANNER_KEY   = 'ppl_native_update_dismissed';   // build pour laquelle « Plus tard » a été touché
 
+// Calque plein écran ouvert (Bienvenue, compte, questions du premier lancement : css/account.css) ; le bandeau, collé en
+// bas, y cachait « Commencer sans compte » (simulateur iPad de la CI, 26/11/2026) : il attend que le calque se ferme
+const nativeUpdateCovered = () => !!document.querySelector('body > .auth:not(.auth--out), body > .onb:not(.onb--out)');
+let nativeUpdateWaiting = null;   // observateur en attente de la fermeture du calque (un seul à la fois)
+
 async function maybeShowNativeUpdate() {
   const build = await Native.appBuild();
   if (!build || build >= LATEST_NATIVE_BUILD || activeSession || $('.update-banner')) return;
   try { if (localStorage.getItem(NATIVE_BANNER_KEY) === String(LATEST_NATIVE_BUILD)) return; } catch {}
+  if (nativeUpdateCovered()) {
+    if (nativeUpdateWaiting) return;
+    nativeUpdateWaiting = new MutationObserver(() => {
+      if (nativeUpdateCovered()) return;
+      nativeUpdateWaiting.disconnect(); nativeUpdateWaiting = null;
+      maybeShowNativeUpdate();
+    });
+    nativeUpdateWaiting.observe(document.body, { childList: true });
+    return;
+  }
   const el = document.createElement('div');
   el.className = 'update-banner update-banner--native';
   el.setAttribute('role', 'status');

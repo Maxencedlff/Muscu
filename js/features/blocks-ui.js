@@ -51,10 +51,16 @@ function exRoleHtml(d) {
         </div>
         <div class="group-foot">${BLOCK_ROLE_HELP}</div>`;
 }
-// Rôle du brouillon appliqué à l'exercice du programme
+// Rôle du brouillon appliqué à l'exercice du programme, et au même bloc de la séance en cours (comme la prise et le
+// tempo : js/features/grip-ui.js, programme-editor.js)
 function applyDraftRole(ex, d) {
   if (!d) return;
-  if (Object.hasOwn(BLOCK_ROLES, d.role)) ex.role = d.role; else delete ex.role;
+  const role = Object.hasOwn(BLOCK_ROLES, d.role) ? d.role : null;
+  if (role === blockRole(ex)) return;
+  if (role) ex.role = role; else delete ex.role;
+  if (!activeSession) return;
+  activeSession.exercises.forEach(e => { if (e.exId === exIdOf(ex) && occOf(e) === occOf(ex)) setBlockRole(e, role); });
+  persistSession();
 }
 
 registerActions({

@@ -25,9 +25,8 @@ function recomputePRFromHistory(d = data) {
         .sort((a, b) => a.date - b.date);
       sessions.forEach(session => {
         (session.exercises || []).forEach(histEx => {
-          // Tous les blocs de l'exercice (le même exercice plusieurs fois, js/data/blocks.js) : records communs
-          const blocks = exercises.filter(e => sameEx(e, histEx));
-          const exData = blocks[0];
+          // Le même exercice plusieurs fois (js/data/blocks.js) : le 1er bloc porte les records, recopiés sur les autres à la fin
+          const exData = exercises.find(e => sameEx(e, histEx));
           // Records : répétitions seulement. Mesure lue sur l'entrée (toujours enregistrée hors répétitions) :
           // ce calcul tourne au chargement, avant js/data/measures.js
           if (!exData || histEx.measure === 'time' || histEx.measure === 'cardio') return;
@@ -45,8 +44,13 @@ function recomputePRFromHistory(d = data) {
             const new1RM = calc1RM(s.weight, s.reps);
             if (new1RM && (!exData.est1RM || new1RM > exData.est1RM)) exData.est1RM = new1RM;
           });
-          blocks.slice(1).forEach(b => { b.pr = exData.pr; b.est1RM = exData.est1RM; b.lastWeight = exData.lastWeight; b.lastReps = exData.lastReps; });
         });
+      });
+      // Blocs de plus : les records de leur exercice, une seule recherche par liste
+      // (celui qui les porte : le premier de la liste, exercises.find ci-dessus)
+      if (exercises.some(e => e.exId)) exercises.forEach(b => {
+        const first = exercises.find(e => sameEx(e, b));
+        if (first !== b) { b.pr = first.pr; b.est1RM = first.est1RM; b.lastWeight = first.lastWeight; b.lastReps = first.lastReps; }
       });
     });
   });

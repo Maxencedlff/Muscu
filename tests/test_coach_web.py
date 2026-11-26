@@ -222,14 +222,19 @@ def apple_journeys(browser, url, engine):
     check(page.locator('#login-email').is_visible(), 'Apple : e-mail toujours là')
     ctx.close()
 
-    # Identifiant Apple inconnu de MDLF : jamais le tableau de bord
+    # Identifiant Apple inconnu de MDLF : jamais le tableau de bord ; compte neuf effacé, déconnecté, message
+    # (détail, Google et pannes : tests/test_coach_web_google.py)
     ctx, page = open_desk(browser, url, width=1440, login=False)
     page.wait_for_selector('#apple-signin:not([disabled])')
     page.evaluate("window.__appleSub = '009999.autreidentifiant.0002'")
     page.click('#apple-signin')
-    page.wait_for_selector('text=Réservé aux coachs')
-    check('pas encore de compte MDLF' in page.inner_text('.login-card'), 'Apple : identifiant inconnu')
-    check(page.locator('.lst').count() == 0, 'Apple : identifiant inconnu, aucune liste')
+    for _ in range(200):   # page.evaluate en boucle (wait_for_function passe par eval, refusé par la CSP)
+        if page.evaluate("document.getElementById('login-err')?.innerText.includes('relié à aucun compte MDLF')"):
+            break
+        page.wait_for_timeout(100)
+    check('Réglages › Compte › Apple › Ajouter' in page.inner_text('#login-err'), 'Apple : identifiant inconnu')
+    check(page.locator('.lst').count() == 0 and page.evaluate('__sb.session') is None, 'Apple : identifiant inconnu, aucune liste, déconnecté')
+    check(page.evaluate('__sb.orphans') == 1, 'Apple : identifiant inconnu, compte vide effacé')
     ctx.close()
 
     # Script d'Apple injoignable (bloqueur, réseau) : pas de bouton, l'e-mail marche

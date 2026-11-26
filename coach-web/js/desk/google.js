@@ -12,8 +12,14 @@
 //    rien modifier) ; il manque l'adresse de retour du site dans « Redirect URLs » (uri_allow_list, vide aujourd'hui) :
 //    sans elle, Supabase renvoie sur site_url (https://mdlf.app) et le site dit « pas encore ouverte ».
 //  - Seul un coach validé entre ensuite (coach_state), comme pour l'e-mail et Apple. Identifiant Google inconnu :
-//    Supabase crée un compte vide (écran « Réservé aux coachs ») ; une adresse Google déjà vérifiée sur un compte MDLF
-//    est rattachée à ce compte par Supabase.
+//    Supabase crée un compte neuf (l'OAuth n'a pas d'équivalent de shouldCreateUser), aussitôt effacé par la fonction
+//    serveur coach-web-orphan s'il est vide et né de cette connexion, puis session fermée et message (main.js,
+//    deskUnknownIdentity ; docs/COACH_WEB.md, « Identifiant inconnu : aucun compte laissé »). Une adresse Google déjà
+//    vérifiée sur un compte MDLF est rattachée à ce compte par Supabase.
+//  - Échec chez Supabase au retour (deskGoogleReturnKind) : ?error=…&error_code=… sur cette page quand Supabase
+//    retrouve la demande ; sinon (bad_oauth_state : demande déjà servie ou effacée, typiquement le bouton Retour vers
+//    la page de Google après une connexion réussie) Supabase renvoie sur site_url, https://mdlf.app, qui renvoie ici
+//    error et error_code seuls (web-public/auth-retour.js). Seul le code est lu ; error_description n'est jamais affiché.
 //  - Bouton dessiné par la page selon les règles de Google (logo « G » en couleurs, « Se connecter avec Google »).
 // ═══════════════════════════════════════════════════════════
 'use strict';
@@ -38,10 +44,13 @@ async function deskGoogleStart() {
 async function deskGoogleReturn(now = () => Date.now()) {
   let q;
   try { q = new URLSearchParams(location.search); } catch { return null; }
-  const code = q.get('code'), error = q.get('error');
-  if (!code && !error) return null;
-  try { history.replaceState(null, '', location.pathname + location.hash); } catch { /* adresse laissée */ }
-  if (error) return { ok: false, kind: error === 'access_denied' ? 'google_cancel' : 'google_config' };
+  // Supabase met aussi l'erreur dans l'ancre (#error=…&sb) : lue, puis retirée (ce n'est pas un écran du site)
+  let h = null;
+  try { h = /(^|&)(error|sb)=/.test(location.hash.slice(1)) ? new URLSearchParams(location.hash.slice(1)) : null; } catch { h = null; }
+  const code = q.get('code'), error = q.get('error') || h?.get('error') || null;
+  if (!code && !error) { if (h) try { history.replaceState(null, '', location.pathname); } catch { /* adresse laissée */ } return null; }
+  try { history.replaceState(null, '', location.pathname + (h ? '' : location.hash)); } catch { /* adresse laissée */ }
+  if (error) return { ok: false, kind: deskGoogleReturnKind(error, q.get('error_code') || h?.get('error_code') || '') };
   const c = deskClient();
   if (!c || !/^[A-Za-z0-9._~-]{8,512}$/.test(code)) return { ok: false, kind: 'server' };
   try {
@@ -56,6 +65,19 @@ async function deskGoogleReturn(now = () => Date.now()) {
   } catch (e) { return { ok: false, kind: deskGoogleErrorKind(e) }; }
 }
 
+// Erreur rendue dans l'adresse par Supabase (internal/api/external.go, redirectErrors : error, error_code) : un kind
+// de DESK_GOOGLE_TEXT. access_denied sans code : refus chez Google ; avec un code, c'est Supabase qui a refusé.
+const DESK_GOOGLE_RETURN_CODES = Object.freeze({
+  bad_oauth_state: 'google_expired', bad_oauth_callback: 'google_expired', flow_state_expired: 'google_expired',
+  flow_state_not_found: 'google_expired', flow_state_already_used: 'google_expired',
+  signup_disabled: 'google_unlinked', provider_disabled: 'google_config',
+});
+function deskGoogleReturnKind(error, code) {
+  const c = /^[a-z0-9_]{1,64}$/.test(code) ? code : '';
+  if (c && Object.hasOwn(DESK_GOOGLE_RETURN_CODES, c)) return DESK_GOOGLE_RETURN_CODES[c];
+  if (error === 'access_denied' && !code) return 'google_cancel';
+  return 'google_failed';
+}
 function deskGoogleErrorKind(e) {
   const msg = String(e?.message || ''), code = String(e?.code || '');
   if (code === 'provider_disabled' || /provider is not enabled|redirect/i.test(msg)) return 'google_config';
@@ -65,8 +87,15 @@ function deskGoogleErrorKind(e) {
 const DESK_GOOGLE_TEXT = {
   google_cancel: 'Connexion avec Google annulée.',
   google_config: 'La connexion avec Google n\'est pas encore ouverte sur ce site. Reçois un code par e-mail en attendant.',
-  google_expired: 'La connexion avec Google a expiré ou a été ouverte dans un autre navigateur. Réessaie depuis ce navigateur.',
+  google_expired: 'La connexion avec Google a expiré ou a déjà servi (bouton Retour, autre onglet ou autre navigateur). Réessaie depuis ce navigateur.',
+  google_failed: 'La connexion avec Google n\'a pas abouti. Réessaie dans un moment, ou reçois un code par e-mail.',
+  google_unlinked: 'Ce compte Google n\'est relié à aucun compte MDLF. Dans l\'app : Réglages › Compte › Google › Ajouter, puis réessaie.',
 };
+// Identifiant Apple ou Google relié à aucun compte MDLF (main.js, deskUnknownIdentity)
+const DESK_UNLINKED_TEXT = Object.freeze({
+  google: DESK_GOOGLE_TEXT.google_unlinked,
+  apple: 'Cet identifiant Apple n\'est relié à aucun compte MDLF. Dans l\'app : Réglages › Compte › Apple › Ajouter, puis réessaie.',
+});
 
 // Logo « G » de Google (quatre couleurs, imposé par ses règles de marque) et bouton clair ou sombre (desk.css, .google-btn)
 const DESK_GOOGLE_LOGO = '<svg class="google-logo" viewBox="0 0 48 48" aria-hidden="true" focusable="false"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>';

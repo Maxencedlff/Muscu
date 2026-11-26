@@ -45,9 +45,6 @@ function buildSummary(entry) {
     // Exercice à un bras : une série notée sur une ligne compte pour les deux bras des deux côtés de la comparaison
     // (comparableVolume, js/data/unilateral.js) : refaire la même chose par bras ne paraît pas une hausse
     prev += pex ? comparableVolume(pex, prevSl, entryBodyKg(prevH), ex.sets) : 0;
-    // 1RM estimé battu sans autre record : pour soi seulement (jamais noté dans la séance ni partagé)
-    const e1s = !noted.some(r => normName(r.ex) === normName(ex.name)) && e1rmRecordSet(ex, priorOf(ex));
-    if (e1s) e1rm.push({ name: ex.name, label: 'Record 1RM est.', weight: e1s.weight, reps: e1s.reps, measure: 'reps', kind: setKind(ex) });
     const b = summaryBestSet(ex.sets, ex), pb = summaryBestSet(pex?.sets, ex);
     // Exercice réduit à son échauffement (séries de travail non faites) : la série la plus lourde quand même
     const bs = b || summaryBestSet(ex.sets.map(s => ({ ...s, warmup: undefined })), ex);
@@ -55,6 +52,12 @@ function buildSummary(entry) {
     // Progrès de la meilleure série (ligne sous le titre) : charge gagnée, sinon reps gagnées ; durée, cardio et aide à part
     const gain = trend === 'up' && measureOf(ex) === 'reps' && !isAssisted(ex) ? (b.w > pb.w ? { w: b.w - pb.w } : { r: b.r - pb.r }) : null;
     rows.push({ name: blockName(ex, entry.exercises), weight: bs.s.weight, reps: bs.s.reps, dist: bs.s.dist, measure: measureOf(ex), kind: setKind(ex), trend, gain });
+  });
+  // 1RM estimé battu sans autre record : pour soi seulement (jamais noté dans la séance ni partagé) ; un seul par exercice,
+  // ses blocs ensemble (le même exercice deux fois, js/data/blocks.js)
+  exerciseGroups(entry.exercises).forEach(({ ex }) => {
+    const e1s = !noted.some(r => normName(r.ex) === normName(ex.name)) && e1rmRecordSet(ex, priorOf(ex));
+    if (e1s) e1rm.push({ name: ex.name, label: 'Record 1RM est.', weight: e1s.weight, reps: e1s.reps, measure: 'reps', kind: setKind(ex) });
   });
   const records = [...noted.map(r => ({ name: r.ex, label: notedLabel(r), txt: notedValueTxt(r) })), ...e1rm];
   return {

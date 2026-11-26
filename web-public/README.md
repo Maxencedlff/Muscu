@@ -10,6 +10,9 @@ ce que publie le site :
   `js/data/legal-links.js` (contenu et emplacements à compléter : docs/JURIDIQUE.md). L'URL de
   `privacy.html` est déclarée à l'App Store : à garder en ligne ;
 - `sw.js` : désinstalle l'ancien service worker et vide ses caches ;
+- `auth-retour.js` : une connexion Google du site du coach qui échoue chez Supabase sans retrouver sa demande
+  (`bad_oauth_state`) revient ici (site_url) ; renvoyée vers https://coach.mdlf.app/ avec `error` et `error_code` seuls
+  (docs/COACH_WEB.md, « Retour de Google en erreur, et renvoi de mdlf.app ») ;
 - `strava.html` (Strava en sommeil, liée nulle part : docs/STRAVA.md) : retour de la page d'autorisation de Strava (fonction `strava-connect`),
   résultat en ancre (`#ok`, `#refuse`, `#droits`, `#expire`, `#erreur`) affiché sans script.
 

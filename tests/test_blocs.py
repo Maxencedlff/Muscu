@@ -2,7 +2,7 @@
 d'un testeur du 26/11, 2 séries d'Extension quadriceps en pré-fatigue au début, les vraies séries à la fin.
 
 - Programme › Séance : « Déjà dans la séance » reste écrit, le toucher ajoute un bloc de plus ; Programme › Exercice ›
-  Rôle ; la liste dit « Extension quadriceps · 2 » et « Pré-fatigue ».
+  Rôle ; la liste dit « Extension quadriceps (2e) » et « Pré-fatigue ».
 - Séance : titre « Pré-fatigue », séries numérotées, « Avant » du même bloc (jamais les séries lourdes), aucun record
   sur la pré-fatigue, un seul record pour l'exercice ; ajout du même exercice en séance (« Déjà dans la séance ») ;
   menu ⋯ › Plus d'options › Rôle ; historique ; « À battre » de l'accueil.
@@ -86,7 +86,7 @@ def t_blocs(bench, eng, dev, theme):
                 f'{t} bloc de plus : son id, suivi commun, rang 2, 2 séries, pré-fatigue {pre}')
         R.check(main['id'] == 'g5extqua' and main['occ'] == 1 and main['role'] is None, f'{t} 1er bloc inchangé {main}')
         names = page.locator('.view.editor .ed-name').all_inner_texts()
-        R.check(names[0] == EXT and f'{EXT} · 2' in names, f'{t} liste : « {EXT} » en tête, « {EXT} · 2 » plus bas ({names})')
+        R.check(names[0] == EXT and f'{EXT} (2e)' in names, f'{t} liste : « {EXT} » en tête, « {EXT} (2e) » plus bas ({names})')
         sub0 = page.locator('.view.editor .ed-row').first.inner_text()
         R.check('Pré-fatigue' in sub0, f'{t} liste : rôle dit en clair ({sub0!r})')
         shot(page, LOT, f'{t}-02-programme-seance')
@@ -94,7 +94,7 @@ def t_blocs(bench, eng, dev, theme):
         # Accueil : « À battre » ne propose rien pour la pré-fatigue
         rows = page.evaluate("""(() => { const d = document.createElement('div'); d.innerHTML = targetsHtml('legs');
             return [...d.querySelectorAll('.targets__row')].map(r => r.textContent.replace(/\\s+/g, ' ').trim()); })()""")
-        R.check(rows and rows[0].startswith(EXT) and 'Pré-fatigue' in rows[0] and '×' not in rows[0] and any(r.startswith(f'{EXT} · 2') and '×' in r for r in rows),
+        R.check(rows and rows[0].startswith(EXT) and 'Pré-fatigue' in rows[0] and '×' not in rows[0] and any(r.startswith(f'{EXT} (2e)') and '×' in r for r in rows),
                 f'{t} À battre : pré-fatigue sans objectif, le vrai bloc avec le sien ({rows})')
 
         # Séance : la pré-fatigue en tête
@@ -111,7 +111,7 @@ def t_blocs(bench, eng, dev, theme):
         nums = card0.locator('.set-n.num, .set-plates .num').all_inner_texts()
         R.check(nums[:2] == ['1', '2'] or nums[:1] == ['2'] or nums == ['1', '2'], f'{t} pré-fatigue : séries numérotées ({nums})')
         head = page.locator(f'.ex-card[data-ei="{ext_i}"] .ex-card__name').inner_text()
-        R.check(head.startswith(f'{EXT} · 2'), f'{t} carte du vrai bloc : « {EXT} · 2 » ({head!r})')
+        R.check(head.startswith(f'{EXT} (2e)'), f'{t} carte du vrai bloc : « {EXT} (2e) » ({head!r})')
         shot(page, LOT, f'{t}-03-seance-prefatigue')
         validate(page, 0, 0, '20', '15')
         validate(page, 0, 1, '20', '15')
@@ -131,7 +131,7 @@ def t_blocs(bench, eng, dev, theme):
         R.check(added and added['exId'] == 'g5extqua', f'{t} ajout en séance : 3e bloc du même exercice {added and added.get("occ")}')
         ai = page.evaluate("activeSession.exercises.findIndex(e => e.occ === 3)")
         labels = sorted(page.evaluate("activeSession.exercises.filter(e => e.exId === 'g5extqua').map(exLabel)"))
-        R.check(labels == [EXT, f'{EXT} · 2', f'{EXT} · 3'], f'{t} trois blocs nommés de haut en bas ({labels})')
+        R.check(labels == [EXT, f'{EXT} (2e)', f'{EXT} (3e)'], f'{t} trois blocs nommés de haut en bas ({labels})')
         page.click(f'.ex-card[data-ei="{ai}"] [data-action="ex-menu"]')
         settle(page)
         tap_dialog(page, 'Plus d\'options')
@@ -180,14 +180,18 @@ def t_blocs(bench, eng, dev, theme):
         R.check(pm == '50', f'{t} vrai bloc : « Avant » 50 kg ({pm})')
         page.evaluate("(() => { const n = document.querySelector('.ex-card[data-ei=\"0\"]'); n && n.scrollIntoView({ block: 'start' }); })()")
         shot(page, LOT, f'{t}-05-seance-avant')
+        # Séance abandonnée, app relancée (WebKit : la transition de fin de séance vers l'historique ne se posait pas
+        # toujours dans le temps d'attente) ; l'historique est déjà enregistré
         page.evaluate("endSession()")
+        page.reload()
+        page.wait_for_selector('#app > *')
         page.evaluate("routeTo('history')")
         settle(page)
         page.locator('.hcell').first.click()
         page.wait_for_selector('.view.history-detail')
         settle(page)
         txt = page.inner_text('.view.history-detail')
-        R.check(f'{EXT} · 2' in txt and 'Pré-fatigue' in txt, f'{t} détail de l\'historique : « · 2 » et « Pré-fatigue »')
+        R.check(f'{EXT} (2e)' in txt and 'Pré-fatigue' in txt, f'{t} détail de l\'historique : « (2e) » et « Pré-fatigue »')
         R.check('Échauffement :' not in txt.split('Pré-fatigue')[1][:80], f'{t} pré-fatigue lue comme des séries, sans « Échauffement : »')
         page.locator('.hex__name', has_text=EXT).first.scroll_into_view_if_needed()
         shot(page, LOT, f'{t}-06-historique')
@@ -313,7 +317,7 @@ def once_coach(bench):
             settle(page)
             s0 = page.evaluate("activeSession.exercises[0]")
             R.check(s0.get('role') == 'prefat' and s0['sets'][0]['weight'] == '20' and all(s.get('warmup') for s in s0['sets']), f'{t} séance : charge du coach sur la pré-fatigue, séries marquées')
-            R.check(page.locator('.ex-card[data-ei="2"] .ex-card__name').inner_text().startswith(f'{EXT} · 2'), f'{t} séance : « {EXT} · 2 »')
+            R.check(page.locator('.ex-card[data-ei="2"] .ex-card__name').inner_text().startswith(f'{EXT} (2e)'), f'{t} séance : « {EXT} (2e) »')
             shot(page, LOT, f'{t}-seance-programme-coach')
             page.evaluate("endSession()")
             # Nouvel envoi du même programme : blocs repris (même id, même rang)
@@ -346,7 +350,11 @@ def once_version_avant(bench):
     (PPL_OLD_URL) : aucune erreur, accueil, séance, historique et progrès s'affichent ; la séance démarre."""
     old = os.environ.get('PPL_OLD_URL')
     if not old:
-        R.skip('PPL_OLD_URL absent : version d\'avant non servie')
+        # En CI, l'app d'avant est toujours servie (tests/app_avant.sh) : son absence est une erreur
+        if os.environ.get('CI'):
+            R.check(False, 'PPL_OLD_URL absent en CI (tests/app_avant.sh)')
+        else:
+            R.skip('PPL_OLD_URL absent : version d\'avant non servie')
         return
     for eng, dev in (('webkit', 'iPhone 13'), ('chromium', 'Pixel 7')):
         t = f'avant-{dev}'
@@ -378,7 +386,8 @@ def once_version_avant(bench):
             seed(page, 'dark', saved)
             settle(page)
             h = page.evaluate("data.history[0].exercises.filter(e => e.name === 'Extension quadriceps').map(e => [e.exId, e.occ || 1, e.role || null])")
-            R.check(sorted(h) == [['g5extqua', 1, None], ['g5extqua', 2, 'prefat']], f'{t} relue ici : séance d\'avant rattachée au suivi ({h})')
+            # Rattachée au suivi et au rang, sans rôle ni série marquée (audit B1 : l'app d'avant n'a rien marqué)
+            R.check(sorted(h) == [['g5extqua', 1, None], ['g5extqua', 2, None]], f'{t} relue ici : séance d\'avant rattachée au suivi ({h})')
             R.check(not page.errors, f'{t} relue sans erreur {page.errors}')
 
 

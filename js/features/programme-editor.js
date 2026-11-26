@@ -125,7 +125,7 @@ function renderEditor() {
     const parts = [blockRole(ex) ? blockRoleLabel(ex) : '', setsRangeHtml(ex), plan, best ? `<span class="ed-last">dernier ${setTxt(best, ex)}</span>` : ''].filter(Boolean);
     // Le « · » est un séparateur visuel : caché à VoiceOver, qui lit « 4 séries de 8 à 12 reps, dernier … »
     const sub  = parts.map((x, k) => k < parts.length - 1 ? `<span class="ed-seg">${x}<span aria-hidden="true">\u00a0·</span></span>` : x).join(' ');
-    const tag  = ssTagHtml(list, i), name = blockName(ex, list);   // « Extension quadriceps · 2 » (js/data/blocks.js)
+    const tag  = ssTagHtml(list, i), name = blockName(ex, list);   // « Extension quadriceps (2e) » (js/data/blocks.js)
     if (editorEditing) {
       return `
         <div class="cell ed-row ed-row--edit" data-i="${i}">

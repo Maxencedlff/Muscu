@@ -123,7 +123,9 @@ LAYOUT_JS = r"""({ sat, sab, maxw, cible }) => {
   //    touchables fixes recouverts par elle ; fin de l'écran défilé au-dessus d'elle
   const bar = document.querySelector('.tabbar');
   const modal = document.querySelector('.ios-dialog, .sess-sheet:not(.sess-sheet--out), .sheet-root:not(.sheet-root--out), .auth, .onb');
-  if (bar && vis(bar) && !bar.hidden) {
+  // Barre latérale de l'iPad (css/tablet.css, paysage) : rien en bas de l'écran, ces contrôles ne la concernent pas
+  const laterale = bar && bar.getBoundingClientRect().height > H / 2;
+  if (bar && vis(bar) && !bar.hidden && !laterale) {
     const b = bar.getBoundingClientRect();
     if (Math.abs(b.bottom - H) > 1) out.barre.push(`pas collée en bas (bas à ${Math.round(b.bottom)} px pour ${H})`);
     const btns = [...bar.querySelectorAll('.tabbar__btn')].filter(vis);
@@ -207,12 +209,13 @@ FIN_ANIMATIONS_JS = """() => document.getAnimations().every(a => a.playState !==
     || (a.effect && a.effect.getTiming().iterations === Infinity))"""
 
 
-def audit(page, t, ecran, insets):
-    """Contrôles de mise en page de l'écran affiché, une vérification par règle."""
+def audit(page, t, ecran, insets, R=R, maxw=MAX_LECTURE):
+    """Contrôles de mise en page de l'écran affiché, une vérification par règle (R : résultats du lot appelant ;
+    maxw : largeur de lecture au-delà de laquelle une carte est jugée étalée)."""
     sat, _, sab, _ = insets
     page.evaluate('() => { scrollTo(0, 0); document.querySelectorAll("#app .scr").forEach(e => { e.scrollTop = 0; }); }')
     settle(page)
-    o = page.evaluate(LAYOUT_JS, {'sat': sat, 'sab': sab, 'maxw': MAX_LECTURE, 'cible': CIBLE})
+    o = page.evaluate(LAYOUT_JS, {'sat': sat, 'sab': sab, 'maxw': maxw, 'cible': CIBLE})
     R.check(not o['hscroll'], f"{t} {ecran} : pas de défilement horizontal (page de {o['hscroll']} px)")
     R.check(not o['encoche'], f"{t} {ecran} : rien sous l'encoche / Dynamic Island {o['encoche']}")
     R.check(not o['accueil'], f"{t} {ecran} : rien de fixe sous la barre d'accueil {o['accueil']}")
@@ -222,7 +225,7 @@ def audit(page, t, ecran, insets):
     R.check(not o['feuille'], f"{t} {ecran} : feuille ou dialogue bien placé {o['feuille']}")
     R.check(not o['petits'], f"{t} {ecran} : boutons de 44 pt {o['petits']}")
     R.check(not o['coupes'], f"{t} {ecran} : aucun texte coupé {o['coupes']}")
-    R.check(not o['etales'], f"{t} {ecran} : largeur de lecture ≤ {MAX_LECTURE} px {o['etales'][:4]}")
+    R.check(not o['etales'], f"{t} {ecran} : largeur de lecture ≤ {maxw} px {o['etales'][:4]}")
     return o
 
 
@@ -234,7 +237,14 @@ def t_ecrans(bench, eng, dev, theme):
     if insets is None:
         R.skip(f"{dev} : appareil ancien, hors du lot des appareils récents")
         return
-    t = f'{dev}-{theme}'.replace(' ', '_')
+    parcours(bench, eng, dev, theme, insets, R, LOT, MAX_LECTURE)
+
+
+def parcours(bench, eng, dev, theme, insets, R, lot, maxw, en_plus=None, suffixe=''):
+    """Tous les écrans principaux, chacun contrôlé (audit) et capturé dans $PPL_SCRATCH/shots/lot<lot>/.
+    Partagé avec tests/test_ipad.py : en_plus(page, t, nom) y ajoute les contrôles propres à la tablette, suffixe
+    distingue le moteur dans les noms (« -chromium »)."""
+    t = f'{dev}-{theme}{suffixe}'.replace(' ', '_')
     n = [0]
     with bench.frozen_page(NOW, eng, dev, theme, locale='fr-FR') as page:
         page.add_init_script('window.__fakeOpts = %s;' % json.dumps({'oldAccounts': True}))
@@ -257,10 +267,12 @@ def t_ecrans(bench, eng, dev, theme):
                     page.wait_for_function(FIN_ANIMATIONS_JS, timeout=3000)
             except Exception as e:
                 R.check(False, f'{t} {nom} : écran inaccessible ({str(e).splitlines()[0][:120]})')
-                shot(page, LOT, f'{t}-{n[0]:02d}-{nom}-ECHEC')
+                shot(page, lot, f'{t}-{n[0]:02d}-{nom}-ECHEC')
                 return False
-            audit(page, t, nom, insets)
-            shot(page, LOT, f'{t}-{n[0]:02d}-{nom}')
+            audit(page, t, nom, insets, R, maxw)
+            if en_plus:
+                en_plus(page, t, nom)
+            shot(page, lot, f'{t}-{n[0]:02d}-{nom}')
             return True
 
         def tap(sel):

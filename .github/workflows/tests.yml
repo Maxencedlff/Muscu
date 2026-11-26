@@ -5,9 +5,10 @@ name: Tests
 #  2. e2e : l'app tourne pour de vrai dans WebKit (iPhone 13) et Chromium (Pixel 7), toute la suite
 #     Playwright en thème sombre, répartie sur 4 machines (e2e 1/4 à 4/4) ;
 #  2 bis. coach-web : l'appli web du coach (coach-web/, docs/COACH_WEB.md) dans Chromium, Firefox et WebKit, à 1440,
-#     1180 et 820 px, sombre et clair, plus sa version construite (dist-coach/) avec le vrai supabase-js, et le mode coach
-#     grand écran de l'app sur iPad (Chromium et WebKit, docs/COACH_IPAD.md) ;
-#  3. edge : les 12 fonctions Edge (supabase/functions) compilées par Deno (deno check, dépendances figées
+#     1180 et 820 px, sombre et clair, plus sa version construite (dist-coach/) avec le vrai supabase-js, le mode coach
+#     grand écran de l'app sur iPad (Chromium et WebKit, docs/COACH_IPAD.md) et la mise en page tablette de tous les
+#     écrans de l'app (docs/IPAD.md) ;
+#  3. edge : les 13 fonctions Edge (supabase/functions) compilées par Deno (deno check, dépendances figées
 #     par supabase/functions/deno.lock) et appelées pour de vrai par tests/deno (refus d'entrée, sans réseau) ;
 #  4. deploy : sur main seulement, et seulement si 1, 2 et 3 sont verts, publication de web-public/ sur
 #     https://mdlf.app (Cloudflare Pages, projet mdlf-web), puis copie de secours sur le projet Vercel « muscu »
@@ -46,6 +47,9 @@ jobs:
           cache: npm
       - name: Syntaxe des scripts
         run: for f in $(find js coach-web/js coach-embed -name '*.js') sw.js; do node --check "$f"; done
+      # supabase-js et auth-js figés par package-lock : tests/unit/coach-web.mjs fait tourner le vrai auth-js (clés PKCE)
+      - name: Dépendances pour les tests unitaires
+        run: npm ci --ignore-scripts
       - name: Tests unitaires
         run: node tests/unit/run.mjs
       # Postgres local jetable (préinstallé sur ubuntu-latest) : RLS, GRANT et déclencheurs des migrations
@@ -84,6 +88,10 @@ jobs:
         run: bash tests/sql/sante_coach_rollback_test.sh
       - name: Retour arrière de « Relier cet ordinateur » (photos de bilan sur ordinateur, vague 5)
         run: bash tests/sql/photos_web_appairage_rollback_test.sh
+      - name: Retour arrière du compte vide effacé par le site du coach (connexion Google ou Apple inconnue)
+        run: bash tests/sql/compte_vide_site_coach_rollback_test.sh
+      - name: Retour arrière de la séance publique avec rôle et rang des blocs (préparée, pas appliquée)
+        run: bash tests/sql/seance_publique_blocs_rollback_test.sh
       - name: Contenu web de l'app iOS
         run: npm ci && npm run web:build
       - name: Lint (ESLint, erreurs réelles)
@@ -119,15 +127,19 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
+          fetch-depth: 0 # app d'avant les blocs relue par git archive (tests/app_avant.sh)
       - name: Playwright et polices
         run: bash tests/ci_conteneur.sh
       - name: Serveur local de l'app
         run: |
           python -m http.server 8731 > /tmp/serveur.log 2>&1 &
           for i in $(seq 1 20); do python -c "import urllib.request as u; u.urlopen('http://localhost:8731/')" 2>/dev/null && break; sleep 0.5; done
+      - name: App d'avant les blocs, servie à part (test_blocs.py, once_version_avant)
+        run: bash tests/app_avant.sh 8732
       - name: Suite Playwright (iPhone 13 et Pixel 7, sombre), part ${{ matrix.part }}/4
         env:
           PPL_URL: http://localhost:8731/
+          PPL_OLD_URL: http://localhost:8732/
           PPL_DEVICES: iPhone 13,Pixel 7
           PPL_THEMES: dark
           PPL_JOBS: '3'
@@ -198,6 +210,11 @@ jobs:
           PPL_ENGINES: ${{ matrix.engine }}
           HOME: /root
         run: PPL_SCRATCH="$RUNNER_TEMP/ppl-tests" python -u tests/test_coach_web_sante.py
+      - name: Identifiant Google ou Apple inconnu (aucun compte laissé), erreurs du retour de Google, renvoi de mdlf.app, ${{ matrix.engine }}
+        env:
+          PPL_ENGINES: ${{ matrix.engine }}
+          HOME: /root
+        run: PPL_SCRATCH="$RUNNER_TEMP/ppl-tests" python -u tests/test_coach_web_google.py
       # Mode coach grand écran sur iPad (docs/COACH_IPAD.md) : l'app construite (dist/ avec dist/coach/), 1024 × 1366 et
       # 1366 × 1024, Chromium et WebKit (Firefox n'est pas un moteur d'iPad)
       - name: Mode coach grand écran sur iPad, ${{ matrix.engine }}
@@ -206,6 +223,20 @@ jobs:
           PPL_ENGINES: ${{ matrix.engine }}
           HOME: /root
         run: PPL_SCRATCH="$RUNNER_TEMP/ppl-tests" python -u tests/test_coach_ipad.py
+      # Mise en page tablette de toute l'app (docs/IPAD.md) : iPad 13 pouces en portrait et en paysage, iPad mini, Split View
+      # 678 et 507, sombre et clair, et les iPhone inchangés ; Chromium et WebKit (Firefox n'est pas un moteur d'iPad)
+      - name: Écrans de l'app sur iPad, ${{ matrix.engine }}
+        if: matrix.engine != 'firefox'
+        env:
+          PPL_ENGINES: ${{ matrix.engine }}
+          PPL_DEVICES: ipad
+          PPL_JOBS: '4'
+          PPL_URL: http://localhost:8733/
+          HOME: /root
+        run: |
+          python -m http.server 8733 > /tmp/serveur-ipad.log 2>&1 &
+          for i in $(seq 1 20); do python -c "import urllib.request as u; u.urlopen('http://localhost:8733/')" 2>/dev/null && break; sleep 0.5; done
+          cd tests && PPL_SCRATCH="$RUNNER_TEMP/ppl-tests" python -u run_all.py ipad
       # OpenCV relit le QR code affiché (version figée, seulement pour ce test)
       - name: "Photos de bilan sur ordinateur (vague 5, relier un ordinateur, photos, app iPhone simulée), ${{ matrix.engine }}"
         env:

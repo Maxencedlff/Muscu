@@ -462,14 +462,15 @@ function renderDashboard() {
     <div class="view dashboard">
       ${navBar({ title: 'Entraînement', largeTitle: date, right, sub })}
       <div class="home">
+        ${tabletColsHtml(`
         ${accessBannerHtml()}
         ${hero || emptyCustom}
         ${othersList}
-        ${freeSessionRowHtml()}
+        ${freeSessionRowHtml()}`, `
         ${nutritionHomeCard()}
         ${cards}
         ${week}
-        ${defisHomeHtml()}
+        ${defisHomeHtml()}`)}
       </div>
     </div>`;
 }

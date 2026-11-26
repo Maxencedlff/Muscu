@@ -1,4 +1,4 @@
-// Tests de comportement des 12 fonctions Edge (audit du 12/11, M7) : chaque handler exporté par
+// Tests de comportement des 13 fonctions Edge (audit du 12/11, M7) : chaque handler exporté par
 // supabase/functions/*/index.ts est appelé pour de vrai, avec un faux réseau et de fausses variables
 // d'environnement (tests/deno/fake.ts). Ils vérifient les refus d'entrée (méthode, CORS, jeton de session,
 // secret partagé, signature d'Apple, corps invalide) et, pour delete-account, la règle de connexion récente.
@@ -11,6 +11,7 @@ import { handler as appstoreNotify } from '../../supabase/functions/appstore-not
 import { handler as coachPromoOffer } from '../../supabase/functions/coach-promo-offer/index.ts';
 import { handler as coachPhotosPurge } from '../../supabase/functions/coach-photos-purge/index.ts';
 import { handler as coachRequestAlert } from '../../supabase/functions/coach-request-alert/index.ts';
+import { handler as coachWebOrphan } from '../../supabase/functions/coach-web-orphan/index.ts';
 import { handler as deleteAccount } from '../../supabase/functions/delete-account/index.ts';
 import { handler as pushSend } from '../../supabase/functions/push-send/index.ts';
 import { handler as report } from '../../supabase/functions/report/index.ts';
@@ -22,14 +23,14 @@ import { handler as verifyPurchase } from '../../supabase/functions/verify-purch
 
 const ALL: Record<string, Handler> = {
   'appstore-notify': appstoreNotify, 'coach-photos-purge': coachPhotosPurge, 'coach-promo-offer': coachPromoOffer,
-  'coach-request-alert': coachRequestAlert,
+  'coach-request-alert': coachRequestAlert, 'coach-web-orphan': coachWebOrphan,
   'delete-account': deleteAccount, 'push-send': pushSend, report, 'revoke-apple': revokeApple,
   'strava-connect': stravaConnect, 'strava-disconnect': stravaDisconnect, 'strava-export': stravaExport,
   'verify-purchase': verifyPurchase,
 };
 // Appelées par l'app avec un jeton de session (caller, _shared/http.ts)
 const WITH_SESSION: Record<string, Handler> = {
-  'coach-promo-offer': coachPromoOffer, 'coach-request-alert': coachRequestAlert, 'delete-account': deleteAccount, report, 'revoke-apple': revokeApple,
+  'coach-promo-offer': coachPromoOffer, 'coach-request-alert': coachRequestAlert, 'coach-web-orphan': coachWebOrphan, 'delete-account': deleteAccount, report, 'revoke-apple': revokeApple,
   'strava-connect': stravaConnect, 'strava-disconnect': stravaDisconnect, 'strava-export': stravaExport,
   'verify-purchase': verifyPurchase,
 };
@@ -426,4 +427,98 @@ Deno.test('delete-account : connexion de moins de 10 minutes → compte supprim�
   assert.ok(order.indexOf('POST /storage/v1/object/list/coach-photos') > order.indexOf(`DELETE /auth/v1/admin/users/${USER_ID}`), 'fichiers après le compte');
   // La suppression passe par la clé serveur, jamais par le jeton de l'appelant
   assert.equal(calls.find((c) => c.method === 'DELETE')?.auth, 'Bearer faux-service-role-de-test');
+});
+
+// ── coach-web-orphan : compte tout neuf et vide créé par la connexion Google (ou Apple) du site du coach ──
+const SID = '00000000-0000-4000-8000-0000000000aa';
+const googleNew = () => {
+  const created = new Date(Date.now() - 20_000).toISOString();
+  return fakeUser({ email: 'test@exemple.invalid', created_at: created, identities: [{ id: 'faux-sub-google', identity_id: 'faux-sub-google', user_id: USER_ID, provider: 'google', created_at: created, identity_data: {} }] });
+};
+const orphanRoutes = (claim: () => Response) => ({
+  'POST /rest/v1/rpc/coach_web_orphan_claim': claim,
+  [`DELETE /auth/v1/admin/users/${USER_ID}`]: () => jsonResponse({}),
+});
+const orphanJwt = (extra: Record<string, unknown> = {}) => fakeJwt({ sub: USER_ID, role: 'authenticated', exp: nowS() + 3600, session_id: SID, ...extra });
+
+Deno.test('coach-web-orphan : compte neuf et vide → base consultée avec l\'uid et la session DU JETON, puis compte supprimé', async () => {
+  const jwt = orphanJwt();
+  // Corps forgé (autre compte, autre session) : ignoré
+  const { res, body, calls } = await call(coachWebOrphan, request('POST', { headers: bearer(jwt), body: { uid: '00000000-0000-4000-8000-000000000002', sid: '00000000-0000-4000-8000-000000000003' } }), {
+    users: { [jwt]: googleNew() }, routes: orphanRoutes(() => jsonResponse({ result: 'orphan', ticket: 7 })),
+  });
+  assert.equal(res.status, 200, JSON.stringify(body));
+  assert.deepEqual(body, { deleted: true });
+  const rpc = calls.find((c) => c.path === '/rest/v1/rpc/coach_web_orphan_claim');
+  assert.deepEqual(JSON.parse(rpc?.body ?? '{}'), { uid: USER_ID, sid: SID }, 'uid et session du jeton');
+  assert.equal(rpc?.auth, 'Bearer faux-service-role-de-test', 'base interrogée avec la clé serveur');
+  const del = calls.find((c) => c.method === 'DELETE');
+  assert.equal(del?.path, `/auth/v1/admin/users/${USER_ID}`);
+  assert.equal(del?.auth, 'Bearer faux-service-role-de-test');
+  assert.ok(calls.indexOf(rpc!) < calls.indexOf(del!), 'décision de la base avant la suppression');
+});
+
+Deno.test('coach-web-orphan : base qui garde le compte, limite atteinte ou injoignable → rien de supprimé', async () => {
+  const jwt = orphanJwt();
+  for (const [why, claim, status, expect] of [
+    ['gardé (données, autre session…)', () => jsonResponse({ result: 'kept' }), 200, { deleted: false }],
+    ['limite (identité ou projet)', () => jsonResponse({ result: 'limit' }), 429, { error: 'rate_limited' }],
+    ['orphelin sans ticket', () => jsonResponse({ result: 'orphan' }), 200, { deleted: false }],
+    ['ancienne réponse texte', () => jsonResponse('orphan'), 200, { deleted: false }],
+    ['migration absente', () => jsonResponse({ code: 'PGRST202', message: 'Could not find the function' }, 404), 503, { error: 'claim' }],
+    ['réponse inattendue', () => jsonResponse(true), 200, { deleted: false }],
+  ] as [string, () => Response, number, unknown][]) {
+    const { res, body, calls } = await call(coachWebOrphan, request('POST', { headers: bearer(jwt), body: {} }), { users: { [jwt]: googleNew() }, routes: orphanRoutes(claim) });
+    assert.equal(res.status, status, `${why} : ${res.status}`);
+    assert.deepEqual(body, expect, why);
+    assert.ok(!deleted(calls), `${why} : compte supprimé`);
+  }
+});
+
+Deno.test('coach-web-orphan : compte ancien, e-mail, deux identités, sans session_id ou jeton d\'un autre compte → base jamais consultée', async () => {
+  const old = fakeUser();
+  const two = googleNew();
+  two.identities.push({ ...two.identities[0], id: 'faux-sub-apple', identity_id: 'faux-sub-apple', provider: 'apple' });
+  const gOld = googleNew();
+  gOld.created_at = new Date(Date.now() - 11 * 60_000).toISOString();
+  const cases: [string, Record<string, unknown>, Record<string, unknown>][] = [
+    ['compte e-mail de deux jours', old, {}],
+    ['Google et Apple', two, {}],
+    ['Google créé il y a 11 minutes', gOld, {}],
+    ['sans session_id', googleNew(), { session_id: undefined }],
+    ['session_id illisible', googleNew(), { session_id: 'pas-un-uuid' }],
+    ['jeton d\'un autre compte', googleNew(), { sub: '00000000-0000-4000-8000-000000000002' }],
+  ];
+  for (const [why, user, extra] of cases) {
+    const jwt = orphanJwt(extra);
+    const { res, body, calls } = await call(coachWebOrphan, request('POST', { headers: bearer(jwt), body: {} }), { users: { [jwt]: user }, routes: orphanRoutes(() => jsonResponse({ result: 'orphan', ticket: 7 })) });
+    assert.equal(res.status, 200, why);
+    assert.deepEqual(body, { deleted: false }, why);
+    onlyAuthServer(calls);
+  }
+});
+
+Deno.test('coach-web-orphan : suppression refusée par l\'API → 500 delete, et le ticket du journal est rendu', async () => {
+  const jwt = orphanJwt();
+  const { res, body, calls } = await call(coachWebOrphan, request('POST', { headers: bearer(jwt) }), {
+    users: { [jwt]: googleNew() },
+    routes: {
+      'POST /rest/v1/rpc/coach_web_orphan_claim': () => jsonResponse({ result: 'orphan', ticket: 42 }),
+      [`DELETE /auth/v1/admin/users/${USER_ID}`]: () => jsonResponse({ code: 500, msg: 'panne' }, 500),
+      'POST /rest/v1/rpc/coach_web_orphan_release': () => jsonResponse(true),
+    },
+  });
+  assert.equal(res.status, 500);
+  assert.deepEqual(body, { error: 'delete' });
+  const rel = calls.find((c) => c.path === '/rest/v1/rpc/coach_web_orphan_release');
+  assert.deepEqual(JSON.parse(rel?.body ?? '{}'), { ticket: 42 }, 'ticket rendu');
+  assert.equal(rel?.auth, 'Bearer faux-service-role-de-test');
+});
+
+Deno.test('coach-web-orphan : suppression réussie → ticket gardé (jamais rendu)', async () => {
+  const jwt = orphanJwt();
+  const { calls } = await call(coachWebOrphan, request('POST', { headers: bearer(jwt) }), {
+    users: { [jwt]: googleNew() }, routes: orphanRoutes(() => jsonResponse({ result: 'orphan', ticket: 42 })),
+  });
+  assert.ok(!calls.some((c) => c.path === '/rest/v1/rpc/coach_web_orphan_release'));
 });

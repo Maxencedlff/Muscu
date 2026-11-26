@@ -101,7 +101,8 @@ function downloadBlob(blob, fname) {
 // la plus récente : Date ; Séance ; Exercice ; Série ; Kg ; Reps ; RIR ; Note. Pour un tableur (Excel, Numbers,
 // Google Sheets), pas une sauvegarde : il ne se réimporte pas (l'export JSON, lui, si). Format français d'Excel :
 // point-virgule, virgule décimale, BOM UTF-8 (sans lui, Excel lit « SÃ©ance »). Charges en kg, comme elles sont
-// stockées. Séries en durée : « 45 s » ; cardio : « 30 min · 5 km » dans la colonne Reps. Échauffement : « É ».
+// stockées. Séries en durée : « 45 s » ; cardio : « 30 min · 5 km » dans la colonne Reps. Échauffement : « É » ; bloc de
+// pré-fatigue (js/data/blocks.js) : « Pré-fatigue 1 », « Pré-fatigue 2 ».
 // Texte de la personne (nom, note) : une cellule qui commence par = + - @ serait lue comme une formule par le
 // tableur (injection CSV, OWASP) : elle est précédée d'une apostrophe.
 const CSV_HEADER = ['Date', 'Séance', 'Exercice', 'Série', 'Kg', 'Reps', 'RIR', 'Note'];
@@ -124,10 +125,11 @@ function historyCsv(d = data) {
     for (const ex of h.exercises || []) {
       const m = measureOf(ex);
       const reps = st => (m === 'time' ? `${st.reps} s` : m === 'cardio' ? `${st.reps} min${st.dist ? ` · ${csvNum(st.dist)} km` : ''}` : st.reps);
-      let n = 0, exNote = ex.note || '';
+      let n = 0, pf = 0, exNote = ex.note || '';
+      const prefat = blockRole(ex) === 'prefat';
       for (const st of ex.sets || []) {
         const warm = isWarmupSet(st);
-        const no = warm ? 'É' : String(++n);
+        const no = prefat && warm ? `${BLOCK_ROLES.prefat} ${++pf}` : warm ? 'É' : String(++n);
         const note = [sessionNote, exNote, st.note || ''].filter(Boolean).join(' · ');
         sessionNote = ''; exNote = '';   // une fois, sur la première ligne de la séance ou de l'exercice
         rows.push([date, label, ex.name, no, m === 'cardio' ? '' : csvNum(st.weight), reps(st), Number.isInteger(st.rir) ? String(st.rir) : '', note]);

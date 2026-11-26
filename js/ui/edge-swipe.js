@@ -26,8 +26,9 @@ function isStandalone() {
 
   document.addEventListener('touchstart', ev => {
     if (!isStandalone() || ev.touches.length !== 1) return;
-    const x = ev.touches[0].clientX;
-    if (x >= 24 || nav.stacks[nav.tab].length < 2) return;
+    // Bord gauche du contenu : celui de l'écran, ou à droite de la barre latérale de l'iPad (seuil --side-w + 24)
+    const x = ev.touches[0].clientX, edge = sideBarRight();
+    if (x < edge || x >= edge + 24 || nav.stacks[nav.tab].length < 2) return;
     if (currentRoute() === 'session' || document.querySelector('.sheet-root, .ios-dialog, .modal-overlay, .auth, .onb')) return;
     const fe = document.activeElement;
     if (fe && /^(INPUT|TEXTAREA|SELECT)$/.test(fe.tagName)) return;

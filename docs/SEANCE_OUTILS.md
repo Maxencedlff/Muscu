@@ -62,7 +62,7 @@ Retour d'un testeur : 2 séries d'Extension quadriceps en pré-fatigue au début
 dans `js/data/blocks.js`, écrans dans `js/features/blocks-ui.js`.
 - Ajout : Programme › Séance (Bibliothèque : « Déjà dans la séance » reste écrit, le toucher ajoute un bloc), séance
   en cours (feuille d'ajout), séance passée, programme du coach (app et site). Le 2e bloc s'affiche
-  « Extension quadriceps · 2 » (rang en lisant de haut en bas).
+  « Extension quadriceps (2e) » (rang en lisant de haut en bas).
 - Suivi : un seul exercice (même `exId`) ; chaque bloc a un rang stable `occ` qui reprend SA dernière fois
   (« Avant », séries pré-remplies). Records en direct et notés calculés sur toutes les séries de l'exercice : jamais
   deux fois le même record dans une séance.

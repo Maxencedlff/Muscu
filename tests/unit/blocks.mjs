@@ -4,6 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
+import { execFileSync } from 'node:child_process';
 
 export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
   const J = o => JSON.stringify(o);
@@ -23,7 +24,7 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
   };
   const entry = (id, date, exercises) => ({ id, programme: 'u_test', category: 'legs', date, notes: '', exercises });
 
-  test('blocs : un bloc de plus garde son id, pointe le suivi du premier, rang 2, nom « · 2 » en lisant de haut en bas', () => {
+  test('blocs : un bloc de plus garde son id, pointe le suivi du premier, rang 2, nom « (2e) » en lisant de haut en bas', () => {
     setup();
     const xs = run('data.programmes.u_test.exercises.legs');
     assert.equal(xs[0].id, 'ext2');
@@ -31,7 +32,7 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.equal(xs[0].occ, 2);
     assert.equal(run('exIdOf(data.programmes.u_test.exercises.legs[0])'), 'ext1');
     assert.equal(run('blockName(data.programmes.u_test.exercises.legs[0], data.programmes.u_test.exercises.legs)'), 'Extension quadriceps', '1er en haut');
-    assert.equal(run('blockName(data.programmes.u_test.exercises.legs[1], data.programmes.u_test.exercises.legs)'), 'Extension quadriceps · 2');
+    assert.equal(run('blockName(data.programmes.u_test.exercises.legs[1], data.programmes.u_test.exercises.legs)'), 'Extension quadriceps (2e)');
     assert.equal(run('blockName(data.programmes.u_test.exercises.legs[2], data.programmes.u_test.exercises.legs)'), 'Squat barre');
     assert.equal(run('nextOcc(data.programmes.u_test.exercises.legs, { name: "Extension quadriceps" })'), 3);
     assert.equal(run('nextOcc(data.programmes.u_test.exercises.legs, { name: "Presse à cuisses" })'), 1);
@@ -119,12 +120,61 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     ]))}];`);
     assert.equal(run('relinkBlockHistory(data)'), 1);
     const xs = run('data.history[0].exercises');
-    assert.equal(xs[0].exId, 'ext1'); assert.equal(xs[0].occ, 2); assert.equal(xs[0].role, 'prefat');
-    assert.ok(xs[0].sets.every(s => s.warmup === true), 'rôle du bloc : séries marquées');
+    assert.equal(xs[0].exId, 'ext1'); assert.equal(xs[0].occ, 2);
+    assert.ok(!('role' in xs[0]) && xs[0].sets.every(s => !('warmup' in s)), 'ni rôle ni série marquée (audit B1)');
     assert.equal(run('relinkBlockHistory(data)'), 0, 'idempotent');
     // Au chargement : même rattachement
     run(`data.history[0].exercises[0].exId = 'ext2'; delete data.history[0].exercises[0].occ; localStorage.setItem(KEY, JSON.stringify(data));`);
     assert.equal(run('loadData().history[0].exercises[0].exId'), 'ext1');
+  });
+
+  // Audit du 26/11, B1 : le vrai code de l'app d'avant les blocs (commit OLD_SHA, relu par git show) fait « Modifier »
+  // sur une séance à deux blocs. Il ramène les deux blocs au même exercice du programme et n'enregistre que les vraies
+  // séries, sous l'id du bloc de pré-fatigue. Relue ici, la séance garde ses vraies séries de travail et son record.
+  // Sans l'historique git (copie sans .git), la sortie relevée de ce code (OLD_EDIT_OUT) sert à la place.
+  const OLD_SHA = '0ac2e4dc';
+  const OLD_EDIT_OUT = [{ exId: 'ext2', name: 'Extension quadriceps', sets: [S(60, 10), S(60, 9), S(60, 8)] }];
+  const oldEdit = hist => {
+    let show;
+    try { show = f => execFileSync('git', ['show', `${OLD_SHA}:${f}`], { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 << 20, stdio: ['ignore', 'pipe', 'ignore'] }); show('index.html'); }
+    catch { return null; }
+    const scripts = [...show('tests/unit/run.mjs').matchAll(/^ {2}'(js\/[^']+)',$/gm)].map(m => m[1]);
+    class Mem { constructor() { this.m = new Map(); } getItem(k) { return this.m.has(k) ? this.m.get(k) : null; } setItem(k, v) { this.m.set(k, String(v)); }
+      removeItem(k) { this.m.delete(k); } clear() { this.m.clear(); } key(i) { return [...this.m.keys()][i] ?? null; } get length() { return this.m.size; } }
+    const sb = { console: { ...console, warn() {}, error() {} }, AbortController, setTimeout, clearTimeout, SCREENS: new Map(), setInterval: () => 0, atob, btoa, TextEncoder, TextDecoder, Blob,
+      crypto: globalThis.crypto, localStorage: new Mem(), navigator: {}, document: { querySelector: () => null, getElementById: () => null, addEventListener() {} },
+      showToast() {}, announce() {}, makeReorderable() {}, addEventListener() {}, removeEventListener() {} };
+    sb.window = sb;
+    const ctx = vm.createContext(sb);
+    for (const f of [...scripts, 'js/features/add-session.js']) vm.runInContext(show(f), ctx, { filename: `${OLD_SHA}/${f}` });
+    const old = code => vm.runInContext(code, ctx);
+    old(`data = makeDefaultData(); data.schema = SCHEMA; accessGate = async () => true; navigate = () => {}; routeTo = () => {}; render = () => {}; haptic = () => {};
+      data.userProgrammes.u_t = { name: 'T', sessions: { legs: { label: 'J', icon: '', desc: '', color: '#ff9500' } }, order: ['legs'], archived: false };
+      data.programmes.u_t = { exercises: { legs: [
+        { id: 'ext2', exId: 'ext1', occ: 2, role: 'prefat', name: 'Extension quadriceps', sets: 2, lastWeight: '', lastReps: '', pr: null, est1RM: null, target: null, rest: null },
+        { id: 'ext1', name: 'Extension quadriceps', sets: 3, lastWeight: '', lastReps: '', pr: null, est1RM: null, target: null, rest: null }] }, timers: { legs: null }, cooldowns: { legs: 72 } };
+      data.activeProgramme = 'u_t'; data.history = ${JSON.stringify(hist)};`);
+    return old('(async () => { await actionHandlers.get("edit-session")(null, { dataset: { id: "h1" } }); return JSON.stringify(pastSessionExercises()); })()');
+  };
+  test('blocs : l\'app d\'avant fait « Modifier » sur une séance à deux blocs, relue ici sans perdre le record (audit B1)', async () => {
+    const hist = [{ id: 'h1', programme: 'u_t', category: 'legs', date: 1000, notes: '', exercises: [
+      { exId: 'ext1', name: 'Extension quadriceps', occ: 2, role: 'prefat', sets: [W(20, 15), W(20, 15)] },
+      { exId: 'ext1', name: 'Extension quadriceps', sets: [S(60, 10), S(60, 9), S(60, 8)] }] }];
+    const pending = oldEdit(hist);
+    assert.ok(pending || !fs.existsSync(path.join(ROOT, '.git')), `dépôt git présent : le code de ${OLD_SHA} doit être relu (git fetch ?)`);
+    const out = pending ? JSON.parse(await pending) : OLD_EDIT_OUT;
+    sameJSON(out, OLD_EDIT_OUT, 'sortie du vrai code d\'avant');
+    reset();
+    run(`data.userProgrammes.u_t = { name: 'T', sessions: { legs: { label: 'J', icon: '', desc: '', color: '#ff9500' } }, order: ['legs'], archived: false };
+      data.programmes.u_t = { exercises: { legs: [{ id: 'ext2', exId: 'ext1', occ: 2, role: 'prefat', name: 'Extension quadriceps', sets: 2 },
+        { id: 'ext1', name: 'Extension quadriceps', sets: 3 }] }, timers: { legs: null }, cooldowns: { legs: 72 } };
+      data.history = [${J({ ...hist[0], exercises: out })}];
+      localStorage.setItem(KEY, JSON.stringify(data)); data = loadData();`);
+    const x = run('data.history[0].exercises[0]');
+    assert.equal(x.exId, 'ext1', 'suivi commun');
+    assert.ok(!('role' in x) && x.sets.every(st => !('warmup' in st)), `vraies séries gardées en séries de travail ${J(x)}`);
+    sameJSON(run('data.programmes.u_t.exercises.legs[1].pr'), { weight: '60', reps: '10' }, 'record gardé');
+    assert.equal(run(`exVolume(data.history[0].exercises[0])`), 60 * 27);
   });
 
   test('blocs : données d\'une nouvelle version lues par la règle d\'avant (sameEx, champs inconnus gardés)', () => {
@@ -181,6 +231,56 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     const ss = H + row('Bench Press (Barbell)', 0, 80, 8) + row('Bent Over Row (Barbell)', 0, 60, 8) + row('Bench Press (Barbell)', 1, 80, 8) + row('Bent Over Row (Barbell)', 1, 60, 8);
     reset();
     assert.equal(run(`readImportCsv(${J(ss)}).sessions[0].exercises.length`), 2);
+  });
+
+  test('blocs : rôle changé depuis la dernière fois, « Avant » vide (audit M1) ; coach : la pré-fatigue reprend la pré-fatigue', () => {
+    setup();
+    run(`data.history = [${J(entry('h1', 1000, [{ exId: 'ext1', name: 'Extension quadriceps', occ: 2, sets: [S(55, 10), S(55, 9)] }]))}];`);
+    // Bloc 2 noté normal la dernière fois, pré-fatigue aujourd'hui : rien de la dernière fois dans ses cases
+    sameJSON(run('buildSets("u_test", "legs", data.programmes.u_test.exercises.legs[0], 2).map(s => s.prev)'), [null, null]);
+    run('delete data.programmes.u_test.exercises.legs[0].role');
+    sameJSON(run('buildSets("u_test", "legs", data.programmes.u_test.exercises.legs[0], 2).map(s => s.prev && s.prev.weight)'), ['55', '55']);
+    // Programme du coach dont les deux blocs échangent leur place : chacun reprend le bloc de même rôle
+    reset();
+    const one = { name: 'J', sessions: [{ key: 'legs', label: 'J', color: '#ff9500', exercises: [
+      { name: 'Extension quadriceps', sets: 2, role: 'prefat' }, { name: 'Extension quadriceps', sets: 3 }] }] };
+    const id = run(`importCoachProgramme(data, ${J({ id: 'p1', data: one, sentAt: 1 })}, { user_id: 'c1', username: 'c' })`);
+    const before = run(`data.programmes[${J(id)}].exercises.legs.map(e => [e.id, e.role || null])`);
+    const swapped = { ...one, sessions: [{ ...one.sessions[0], exercises: [...one.sessions[0].exercises].reverse() }] };
+    run(`importCoachProgramme(data, ${J({ id: 'p1', data: swapped, sentAt: 2 })}, { user_id: 'c1', username: 'c' })`);
+    const after = run(`data.programmes[${J(id)}].exercises.legs.map(e => [e.id, e.role || null])`);
+    sameJSON(after, [...before].reverse(), 'mêmes blocs, chacun avec son rôle');
+  });
+
+  test('blocs : coach, bloc repris sans suivi qui n\'est pas le premier de son nom rattaché (mineur 3)', () => {
+    reset();
+    run(`data.userProgrammes.u_cc1_p1 = { name: 'J', sessions: { legs: { label: 'J', icon: '', desc: '', color: '#ff9500' } }, order: ['legs'], archived: false,
+      fromCoach: { coachId: 'c1', name: 'c', sentAt: 1, hash: 'x' } };
+      data.programmes.u_cc1_p1 = { exercises: { legs: [{ id: 'a1', name: 'Extension quadriceps', sets: 3 }, { id: 'b2', name: 'Extension quadriceps', sets: 2 }] }, timers: {}, cooldowns: {} };`);
+    const sent = { name: 'J', sessions: [{ key: 'legs', label: 'J', color: '#ff9500', exercises: [{ name: 'Extension quadriceps', sets: 3 }, { name: 'Extension quadriceps', sets: 2 }] }] };
+    const id = run(`importCoachProgramme(data, ${J({ id: 'p1', data: sent, sentAt: 5 })}, { user_id: 'c1', username: 'c' })`);
+    const xs = run(`data.programmes[${J(id)}].exercises.legs`);
+    assert.equal(xs[1].id, 'b2'); assert.equal(xs[1].exId, xs[0].id); assert.equal(xs[1].occ, 2);
+  });
+
+  test('blocs : relecture du coach, chaque bloc comparé au bloc de même rang (audit M2)', () => {
+    reset();
+    const row = (id, at, a, b) => ({ id, doneAt: at, s: { date: at, programme: 'ppl', category: 'legs', exercises: [
+      { name: 'Extension quadriceps', sets: a }, { name: 'Extension quadriceps', sets: b }] } });
+    const rows = [row('r1', 1, [S(20, 15)], [S(50, 10)]), row('r2', 2, [S(22, 15)], [S(50, 12)])];
+    const rv = run(`sessionReview(${J(rows[1])}, ${J(rows)})`);
+    sameJSON(rv.exercises.map(e => e.prev?.ex.sets[0].weight), ['20', '50']);
+  });
+
+  test('blocs : bilan, un seul « Record 1RM est. » pour l\'exercice (mineur 1) ; export CSV avec la pré-fatigue (mineur 7)', () => {
+    setup();
+    run(`data.history = [${J(entry('h1', 1000, [{ exId: 'ext1', name: 'Extension quadriceps', sets: [S(50, 5)] }]))}];`);
+    const e = entry('h2', 2000, [{ exId: 'ext1', name: 'Extension quadriceps', sets: [S(45, 10)] }, { exId: 'ext1', name: 'Extension quadriceps', occ: 2, sets: [S(44, 12)] }]);
+    const sm = run(`(() => { const e = ${J(e)}; e.records = sessionRecords(e, data.history); data.history.unshift(e); return buildSummary(e); })()`);
+    assert.equal(sm.records.filter(r => r.label === 'Record 1RM est.').length, 1, J(sm.records));
+    run(`data.history = [${J(entry('h3', Date.UTC(2026, 10, 2, 17), [{ exId: 'ext1', name: 'Extension quadriceps', occ: 2, role: 'prefat', sets: [W(20, 15), W(20, 14)] }, { exId: 'ext1', name: 'Extension quadriceps', sets: [S(60, 10)] }]))}];`);
+    const lines = run('historyCsv()').slice(1).trimEnd().split('\r\n').slice(1).map(l => l.split(';')[3]);
+    sameJSON(lines, ['Pré-fatigue 1', 'Pré-fatigue 2', '1']);
   });
 
   test('blocs : dernière fois vue par le coach, le bloc de travail et pas la pré-fatigue', () => {

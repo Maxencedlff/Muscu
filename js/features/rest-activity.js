@@ -34,7 +34,7 @@ function restActivityNext(session, cur) {
   const kind = loadKind(ex);
   const load = !reps ? (cur.label && w ? `${w} ${unitLbl()}` : '') : m !== 'reps' || kind !== 'charge' ? measureSetTxt(s, m, kind) : w ? `${w} ${unitLbl()} × ${reps}` : `${reps} reps`;
   // Numéro affiché, échauffements à part : un échauffement se nomme et annonce la série de travail qui le suit
-  // Bloc du même exercice : « Extension quadriceps · 2 » ; bloc de pré-fatigue : « · Pré-fatigue », ses séries comptées
+  // Bloc du même exercice : « Extension quadriceps (2e) » ; bloc de pré-fatigue : « · Pré-fatigue », ses séries comptées
   // comme des séries (js/data/blocks.js). Texte seulement : la Live Activity et la montre l'affichent tel quel
   const label = blockName(ex, session.exercises), prefat = blockRole(ex) === 'prefat';
   const warm = !cur.label && warmLook(ex, s), no = blockSetNo(ex, cur.si);

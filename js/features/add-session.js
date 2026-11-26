@@ -218,7 +218,7 @@ function addSessionInputsValid(dateEl) {
   return true;
 }
 
-// Titre d'un bloc de la séance passée : « Extension quadriceps · 2 », rôle en clair (« · Pré-fatigue », js/data/blocks.js)
+// Titre d'un bloc de la séance passée : « Extension quadriceps (2e) », rôle en clair (« · Pré-fatigue », js/data/blocks.js)
 function addBlockTitle(ex, xs) {
   return `${blockName(ex, xs)}${blockRole(ex) ? ` · ${blockRoleLabel(ex)}` : ''}`;
 }
