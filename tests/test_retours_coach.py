@@ -39,6 +39,11 @@ navigator.share = async o => {
   if (window.__shareFail) { const e = new Error('refusé'); e.name = window.__shareFail; throw e; }
   window.__shared.push(o.text);
 };
+// Coquille iOS simulée (tests/fake_account.py) : le module Share de Capacitor garde le texte partagé
+if (window.Capacitor) {
+  const base = window.Capacitor;
+  window.Capacitor = { ...base, registerPlugin: n => (n === 'Share' ? { share: async o => { window.__shared.push(o.text); return {}; } } : base.registerPlugin(n)) };
+}
 try { Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async t => { window.__copied.push(t); } } }); } catch {}
 """
 
@@ -56,8 +61,6 @@ def open_app(page, theme, checkins=True):
     page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
     seed(page, theme, ppl_v2_today_json(now_ms=NOW), extra={'ppl_welcome_seen': '1'})
     settle(page)
-    # Coquille iOS simulée : la feuille de partage d'iOS (Native.shareText) garde le texte partagé
-    page.evaluate("Native.shareText = async t => { window.__shared.push(t); return 'shared'; }")
 
 
 def signin(page, username):
@@ -116,6 +119,15 @@ def small_targets(page, sel):
     return page.evaluate("""s => [...document.querySelectorAll(s)].filter(e => e.offsetParent && !e.disabled)
         .filter(e => { const r = e.getBoundingClientRect(); return r.width < 44 || r.height < 44; })
         .map(e => (e.getAttribute('aria-label') || e.textContent).trim().slice(0, 30))""", sel)
+
+
+def toast_has(page, text):
+    """Un toast qui dit `text` est apparu (attendu 5 s : il disparaît ensuite seul)."""
+    try:
+        page.wait_for_selector(f'.toast:has-text("{text}")', timeout=5000)
+        return True
+    except Exception:
+        return False
 
 
 def fill_dialog(page, text):
@@ -232,8 +244,9 @@ def t_envoyer_partager(bench, eng, dev, theme):
         # Navigateur (hors app) dont la feuille est refusée (geste expiré) : copié, et on le dit
         page.evaluate("Native.isNative = false; window.__shareFail = 'NotAllowedError'")
         page.click('[data-action="share-programme"]')
+        seen = toast_has(page, 'Copié')
         settle(page)
-        R.check(page.evaluate('window.__copied.length') == 1 and 'Copié' in page.inner_text('.toast'), f'{t} partage refusé : copié avec un toast')
+        R.check(page.evaluate('window.__copied.length') == 1 and seen, f'{t} partage refusé : copié avec un toast')
         page.evaluate("Native.isNative = true; window.__shareFail = null")
         # Envoyer à un élève : choix de l'élève, puis Envoyer
         page.click('[data-action="prog-send-student"]')
@@ -318,9 +331,9 @@ def t_fiche(bench, eng, dev, theme):
         # Deuxième envoi du même bilan : pas doublé, et on le dit
         page.click('[data-action="coach-ck-send"]')
         page.wait_for_selector('.ios-dialog__btn:has-text("Express")')
-        tap_dialog(page, 'Express')
+        page.locator('.ios-dialog__btn', has_text='Express').first.click()
+        R.check(toast_has(page, 'déjà ce bilan'), f'{t} bilan : pas de doublon')
         settle(page)
-        R.check('déjà ce bilan' in page.inner_text('.toast'), f'{t} bilan : pas de doublon')
         shot(page, LOT, f'08-bilan-envoye-{t}')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 

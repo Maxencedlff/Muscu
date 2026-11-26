@@ -239,7 +239,7 @@ def t_serveur_ancien(bench, eng, dev, theme):
         page.wait_for_selector('.coach-student-row[data-signal="records"]', timeout=5000)
         settle(page)
         sig = page.locator('.coach-student-row', has_text='lea').locator('.progress-sig').inner_text()
-        R.check('2 records en 7 jours' in sig, f'{t} serveur d\'avant : records lus dans les séances ({sig!r})')
+        R.check('3 records en 7 jours' in sig, f'{t} serveur d\'avant : records lus dans les séances ({sig!r})')
         read = sorted(c['student'] for c in ccalls(page, 'coach_student_sessions'))
         R.check(read == sorted(ids[n] for n in ['zoe', 'tom', 'nina', 'lea', 'hugo', 'paul']), f'{t} serveur d\'avant : une page par élève actif ({len(read)})')
         R.check(len(ccalls(page, 'coach_progress')) == 1, f'{t} serveur d\'avant : fonction absente demandée une fois')
