@@ -129,7 +129,7 @@ def t_parcours(bench, eng, dev, theme):
         settle(page)
         # Visite de l'accueil juste après (tests/test_tuto.py) : « Passer »
         page.wait_for_selector('.tour .tour__head', timeout=8000)
-        R.check(page.locator('.tour__count').inner_text() == 'Étape 1 sur 4', f'{t} Commencer : visite de l\'accueil')
+        R.check(page.locator('.tour__count').inner_text() == 'Étape 1 sur 7', f'{t} Commencer : visite de l\'accueil')
         tap(page, '.tour [data-action="tour-skip"]')
         got = page.evaluate('[data.activeProgramme, data.exEquip, data.weeklyGoal, data.onboarded]')
         R.check(got == ['maison_halteres', 'halteres', 4, True], f'{t} Commencer : programme, matériel, objectif {got}')
