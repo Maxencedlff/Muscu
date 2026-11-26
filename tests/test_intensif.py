@@ -98,7 +98,7 @@ def t_seance(bench, eng, dev, theme):
         settle(page)   # défilement doux terminé
         pos = page.evaluate("""(() => { const b = document.querySelector('[data-action="sess-undo"]'); if (!b) return null;
             const r = b.getBoundingClientRect(), bar = document.querySelector('#app .navbar').getBoundingClientRect().bottom;
-            return { place: b.closest('.session-set--sub[data-k="0"]') ? 'ligne' : b.closest('.ex-undo')?.nextElementSibling?.matches('.ex-card--collapsed[data-ei="0"]') ? 'carte repliée' : '?',
+            return { place: b.closest('.ex-undo--set')?.previousElementSibling?.matches('.session-set--sub[data-k="0"]') ? 'ligne' : b.closest('.ex-undo')?.nextElementSibling?.matches('.ex-card--collapsed[data-ei="0"]') || b.closest('.ex-card--collapsed[data-ei="0"] .ex-fold-rir') ? 'carte repliée' : '?',
                      seen: r.top >= bar - 1 && r.bottom <= innerHeight - (document.querySelector('.rest-mini')?.getBoundingClientRect().height || 0) }; })()""")
         R.check(pos and pos['place'] != '?' and pos['seen'], f'{t} « Annuler » du drop dans sa ligne (ou au-dessus de la carte refermée), visible ({pos})')
         skip_rest(page)
@@ -117,10 +117,10 @@ def t_seance(bench, eng, dev, theme):
 
         # ── Numéro d'une série à faire : 2e toucher = rest-pause sur la Presse (même charge)
         page.click('[data-action="tech-set"][data-ei="1"][data-si="1"]'); settle(page)
-        R.check(page.locator('.ios-dialog__btn').all_inner_texts()[:5] == ['Drop set', 'Rest-pause', 'Cluster', 'Top set', 'Back-off'], f'{t} feuille : 5 techniques et Annuler')
-        # Panel du 06/11 : « Top set et back-off la marquent » ne disait rien ; chaque technique expliquée en clair
-        msg = page.inner_text('.ios-dialog__msg')
-        R.check('Top set : la série la plus lourde' in msg and 'Back-off : une série allégée ensuite' in msg and 'la marquent' not in msg, f'{t} feuille : explication en clair ({msg!r})')
+        R.check([x.split('\n')[0] for x in page.locator('.ios-dialog__btn').all_inner_texts()[:5]] == ['Drop set', 'Rest-pause', 'Cluster', 'Top set', 'Back-off'], f'{t} feuille : 5 techniques et Annuler')
+        # Panel du 06/11 : chaque technique expliquée en clair ; 26/11 (16 juges) : une phrase sous chaque choix, plus de paragraphe
+        subs = page.locator('.ios-dialog__btn-sub').all_inner_texts()
+        R.check(len(subs) == 5 and 'La série la plus lourde de l\'exercice' in subs and page.locator('.ios-dialog__msg').count() == 0, f'{t} feuille : une phrase sous chaque choix ({subs})')
         tap_dialog(page, 'Rest-pause')
         w = page.evaluate("activeSession.exercises[1].sets[1].weight")
         R.check(page.locator('[data-action="sub-weight"][data-ei="1"][data-si="1"][data-k="0"]').input_value() == page.evaluate(f"fmtW('{w}', {{ plain: true }})"), f'{t} rest-pause : même charge que la série')
@@ -312,7 +312,7 @@ def t_seance_series(bench, eng, dev, theme):
         tap_dialog(page, "Plus d'options"); settle(page)
         tap_dialog(page, "Technique d'intensification"); settle(page)
         tap_dialog(page, 'Toutes les séries')
-        labels = page.locator('.ios-dialog__btn').all_inner_texts()
+        labels = [x.split('\n')[0] for x in page.locator('.ios-dialog__btn').all_inner_texts()]
         R.check(labels[:3] == ['Drop set', 'Rest-pause', 'Cluster'] and 'Top set' not in labels, f'{t} toutes : drop set, rest-pause, cluster ({labels})')
         tap_dialog(page, 'Rest-pause')
         R.check(page.evaluate("activeSession.exercises[1].sets.every(s => s.tech === 'rp' && s.sub.length === 1)"), f'{t} toutes les séries en rest-pause')

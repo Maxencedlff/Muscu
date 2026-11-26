@@ -100,7 +100,8 @@ function exUndoBefore(block, xs) {
   const u = sessUndo;
   if (!u) return '';
   // « Annuler » d'une série : dans sa ligne ; si la dernière série referme la carte, la ligne passe au-dessus d'elle
-  if (u.si !== undefined) return u.ex && block.some(i => xs[i] === u.ex) && blockCollapsed(block, xs) ? exUndoHtml(u) : '';
+  // (dans le bloc des reps en réserve sous la carte repliée quand il est là : foldedRirHtml)
+  if (u.si !== undefined) return u.ex && block.some(i => xs[i] === u.ex) && blockCollapsed(block, xs) && !foldedRirShown(block) ? exUndoHtml(u) : '';
   // Série supprimée : à sa place dans la carte d'un exercice seul (delUndoRows), au-dessus d'un superset
   if (u.delSi !== undefined && block.length === 1 && !blockCollapsed(block, xs)) return '';
   if (u.ex && block.some(i => xs[i] === u.ex)) return exUndoHtml(u);
@@ -449,13 +450,20 @@ function renderCollapsedExercise(ex, ei, records, rir = '') {
 // superset referme sa carte, et le sélecteur disparaissait avec elle (il fallait déplier la carte). Tant que cette
 // série est la dernière validée de la séance, ses reps en réserve se notent sous le résumé replié, sans rien
 // bloquer ; il s'en va à la série suivante validée ailleurs (activeSession.lastDone change).
-function foldedRirHtml(block) {
+// La ligne « … validé · Annuler » de cette dernière série passe dans le même bloc, au-dessus du sélecteur : posée au-dessus de
+// la carte, elle sortait de l'écran sur iPhone SE, la carte repliée et son sélecteur restant sous la barre pendant le repos
+function foldedRirShown(block) {
   const ld = activeSession.lastDone;
-  if (!ld || !block.includes(ld.ei) || !rirShown()) return '';
+  if (!ld || !block.includes(ld.ei) || !rirShown()) return false;
   const ex = activeSession.exercises[ld.ei], s = ex?.sets[ld.si];
-  if (!s?.done || isWarmupSet(s) || measureOf(ex) !== 'reps' || (TECHS[setTech(s)]?.sub && !techSubsDone(s)) || (hasSide2(s) && !setComplete(s))) return '';
-  const tags = block.length > 1 ? ssTags(activeSession.exercises) : null;
-  return `<div class="ex-fold-rir">${rirPickerHtml(ld.ei, ld.si, s, ex, tags ? tags[ld.ei] : '')}</div>`;
+  return !(!s?.done || isWarmupSet(s) || measureOf(ex) !== 'reps' || (TECHS[setTech(s)]?.sub && !techSubsDone(s)) || (hasSide2(s) && !setComplete(s)));
+}
+function foldedRirHtml(block) {
+  if (!foldedRirShown(block)) return '';
+  const ld = activeSession.lastDone, xs = activeSession.exercises, ex = xs[ld.ei], s = ex.sets[ld.si];
+  const tags = block.length > 1 ? ssTags(xs) : null;
+  const u = sessUndo?.si !== undefined && block.some(i => xs[i] === sessUndo.ex) ? sessUndo : null;
+  return `<div class="ex-fold-rir">${setUndoHtml(u)}${rirPickerHtml(ld.ei, ld.si, s, ex, tags ? tags[ld.ei] : '')}</div>`;
 }
 
 // Volume comparé au même nombre de séries que la dernière fois : jamais rouge en cours de séance.
@@ -513,7 +521,8 @@ function exFirstTimeHtml(ex, cls = '') {
   if (measureOf(ex) !== 'reps' || loadKind(ex) !== 'charge' || FIRST_TIME_NO_LOAD.has(equipmentOf(ex.name))) return '';
   if (ex.sets.some(s => s.done || s.prev || hasLoad(s.weight))) return '';
   // Le nombre de la case Reps (12 par défaut) : la consigne disait « 15 fois » face à une case à 12 (retour d'Inès du 26/11)
-  const reps = parseInt(workSets(ex.sets).find(s => !s.done)?.reps) || 12;
+  const s0 = workSets(ex.sets).find(s => !s.done);
+  const reps = parseInt(s0?.reps) || parseInt(s0 && setGoal(ex, s0)) || 12;   // case vide : son nombre en gris (setGoal)
   return `<div class="ex-first ${cls}">Première fois : prends une charge que tu pourrais soulever ${reps + 3} fois, et fais-en ${reps}</div>`;
 }
 

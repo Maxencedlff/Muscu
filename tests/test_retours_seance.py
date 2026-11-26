@@ -80,7 +80,8 @@ def t_premiere_fois(bench, eng, dev, theme):
         seed(page, theme, json.dumps(d, ensure_ascii=False))
         start(page, 'push')
         first = norm(page.locator('.ex-card[data-ei="0"] .ex-first').text_content())
-        reps = page.locator('[data-action="set-reps"][data-ei="0"][data-si="0"]').input_value()
+        box = page.locator('[data-action="set-reps"][data-ei="0"][data-si="0"]')
+        reps = box.input_value() or box.get_attribute('placeholder')
         R.check(first == f'Première fois : prends une charge que tu pourrais soulever {int(reps) + 3} fois, et fais-en {reps}',
                 f'{t} la consigne dit le nombre de la case ({first!r}, case {reps})')
         R.check(page.locator('.ex-card[data-ei="0"] .ex-beat').count() == 0, f'{t} pas d\'objectif à battre')

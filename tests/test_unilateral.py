@@ -114,7 +114,7 @@ def t_drop_deux_bras(bench, eng, dev, theme):
         R.check(cur is True and page.locator('[aria-current="step"]').count() == 1, f'{t} bras droit seul en cours')
         # Compteur : la série 3 n'est pas finie tant que le bras droit et son drop attendent (panel du 20/11)
         cnt = page.locator('.ex-card[data-ei="0"] .ex-card__count [aria-hidden="true"]').inner_text()
-        R.check(cnt == '2/3' and page.locator('#session-count').inner_text().startswith('2/'), f'{t} compteur à 2/3 tant que le bras droit attend ({cnt})')
+        R.check(cnt == '2/3' and page.locator('#session-count').text_content().startswith('2/'), f'{t} compteur à 2/3 tant que le bras droit attend ({cnt})')
         R.check(page.locator(SIDE2 % 'weight').input_value() == '14' and page.locator(SIDE2 % 'reps').input_value() == '9',
                 f'{t} bras droit pré-rempli 14 × 9 ({page.locator(SIDE2 % "weight").input_value()} × {page.locator(SIDE2 % "reps").input_value()})')
         settle(page)
