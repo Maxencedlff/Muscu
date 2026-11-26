@@ -2447,6 +2447,8 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 (await import('./tour.mjs')).default({ test, run, app, assert, ROOT });
 // ── Mode coach grand écran sur iPad, 25/11 (tests dans coach-ipad.mjs, contextes à part) ──
 (await import('./coach-ipad.mjs')).default({ test, assert, ROOT });
+// ── Mise en page tablette, 26/11 (tests dans tablet.mjs, contextes à part) ──
+(await import('./tablet.mjs')).default({ test, assert, ROOT });
 
 // ── Exécution ───────────────────────────────────────────────
 

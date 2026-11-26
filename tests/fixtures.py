@@ -125,21 +125,52 @@ RECENT_PROFILES = {
     'iPhone Duo grand paysage': _ios(1133, 744, (24, 0, 20, 0), dpr=2),
 }
 RECENT_DEVICES = [('webkit', n) for n in RECENT_PROFILES]
-ALL_DEVICES = DEVICES + RECENT_DEVICES
+
+# ─────────────────────────────────────────────────────────────
+#  iPad (app en format iPad depuis la build 156 : TARGETED_DEVICE_FAMILY 1,2 ; mise en page : docs/IPAD.md)
+#
+# La vue web de l'app est en mode « mobile » (MainViewController : preferredContentMode = .mobile), donc un user agent
+# d'iPad (sans « Version/ » ni « Safari », comme WKWebView). Tailles en points, @2x, marges 24 haut / 20 bas (iPad sans
+# bouton principal) ; Split View et Slide Over : la fenêtre de l'app, à la hauteur de l'écran en paysage.
+#   iPad 13 pouces : 1024 × 1366 ; iPad mini : 744 × 1133 ; Split View à moitié sur un 13 pouces : 678 ; aux deux tiers
+#   d'un 11 pouces en portrait / Split View étroit : 507.
+# ─────────────────────────────────────────────────────────────
+IPAD_UA = 'Mozilla/5.0 (iPad; CPU OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148'
+
+
+def _ipad(w, h, safe=(24, 0, 20, 0)):
+    prof, _ = _ios(w, h, safe, dpr=2)
+    return {**prof, 'user_agent': IPAD_UA}, safe
+
+
+IPAD_PROFILES = {
+    'iPad 13 portrait': _ipad(1024, 1366),
+    'iPad 13 paysage': _ipad(1366, 1024),
+    'iPad mini': _ipad(744, 1133),
+    'iPad Split View 678': _ipad(678, 1024),
+    'iPad Split View 507': _ipad(507, 1024),
+}
+IPAD_DEVICES = [('webkit', n) for n in IPAD_PROFILES]
+ALL_DEVICES = DEVICES + RECENT_DEVICES + IPAD_DEVICES
 
 
 def device_profile(p, name):
     """Profil d'un appareil : les nôtres d'abord (même nom qu'un profil Safari de Playwright), sinon p.devices."""
+    if name in IPAD_PROFILES:
+        return IPAD_PROFILES[name][0]
     return RECENT_PROFILES[name][0] if name in RECENT_PROFILES else p.devices[name]
 
 
 def safe_insets(name):
-    """Marges de sécurité simulées (haut, droite, bas, gauche) en points ; None hors appareils récents."""
+    """Marges de sécurité simulées (haut, droite, bas, gauche) en points ; None hors appareils récents et iPad."""
+    if name in IPAD_PROFILES:
+        return IPAD_PROFILES[name][1]
     return RECENT_PROFILES[name][1] if name in RECENT_PROFILES else None
 
 
 def selected_devices(env=None):
-    """Appareils choisis par PPL_DEVICES : vide → DEVICES ; « recents » → RECENT_DEVICES ; « tous » → les deux ;
+    """Appareils choisis par PPL_DEVICES : vide → DEVICES ; « recents » → RECENT_DEVICES ; « ipad » → IPAD_DEVICES ;
+    « tous » → DEVICES et RECENT_DEVICES (les iPad à part : leur lot est tests/test_ipad.py) ;
     sinon des noms séparés par des virgules (« recents » permis dans la liste). Un nom inconnu arrête tout."""
     raw = os.environ.get('PPL_DEVICES', '') if env is None else env
     asked = [x.strip() for x in raw.split(',') if x.strip()]
@@ -148,10 +179,11 @@ def selected_devices(env=None):
     known = dict((d, e) for e, d in ALL_DEVICES)
     out = []
     for a in asked:
-        group = RECENT_DEVICES if a == 'recents' else ALL_DEVICES if a == 'tous' else None
+        group = (RECENT_DEVICES if a == 'recents' else IPAD_DEVICES if a == 'ipad'
+                 else DEVICES + RECENT_DEVICES if a == 'tous' else None)
         if group is None:
             if a not in known:
-                raise SystemExit(f'Appareil inconnu : {a} ; connus : recents, tous, {", ".join(known)}')
+                raise SystemExit(f'Appareil inconnu : {a} ; connus : recents, ipad, tous, {", ".join(known)}')
             group = [(known[a], a)]
         out += [x for x in group if x not in out]
     return out

@@ -5,8 +5,9 @@ name: Tests
 #  2. e2e : l'app tourne pour de vrai dans WebKit (iPhone 13) et Chromium (Pixel 7), toute la suite
 #     Playwright en thème sombre, répartie sur 4 machines (e2e 1/4 à 4/4) ;
 #  2 bis. coach-web : l'appli web du coach (coach-web/, docs/COACH_WEB.md) dans Chromium, Firefox et WebKit, à 1440,
-#     1180 et 820 px, sombre et clair, plus sa version construite (dist-coach/) avec le vrai supabase-js, et le mode coach
-#     grand écran de l'app sur iPad (Chromium et WebKit, docs/COACH_IPAD.md) ;
+#     1180 et 820 px, sombre et clair, plus sa version construite (dist-coach/) avec le vrai supabase-js, le mode coach
+#     grand écran de l'app sur iPad (Chromium et WebKit, docs/COACH_IPAD.md) et la mise en page tablette de tous les
+#     écrans de l'app (docs/IPAD.md) ;
 #  3. edge : les 12 fonctions Edge (supabase/functions) compilées par Deno (deno check, dépendances figées
 #     par supabase/functions/deno.lock) et appelées pour de vrai par tests/deno (refus d'entrée, sans réseau) ;
 #  4. deploy : sur main seulement, et seulement si 1, 2 et 3 sont verts, publication de web-public/ sur
@@ -206,6 +207,20 @@ jobs:
           PPL_ENGINES: ${{ matrix.engine }}
           HOME: /root
         run: PPL_SCRATCH="$RUNNER_TEMP/ppl-tests" python -u tests/test_coach_ipad.py
+      # Mise en page tablette de toute l'app (docs/IPAD.md) : iPad 13 pouces en portrait et en paysage, iPad mini, Split View
+      # 678 et 507, sombre et clair, et les iPhone inchangés ; Chromium et WebKit (Firefox n'est pas un moteur d'iPad)
+      - name: Écrans de l'app sur iPad, ${{ matrix.engine }}
+        if: matrix.engine != 'firefox'
+        env:
+          PPL_ENGINES: ${{ matrix.engine }}
+          PPL_DEVICES: ipad
+          PPL_JOBS: '4'
+          PPL_URL: http://localhost:8733/
+          HOME: /root
+        run: |
+          python -m http.server 8733 > /tmp/serveur-ipad.log 2>&1 &
+          for i in $(seq 1 20); do python -c "import urllib.request as u; u.urlopen('http://localhost:8733/')" 2>/dev/null && break; sleep 0.5; done
+          cd tests && PPL_SCRATCH="$RUNNER_TEMP/ppl-tests" python -u run_all.py ipad
       # OpenCV relit le QR code affiché (version figée, seulement pour ce test)
       - name: "Photos de bilan sur ordinateur (vague 5, relier un ordinateur, photos, app iPhone simulée), ${{ matrix.engine }}"
         env:
