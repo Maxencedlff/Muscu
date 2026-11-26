@@ -146,7 +146,7 @@ const GUIDE_SECTIONS = [
         steps: [
           'Touche le numéro d\'une série (un point dessous l\'indique). À la barre, au tempo ou en superset : ··· › [Technique d\'intensification…].',
           'Drop set (charge baissée, sans repos), rest-pause et cluster (même charge après 15 à 20 s) ajoutent une ligne sous la série. Elle se valide comme une série.',
-          'Top set (ta série la plus lourde) et back-off (une série allégée après) marquent la série, sans ligne en plus.',
+          'Lourde (ta série la plus lourde) et Allégée (une série plus légère après) marquent la série, sans ligne en plus.',
           'Les lignes du dessous comptent dans le volume, jamais dans les records.',
           'Pour la poser à chaque séance : [Technique] dans la fiche de l\'exercice du programme.',
         ],

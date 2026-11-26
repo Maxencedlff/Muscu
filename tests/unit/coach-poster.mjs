@@ -364,10 +364,12 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
 
   test('affiche du coach, style « Avec le bonhomme » : dessin inchangé au pixel près (empreinte de chaque opération, relevée sur main)', () => {
     // Empreinte SHA-256 de toutes les opérations du faux canvas (textes, polices, couleurs, positions, images) : relevée
-    // avec coach-poster-art.js de main (7c92d663), avant l'ajout du style « Photo seule »
+    // avec coach-poster-art.js de main (7c92d663), avant l'ajout du style « Photo seule ». Relevée de nouveau le 26/11/2026
+    // (branche retours-coach) : « coach » en blanc au lieu du rouge des muscles, consigne « Entre mon code… » agrandie
+    // (juges du 26/11) ; rien d'autre ne change
     const GOLD = {
-      'story photo': 'af6654cacf78ddbe', 'story homme': '491fed23567fd6a5', 'story nom long': 'f8ad1a0e2c18c215', 'story coach seul': '833cbbb62c6c0a39', 'story sans photo': 'e428f57bdd5365c9',
-      'square photo': '8359c37942027cec', 'square homme': 'd3f32a65bb0f1fee', 'square nom long': '65f9bc165e0d58ef', 'square coach seul': 'e20d42489f3714ca', 'square sans photo': '1a6c2cdb76ba2f08',
+      'story photo': '7f07a48782b15770', 'story homme': '73efc92b25d58b82', 'story nom long': '870b5b3c73d398a0', 'story coach seul': 'e1fd3ffe85b97a08', 'story sans photo': '337c8d3d6447aff9',
+      'square photo': 'b422fc59dda1fd6b', 'square homme': '08347f3dbe3785a1', 'square nom long': '962193e7de4a05fe', 'square coach seul': 'c3ba2343c58b40d2', 'square sans photo': '6297b2a886be0f65',
     };
     const got = {};
     for (const format of ['story', 'square']) for (const [n, o, a] of CASES) {

@@ -367,7 +367,7 @@ function renderCphCoach(uid) {
   const broken = cphView.broken ? `<p class="pv-summary">${plural(cphView.broken, 'photo ne s\'ouvre pas', 'photos ne s\'ouvrent pas')} sur cet iPhone.</p>` : '';
   return view(`
         <h1 class="scr-title" id="cphTitle" tabindex="-1">Photos de bilan</h1>
-        <p class="scr-sub">${who} · ${plural(list.length, 'photo', 'photos')} · se referment après une minute sans activité</p>
+        <p class="scr-sub">${who} · ${plural(list.length, 'photo', 'photos')} · verrouillées après 1 min sans action</p>
         ${broken}
         ${compare}
         <div class="group-title">Par date</div>
@@ -454,7 +454,7 @@ onCphLock(reason => {
   document.querySelectorAll('.sheet-root').forEach(el => { if (el.querySelector('.cph-big')) { el._close?.('locked'); el.remove(); } });
   cphRevoke();
   if (reason === 'leave' || currentView() !== 'coach-photos') return;
-  cphView = { ...cphView, phase: 'locked', msg: reason === 'idle' ? 'Refermées après une minute sans activité.' : '' };
+  cphView = { ...cphView, phase: 'locked', msg: reason === 'idle' ? 'Verrouillées après 1 min sans action.' : '' };
   cphPaint();
 });
 // Coffre de l'élève refermé : la feuille d'envoi (qui montre ses photos) se ferme avec lui

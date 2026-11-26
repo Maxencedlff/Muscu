@@ -23,8 +23,10 @@ const TECHS = {
   // « Reprise » garde un seul sens, la phase du coach. Hint : la pause, en entier à côté du nom (« Rest-pause 15 s »)
   rp:      { label: 'Rest-pause', short: 'RP', sub: true,  subName: 'mini-série', fem: true, ratio: 1,  pause: 15, hint: '15 s' },
   cluster: { label: 'Cluster',    short: 'C',  sub: true,  subName: 'bloc',   ratio: 1,  pause: 20, hint: '20 s' },
-  top:     { label: 'Top set',    short: 'T',  sub: false, hint: 'la plus lourde' },
-  backoff: { label: 'Back-off',   short: 'B',  sub: false, hint: 'allégée' },
+  // En français, les mots de l'écran d'envoi du coach (« 1re lourde, puis allégées ») : plus de « Top set » ni de
+  // « Back-off » (juges du 26/11 : un même réglage nommé de deux façons, en anglais)
+  top:     { label: 'Lourde',     short: 'L',  sub: false, hint: '' },
+  backoff: { label: 'Allégée',    short: 'A',  sub: false, hint: 'après la lourde' },
 };
 const TECH_IDS = Object.keys(TECHS);
 const TECH_SUB_MAX = 6;   // sous-séries d'une série

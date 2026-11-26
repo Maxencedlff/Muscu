@@ -705,10 +705,12 @@ function latestSessionDate(progKey, cat, d = data) {
 // Délais de récupération du programme actif : avancés jusqu'à la dernière séance de l'historique.
 // Une séance plus ancienne ne recule jamais un délai ; « Passer le délai » est gardé à part (skipped).
 function syncTimersFromHistory() {
-  const p = prog();
-  sessionKeys().forEach(cat => {
-    const latest = latestSessionDate(data.activeProgramme, cat);
-    if (latest !== null && latest > (p.timers[cat] || 0)) p.timers[cat] = latest;
+  onActiveProgramme(() => {
+    const p = prog();
+    sessionKeys().forEach(cat => {
+      const latest = latestSessionDate(data.activeProgramme, cat);
+      if (latest !== null && latest > (p.timers[cat] || 0)) p.timers[cat] = latest;
+    });
   });
   save();
 }

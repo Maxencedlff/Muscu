@@ -8,7 +8,7 @@
 //      1. inactif   (orange) : pas de séance depuis 8 jours du calendrier ou plus ;
 //      2. en baisse (orange) : cette semaine, au moins 2 séances de moins que d'habitude (médiane des 3
 //         semaines d'avant, au moins 2 par semaine), jamais pendant une décharge ou une reprise ;
-//      3. records   (vert)   : au moins un record noté cette semaine (un par exercice) ;
+//      3. records   (vert)   : au moins un record noté cette semaine (tous comptés, comme les cartes des séances) ;
 //      4. stable    (gris)   : aucun record depuis 2 semaines ou plus, sur des séances que l'app sait juger,
 //         jamais pendant une phase où l'on ne cherche pas de record (sèche, mini cut, maintien, décharge,
 //         reprise) ;
@@ -115,18 +115,16 @@ function progressPhaseThisWeek(phases, goals, now) {
     return goals.includes(p.goal) && s !== null && s <= today && s + p.weeks * 7 - 1 >= today - 6;
   });
 }
-// Records de cette semaine, un par exercice (le plus marquant, betterNoted), le plus marquant d'abord :
-// [{ ex, r, at }]
+// Records de cette semaine, tous, le plus marquant d'abord : [{ ex, r, at }]. Tous et non plus un par exercice : le
+// nombre de la liste (« 2 records en 7 jours ») est la somme des records écrits sur les cartes de ses séances (retours de
+// Sophie du 26/11 : « 1 record en 7 jours » dans la liste, deux séances à « 1 record » dans la fiche)
 function progressWeekRecords(sessions, now) {
-  const best = new Map();
+  const out = [];
   sessions.forEach(s => {
     if (!s.records?.length || daysAgo(s.at, now) > 6) return;
-    s.records.forEach(r => {
-      const k = normName(r.ex), cur = best.get(k);
-      if (!cur || betterNoted(r, cur.r)) best.set(k, { ex: r.ex, r, at: s.at });
-    });
+    s.records.forEach(r => out.push({ ex: r.ex, r, at: s.at }));
   });
-  return [...best.values()].sort((a, b) => (NOTED_RANK[b.r.kind] - NOTED_RANK[a.r.kind]) || (b.at - a.at));
+  return out.sort((a, b) => (NOTED_RANK[b.r.kind] - NOTED_RANK[a.r.kind]) || (b.at - a.at));
 }
 
 // ── Logique pure : le signal ────────────────────────────────
@@ -208,15 +206,16 @@ function sortStudentsByProgress(students, prOf, unreadOf = () => 0) {
   return rows;
 }
 
-// Résumé de la semaine en tête de Mes élèves : records battus (tous élèves), élèves à relancer (orange),
-// nouveautés à lire (séances pas vues et messages non lus). prOf, unreadOf : comme sortStudentsByProgress.
-function teamWeekSummary(students, prOf, unreadOf = () => 0) {
+// Résumé de la semaine en tête de Mes élèves : records battus (tous élèves), élèves à relancer (orange), séances pas
+// encore vues. Les messages non lus n'y sont plus : ils ont leur nombre sur « Messages » (juges iPad du 26/11 : pastille
+// Coach 3, Messages 1 et « 4 nouveautés » sur le même écran). prOf : comme sortStudentsByProgress.
+function teamWeekSummary(students, prOf) {
   let records = 0, warn = 0, fresh = 0;
   (students || []).forEach(st => {
     const pr = prOf(st);
     records += pr.records.length;
     if (pr.tone === 'warn') warn++;
-    fresh += (st.new_sessions || 0) + unreadOf(st);
+    fresh += st.new_sessions || 0;
   });
   return { records, warn, fresh };
 }

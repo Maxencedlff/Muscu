@@ -121,11 +121,11 @@ let watchReady    = false; // démarrage fini (watchBoot) : avant, la séance n'
 
 function currentWatchState() {
   const cur = activeSession ? currentSet() : null;
-  if (!activeSession) {
+  if (!activeSession) return onActiveProgramme(() => {
     const keys = sessionKeys(), cat = nextSessionCat(keys);
     const next = cat ? { title: rawLabel(cat), tint: restActivityTint(sessionMeta(cat).color) } : null;
     return watchState(null, null, { next });
-  }
+  });
   const ex = cur && activeSession.exercises[cur.ei], s = ex?.sets[cur.si];
   const odd = !!s && !s.done && measureOf(ex) === 'reps'
     && !!unusualSetText(ex, { ...s, reps: String(s.reps ?? '').trim() ? s.reps : setGoal(ex, s) });

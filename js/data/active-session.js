@@ -76,5 +76,5 @@ function sessProg() {
     if (freeSessProg?.startedAt !== activeSession.startedAt) freeSessProg = { startedAt: activeSession.startedAt, exercises: {}, timers: {}, cooldowns: {} };
     return freeSessProg;
   }
-  return (activeSession && data.programmes[activeSession.programme]) || prog();
+  return (activeSession && data.programmes[activeSession.programme]) || onActiveProgramme(prog);
 }

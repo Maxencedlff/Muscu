@@ -110,7 +110,7 @@ def t_editeur(bench):
                 settle(page)
                 page.evaluate("switchTab('program', { reset: true }); navigate('diet-plans')")
                 page.wait_for_selector('.diet-plans-view')
-                R.check('Mes diètes' in page.inner_text('.diet-plans-view'), f'{t} coach : « Mes diètes »')
+                R.check('Plans de nutrition' in page.inner_text('.diet-plans-view') and 'Mes diètes' not in page.inner_text('.diet-plans-view'), f'{t} coach : « Plans de nutrition », le même mot que le pratiquant')
                 page.evaluate("navigate(makeRoute('diet-plan', 'd_seche001'))")
                 page.wait_for_selector('[data-action="diet-days-mode"]')
                 settle(page)

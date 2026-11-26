@@ -100,6 +100,8 @@
 .pay-tabs .segmented, .pay-period .segmented { flex: 1; }
 /* Formule en cours : bien lisible (pas grisée), sans être touchable */
 .pay-plan--current:disabled { color: var(--label); box-shadow: inset 0 0 0 1.5px var(--tint); }
+.pay-plan--wanted { box-shadow: inset 0 0 0 2px var(--tint); }   /* palier conseillé, venu du bandeau « au-delà de ton palier » */
+.pay-plans--wanted { margin-bottom: 12px; }
 /* Élève offert par son coach (16/11/2026) : titre sur toute la largeur dans Réglages › Abonnement */
 .pay-cover-cell .cell__title { white-space: normal; text-wrap: pretty; }
 /* Offre arrêtée ou en délai de grâce : lue d'un coup d'œil, sans couleur d'alerte */

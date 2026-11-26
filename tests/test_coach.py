@@ -534,7 +534,7 @@ def t_coach(bench, eng, dev, theme):
         R.check(page.locator('[data-action="coach-open-students"]').count() == 0, f'{t} plus de cellule « Mes élèves » à toucher')
         row = page.locator('.coach-student-row', has_text='lea')
         rt = row.inner_text()
-        R.check('Haut · ton programme · hier' in rt, f'{t} dernière séance « Haut · ton programme · hier » ({rt!r})')
+        R.check('Haut · envoyé par toi · hier' in rt, f'{t} dernière séance « Haut · envoyé par toi · hier » ({rt!r})')
         # Panel du 07/11 (iPhone SE) : « programm / e » coupé en plein mot ; chaque mot tient sur une ligne
         broken = page.evaluate("""[...document.querySelectorAll('.coach-student-row .cell__sub')].flatMap(el => {
             const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT), out = [];
@@ -597,7 +597,7 @@ def t_coach(bench, eng, dev, theme):
         R.check(ccalls(page, 'coach_mark_seen') == [{'student': ids['lea']}], f'{t} coach_mark_seen à l\'ouverture')
         R.check(tab_badge(page) == '', f'{t} séances vues : badge retiré')
         R.check(page.locator('.coach-sess').count() == 30, f'{t} 30 séances par page ({page.locator(".coach-sess").count()})')
-        R.check(page.locator('.coach-sess[data-id="l00"] .coach-tag').inner_text() == 'Ton programme' and page.locator('.coach-sess[data-id="l01"] .coach-tag').count() == 0, f'{t} « Ton programme » sur la bonne séance')
+        R.check(page.locator('.coach-sess[data-id="l00"] .coach-tag').inner_text() == 'Envoyé par toi' and page.locator('.coach-sess[data-id="l01"] .coach-tag').count() == 0, f'{t} « Ton programme » sur la bonne séance')
         # Coach v2 : ses séances en cartes illustrées, comme l'Historique (vignette du groupe travaillé, décorative)
         art = page.locator('.coach-sess[data-id="l02"] .hcell__map .body-map')
         R.check(page.locator('.coach-sess.hcell--card').count() == 30 and art.count() == 1 and art.get_attribute('aria-hidden') == 'true' and art.locator('img, svg, span').count() > 0,
@@ -617,7 +617,7 @@ def t_coach(bench, eng, dev, theme):
         page.click('.coach-sess[data-id="l00"]')
         page.wait_for_selector('.coach-session-view')
         d = page.inner_text('.coach-session-view')
-        R.check('Épaule un peu raide' in d and 'Ton programme' in d and 'Force' in d and '40 kg × 8, 7' in d, f'{t} détail : séries, notes, programme ({d[:160]!r})')
+        R.check('Épaule un peu raide' in d and 'Programme envoyé par toi' in d and 'Force' in d and '40 kg × 8, 7' in d, f'{t} détail : séries, notes, programme ({d[:160]!r})')
         miss = page.locator('.coach-session-view .review-ex--missing')
         R.check('3/11' in d and miss.count() == 1 and 'Pompes' in miss.inner_text() and 'pas fait' in miss.inner_text(), f'{t} séance de mon programme : séries faites sur prévues, exercice non fait grisé')
         R.check(page.locator('.coach-session-view .review-notes').count() == 1 and page.locator('.review-notes--pain').count() == 0, f'{t} notes en haut, sans encadré orange (« raide » n\'est pas un mot de douleur)')
@@ -626,7 +626,7 @@ def t_coach(bench, eng, dev, theme):
         R.check(page.locator('.coach-session-view .social-who').count() == 0 and 'Notes de' not in d,
                 f'{t} nom de l\'élève une seule fois (retour « ‹ lea »), notes titrées « Notes »')
         lbls = page.locator('.coach-session-view .tile__lbl').all_inner_texts()
-        R.check(lbls[:3] == ['Durée', 'Volume', 'Séries prévues'], f'{t} tuiles dans l\'ordre du bilan : Durée, Volume, Séries ({lbls})')
+        R.check(lbls[:3] == ['Durée', 'Volume', 'Séries faites sur prévues'], f'{t} tuiles dans l\'ordre du bilan : Durée, Volume, Séries ({lbls})')
         layout(page, t, 'séance d\'un élève')
         shot(page, LOT, f'14-seance-eleve-{t}')
         page.click('[data-action="coach-comment"]')

@@ -30,7 +30,7 @@ function siriBusy() {
 }
 
 async function handleSiriRequest(req) {
-  const next = nextSessionCat(sessionKeys());
+  const next = onActiveProgramme(() => nextSessionCat(sessionKeys()));
   const what = siriDecision(req, { busy: siriBusy(), active: !!activeSession, next });
   if (what === 'resume') { if (currentView() !== 'session') navigate('session'); }
   else if (what === 'start') await startSessionFlow(next);

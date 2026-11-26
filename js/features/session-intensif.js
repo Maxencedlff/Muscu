@@ -56,7 +56,7 @@ function techPrescribed(ex) {
 function techPillHtml(s, { spoken = true } = {}) {
   const t = setTech(s);
   if (!t || TECHS[t].sub) return '';
-  return `<span class="tech-pill"${spoken ? '' : ' aria-hidden="true"'}><span class="tech-pill__name">${TECHS[t].label}</span> <span class="tech-pill__hint">${TECHS[t].hint}</span></span>`;
+  return `<span class="tech-pill"${spoken ? '' : ' aria-hidden="true"'}><span class="tech-pill__name">${TECHS[t].label}</span>${TECHS[t].hint ? ` <span class="tech-pill__hint">${TECHS[t].hint}</span>` : ''}</span>`;
 }
 
 // Sous la série (drop set, rest-pause, cluster) : titre de la technique (+ une sous-série, retirer), puis une ligne par
@@ -180,7 +180,7 @@ async function openTechSheet(ei, si) {
   if (!s || isWarmupSet(s) || !canTech(ex)) return;
   const cur = setTech(s);
   const t = await dialog({ type: 'sheet', title: `${setSpokenName(ex, si)} · ${ex.name}`,
-    message: 'Drop set : charge baissée, sans repos. Rest-pause, cluster : même charge après 15 à 20 s de repos. Top set : la série la plus lourde. Back-off : une série allégée ensuite.', actions: [
+    message: 'Drop set : charge baissée, sans repos. Rest-pause, cluster : même charge après 15 à 20 s de repos. Lourde : la série la plus lourde. Allégée : une série plus légère ensuite.', actions: [
       ...TECH_IDS.map(id => ({ label: `${id === cur ? '✓ ' : ''}${TECHS[id].label}`, value: id })),
       ...(cur && !techPrescribed(ex) ? [{ label: 'Retirer la technique', value: 'none', style: 'destructive' }] : []),
       { label: 'Annuler', style: 'cancel' },

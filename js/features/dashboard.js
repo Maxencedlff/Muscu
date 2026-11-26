@@ -197,7 +197,7 @@ function cellStatusHtml(cat) {
 // Durée habituelle d'une séance (minutes, arrondies à 5) : médiane de ses 5 dernières,
 // sinon estimation à 2,5 min par série prévue
 function sessionMinutes(cat) {
-  const p = data.activeProgramme;
+  const p = progFocusId();   // page d'un programme réglé sans être actif : sa durée à lui
   const durs = (data.history || [])
     .filter(h => h.category === cat && entryProg(h) === p && h.duration > 5 * 60000)
     .slice(0, 5).map(h => h.duration).sort((a, b) => a - b);

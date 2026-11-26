@@ -62,6 +62,9 @@ function updateTabBadge() {
   // la pastille compte les messages non lus ; à 300 élèves elle restait à « 99+ ») ; elles sont dans le filtre Nouveautés
   const coachTab = typeof coachTabOn === 'function' && coachTabOn();
   const social = socialBadge(), fromCoach = (coachTab ? coachBadgeStudent() : coachBadge()) + chatUnreadTotal(), n = social + fromCoach;
+  // Onglet Coach : « Mes amis » montre sa part de la pastille, comme « Messages » (js/features/social-ui.js)
+  const fseg = coachTab && typeof friendsSegCountHtml === 'function' ? $('.social-seg [data-seg="friends"]') : null;
+  if (fseg) setHtmlIfChanged(fseg, `Mes amis${friendsSegCountHtml()}`);
   let badge = btn.querySelector('.tabbar__badge');
   if (!n) { badge?.remove(); btn.removeAttribute('aria-label'); return; }
   if (!badge) { badge = document.createElement('span'); badge.className = 'tabbar__badge num'; badge.setAttribute('aria-hidden', 'true'); btn.append(badge); }

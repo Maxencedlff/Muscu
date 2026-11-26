@@ -2043,7 +2043,7 @@ def p_nutri_coach_plan(r):
         r.onglet('program', 'Programme')
         r.defiler('[data-action="go-diet-plans"]', 'liste sous les cartes')
         r.toucher('[data-action="go-diet-plans"]', 'Plans de nutrition')
-        r.attendre('.diet-plans-view', 'Mes diètes')
+        r.attendre('.diet-plans-view', 'Plans de nutrition')
     with r.etape('plan', 'Plan « Sèche semaine 1 » : Jours, Consigne, objectifs, repas', cle=cle):
         r.toucher('[data-action="diet-open-plan"][data-id="d_seche001"]', 'Sèche semaine 1')
         r.attendre('[data-action="diet-days-mode"]', 'cellule Jours')

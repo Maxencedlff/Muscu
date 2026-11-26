@@ -34,7 +34,7 @@ function renderCsEdit() {
 
 // Écran « Nouvelle séance » du programme actif (ou de Perso pour un programme intégré)
 function openNewSession() {
-  csProg = isUserProg(data.activeProgramme) ? data.activeProgramme : 'custom';
+  csProg = isUserProg(progFocusId()) ? progFocusId() : 'custom';
   csEditId = null; csColor = '#FF9500';
   navigate('cs-edit');
 }
@@ -44,7 +44,7 @@ registerActions({
   'add-custom-session': openNewSession,
   'edit-custom-session': (e, el) => {
     const id = el.dataset.id;
-    csProg = isUserProg(data.activeProgramme) ? data.activeProgramme : 'custom';
+    csProg = isUserProg(progFocusId()) ? progFocusId() : 'custom';
     const cs = userSessions(csProg)?.[id] || {};
     csEditId = id; csColor = cs.color || '#FF9500';
     navigate('cs-edit');
@@ -88,7 +88,7 @@ registerActions({
   },
   'delete-custom-session': async (e, el) => {
     // Depuis l'écran de la séance (data-id) ou depuis « Nom et description » (csEditId)
-    if (el.dataset.id) { csEditId = el.dataset.id; csProg = isUserProg(data.activeProgramme) ? data.activeProgramme : 'custom'; }
+    if (el.dataset.id) { csEditId = el.dataset.id; csProg = isUserProg(progFocusId()) ? progFocusId() : 'custom'; }
     const id = csEditId, pid = csProg;
     const running = activeSession && activeSession.programme === pid && activeSession.category === id;
     if (running && !(await confirmSheet('Cette séance est en cours', 'Elle sera abandonnée.', 'Supprimer'))) return;

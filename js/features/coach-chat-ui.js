@@ -375,5 +375,6 @@ function chatCellHtml(key) {
             ${n ? `<span class="coach-count num" aria-hidden="true">${n}</span>` : ''}
             ${icon('chevron.right', 16)}
           </button>
-        </div>`;
+        </div>
+        ${key !== CHAT_COACH && coachStudent(key) && chatPushOffOf(key) ? `<div class="group-foot chat-push-off">${icon('bell.slash', 13)} ${esc(personName(coachStudent(key)))} verra tes messages en ouvrant l'app : ses notifications sont coupées.</div>` : ''}`;
 }

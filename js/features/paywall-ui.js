@@ -251,7 +251,7 @@ function payPlanHtml(p, opts = {}) {
   const months = opts.months ? `soit ${planMonthsText(opts.months)}` : '';
   const sub = [months, trial].filter(Boolean).join(', ');
   return `
-          <button class="pay-plan${opts.current ? ' pay-plan--current' : ''}" data-action="pay-buy" data-id="${esc(p.id)}"${promo ? ' data-promo="1"' : ''} ${access.buying || opts.current ? 'disabled' : ''}>
+          <button class="pay-plan${opts.current ? ' pay-plan--current' : ''}${opts.wanted ? ' pay-plan--wanted' : ''}" data-action="pay-buy" data-id="${esc(p.id)}"${promo ? ' data-promo="1"' : ''} ${access.buying || opts.current ? 'disabled' : ''}>
             <span class="pay-plan__name">${esc(label)}${tag ? `<span class="pay-plan__tag">${esc(tag)}</span>` : ''}</span>
             <span class="pay-plan__price num">${access.buying === p.id ? 'Achat…' : `${esc(p.price)} <span class="pay-plan__per">${payPer(p)}</span>`}</span>
             ${sub ? `<span class="pay-plan__trial">${esc(sub)}</span>` : ''}
@@ -267,7 +267,8 @@ function payYearMonths(list, p) {
 
 // Ce que donne l'abonnement, dit avant les formules
 const PAY_BENEFITS = 'L\'abonnement permet d\'enregistrer des séances et de mettre une photo de profil. Historique, progrès et export restent ouverts sans abonnement.';
-const PAY_COACH_BENEFITS = 'Tes élèves ne paient rien : l\'abonnement coach comprend ton accès et le leur. Tu peux changer de palier à tout moment chez Apple.';
+// Boutique selon le téléphone (storeWhere, js/platform/native.js : « chez Apple » lu sur un Pixel, juges du 26/11)
+const payCoachBenefits = () => `Tes élèves ne paient rien : l'abonnement coach comprend ton accès et le leur. Tu peux changer de palier à tout moment ${storeWhere()}.`;
 
 // Mentions exigées par Apple (règle 3.1.2) à côté des boutons d'achat : durée de l'essai, prix et
 // période après l'essai, renouvellement automatique, résiliation à tout moment. Tout est lu chez
@@ -321,12 +322,17 @@ function payCoachHtml(list, pre) {
           <button class="segmented__btn ${per === 'month' ? 'segmented__btn--active' : ''}" aria-pressed="${per === 'month'}" data-action="pay-period" data-period="month">Mensuel</button>
           <button class="segmented__btn ${per === 'year' ? 'segmented__btn--active' : ''}" aria-pressed="${per === 'year'}" data-action="pay-period" data-period="year">Annuel</button>
         </div></div>`;
-  const count = `<p class="pay-benefits">${PAY_COACH_BENEFITS} Tu suis ${plural(students, 'élève', 'élèves')}.</p>`;
-  const plans = shown.map(p => {
-    const t = planOf(p.id).tier;
-    return payPlanHtml(p, { label: t.label, current: current === p.id, tag: t === wanted && current !== p.id ? 'Conseillé' : '',
-      months: payYearMonths(list, p) });
-  }).join('');
+  const count = `<p class="pay-benefits">${payCoachBenefits()} Tu suis ${plural(students, 'élève', 'élèves')}.</p>`;
+  const planOne = p => {
+    const t = planOf(p.id).tier, on = t === wanted && current !== p.id;
+    return payPlanHtml(p, { label: t.label, current: current === p.id, tag: on ? (pre ? `Conseillé pour ${plural(students, 'élève', 'élèves')}` : 'Conseillé') : '',
+      months: payYearMonths(list, p), wanted: on && !!pre });
+  };
+  // Venu du bandeau « élèves au-delà de ton palier » (pre) : le palier conseillé en tête, mis en avant, sans défiler
+  // (juges du 26/11 : l'écran s'ouvrait sur la formule actuelle, le palier conseillé plus bas)
+  const top = pre ? shown.find(p => planOf(p.id).tier === wanted && current !== p.id) : null;
+  const plans = shown.filter(p => p !== top).map(planOne).join('');
+  if (top) return `${count}<div class="pay-plans pay-plans--wanted">${planOne(top)}</div>${seg}<div class="pay-plans">${plans}</div>${payTermsHtml(shown)}${payLegalHtml()}`;
   // Plus de 100 élèves (grille du 17/11/2026) : aucune formule au-dessus du palier 100, on écrit
   const contact = students >= PLAN_COACH_MAX || tier?.contact
     ? `<p class="pay-note pay-coach-contact">${esc(PLAN_COACH_CONTACT)}.</p>` : '';
@@ -515,7 +521,13 @@ function renderSubscription() {
           </div>` : ''}
         </div>${introLine ? `
         <div class="group-foot pay-intro-line">${esc(introLine)}.</div>` : ''}${offNote}${alsoNote}${payCoverNoteHtml()}`;
-  const actions = `
+  // Élève offert, sans abonnement à lui : restaurer et les codes derrière « Autres options » (juges du 26/11 : ces lignes
+  // lui faisaient croire qu'il devait payer)
+  const tucked = offered && !access.currentProduct && !payMoreOpen;
+  const actions = tucked ? `
+        <div class="group">
+          <button class="cell cell--action" data-action="pay-more"><span class="cell__title">Autres options</span></button>
+        </div>` : `
         <div class="group">
           ${on && (st === 'none' || st === 'expired' || st === 'unknown')
             ? '<button class="cell cell--action" data-action="pay-open" data-reason="offer"><span class="cell__title">Voir les formules</span></button>' : ''}
@@ -533,7 +545,8 @@ function renderSubscription() {
       <div class="scr">${stale}${payDoubleCardHtml()}${rows}${actions}${payLegalHtml()}</div>
     </div>`;
 }
-SCREENS.set('subscription', { render: () => renderSubscription(), enter: () => { accessRefresh(); accessLoadCurrentPlan(); } });
+let payMoreOpen = false;   // Réglages › Abonnement, élève offert : « Autres options » ouvert
+SCREENS.set('subscription', { render: () => renderSubscription(), enter: () => { payMoreOpen = false; accessRefresh(); accessLoadCurrentPlan(); } });
 
 // ── Mode lecture seule : la porte des écritures ─────────────
 
@@ -576,6 +589,7 @@ function accessSignInPrompt() {
 
 // ── Actions ─────────────────────────────────────────────────
 registerActions({
+  'pay-more': () => { payMoreOpen = true; render(); },
   'pay-open': (e, el) => { openPaywall(el.dataset.reason, el.dataset.tab, el.dataset.id); },
   'pay-tab': (e, el) => { navigate(makeRoute('paywall', 'offer', el.dataset.tab === 'coach' ? 'coach' : 'pro'), { replace: true }); },
   'pay-period': (e, el) => { payCoachPeriod = el.dataset.period === 'year' ? 'year' : 'month'; haptic(); render(); },

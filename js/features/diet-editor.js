@@ -30,8 +30,9 @@ function dietMealsNoun(plan) { return dietPersonal(plan) ? 'Tes repas types' : '
 // l'écran du plan ne montre que les objectifs)
 const dietComposing = new Set();
 
-// Titre de la liste : « Mes diètes » pour un coach (ses modèles, envoyés à ses élèves), sinon « Plans de nutrition »
-function dietPlansTitle() { return coachRole().isCoach ? 'Mes diètes' : 'Plans de nutrition'; }
+// Titre de la liste : « Plans de nutrition » pour tout le monde, coach compris (juges du 26/11 : « Mes diètes » côté coach,
+// « Plans de nutrition » côté pratiquant, pour le même objet)
+function dietPlansTitle() { return 'Plans de nutrition'; }
 // Organisation des jours en deux mots (liste des plans, cellule Jours)
 function dietDaysWord(plan) { return plan?.days?.mode === 'week' ? 'Semaine' : plan?.days?.mode === 'session' ? 'Entraînement et repos' : 'Tous les jours pareils'; }
 function renderDietPlans() {
@@ -52,7 +53,7 @@ function renderDietPlans() {
       <div class="scr">
         <div class="group">
           ${ids.map(row).join('')}
-          <button class="cell cell--action" data-action="diet-new-plan">${icon('plus', 20)}<span>${isCoach ? 'Créer une diète' : 'Créer un plan'}</span></button>
+          <button class="cell cell--action" data-action="diet-new-plan">${icon('plus', 20)}<span>Créer un plan</span></button>
         </div>
         ${dietSettingsCellHtml()}
         <div class="group-foot">${isCoach ? 'Prépare ici les plans de tes élèves, puis envoie-les depuis leur fiche (Coach › Élèves). ' : ''}Le plan en cours s'affiche chaque jour dans Entraînement › Nutrition.</div>

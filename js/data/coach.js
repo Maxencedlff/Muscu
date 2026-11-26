@@ -695,8 +695,21 @@ async function coachSendProgramme(student, progId, over = null) {
 function coachSentPayload(raw, progId) {
   const p = cleanSentProgramme(raw);
   if (!p || typeof progId !== 'string' || !COACH_PROG_ID_RE.test(progId)) return { ok: false, kind: 'server' };
+  sentRangesExplicit(p);
   if (sentProgrammeBytes(p) > COACH_PROG_BYTES) return { ok: false, kind: 'too_big' };
   return { ok: true, data: p };
+}
+
+// Fourchette écrite en entier dans l'envoi (app et appli web du coach) : un exercice « 8 à 12 » dont le bas n'était pas
+// réglé partait avec le seul haut (12), et l'élève ne voyait jamais « 8 » (retours de Sophie du 26/11). Le bas appliqué
+// (repSpanOf : 4 sous le haut) est écrit dans repMin ; reps fixes et ancien format (haut seul hors 12) ne changent pas.
+function sentRangesExplicit(p) {
+  p.sessions.forEach(s => s.exercises.forEach(e => {
+    if (e.repFixed || e.repMin !== undefined) return;
+    const span = repSpanOf(e);
+    if (span) { e.repMin = span[0]; e.repMax = span[1]; }
+  }));
+  return p;
 }
 
 // Refus de coach_send_programme pour la limite d'envoi : sa vraie durée (24 h), pas « une heure » (test de charge du 17/11)

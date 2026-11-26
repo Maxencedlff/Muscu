@@ -49,7 +49,7 @@ function studentLastLine(st) {
   const ls = st.last_session;
   if (!ls) return 'Pas encore de séance';
   const mine = coachOwnProgrammeName(ls.programme);
-  return [ls.label, mine ? 'ton programme' : '', fmtDate(ls.done_at).toLowerCase()].filter(Boolean).join(' · ');
+  return [ls.label, mine ? 'envoyé par toi' : '', fmtDate(ls.done_at).toLowerCase()].filter(Boolean).join(' · ');
 }
 function coachOfflineNote(kind, what) {
   return `<div class="social-note" role="status"><p>${kind === 'offline' ? what : esc(coachErrorText(kind))}</p><button class="social-note__btn" data-action="coach-retry">Réessayer</button></div>`;
@@ -312,6 +312,7 @@ function renderCoachJoin(code) {
             <span class="switch ${ok ? 'switch--on' : ''}" aria-hidden="true"><span class="switch__thumb"></span></span>
           </button>
           <button class="btn ${ok ? 'btn--primary' : 'btn--secondary'} btn--full coach-accept" data-action="coach-accept" data-code="${esc(code)}" ${ok ? '' : 'disabled aria-describedby="coachAgeHint"'}>Accepter</button>
+          ${ok ? '' : '<p class="coach-accept__why">Confirme ton âge juste au-dessus pour accepter.</p>'}
         </div>
       </div>
     </div>`;
@@ -774,7 +775,6 @@ function coachTeamHtml() {
   return `
         ${coach.error ? `<p class="social-inline-error" role="status">${esc(coach.error === 'offline' ? 'Pas d\'Internet : liste pas à jour.' : coachErrorText(coach.error))}</p>` : ''}
         ${coachTierBannerHtml()}
-        ${coachDeskCardHtml()}
         ${coachTeamWeekHtml(st.students)}
         ${compact ? '' : coachPlanningCellHtml()}
         <div class="group-title">Élèves${st.students.length ? ` (${st.students.length})` : ''}</div>
@@ -782,15 +782,16 @@ function coachTeamHtml() {
             autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="search" value="${esc(coachSearchQ)}"></div>` : ''}
         <div id="coachFilters">${coachFiltersHtml(v)}</div>
         <div class="group" id="coachRows">${coachRowsHtml(v)}</div>
-        <div class="group-foot">${st.students.length > 1 ? PROGRESS_SORT_FOOT : 'Tes élèves ne se voient pas entre eux.'}</div>
+        <div class="group-foot">${st.students.length > 1 ? PROGRESS_SORT_FOOT : 'Tes élèves ne se voient pas entre eux.'}${st.students.some(s => chatPushOffOf(s.user_id)) ? ` ${icon('bell.slash', 13)} : notifications coupées, l'élève voit tes messages en ouvrant l'app.` : ''}</div>
         ${compact ? coachPlanningCellHtml() : ''}
+        ${coachDeskCardHtml()}
         ${cphTeamSetupHtml(st.students)}
         <div class="group-title">Invitations</div>
         <div class="group">
           ${coachPermanentCodeHtml()}
           ${coachPro.code ? coachPosterCellHtml() : ''}
           ${invites}
-          <button class="cell cell--action" data-action="coach-invite" ${coachInviteBusy ? 'disabled' : ''}>${icon('plus', 20)}<span>${coachPro.code ? 'Créer un code de 7 jours' : 'Inviter un élève'}</span></button>
+          <button class="cell cell--action" data-action="coach-invite" ${coachInviteBusy ? 'disabled' : ''}>${icon('plus', 20)}<span>${coachPro.code ? (coachReusableInvite() ? 'Partager le code de 7 jours' : 'Créer un code de 7 jours') : 'Inviter un élève'}</span></button>
         </div>
         <div class="group-foot">${coachPro.code ? 'Les codes de 7 jours expirent au bout d\'une semaine. ' : 'Ces codes sont valables 7 jours et servent à plusieurs élèves. '}L'élève saisit le code dans Social › Rejoindre ${coachWord('un')}.</div>
         ${removed}`;
@@ -844,6 +845,12 @@ SCREENS.set('coach-students', { render: () => renderCoachStudents(), mount: () =
 // ── Coach : un élève et ses séances ─────────────────────────
 
 function coachStudent(uid) { return coach.state?.students.find(s => s.user_id === uid) || null; }
+// Élèves à qui j'ai envoyé ce programme (« camille », « camille et léo », « camille et 2 autres »), '' sinon
+function coachSentToNames(progId) {
+  const names = (coach.state?.students || []).filter(st => st.sent?.some(x => x.id === progId)).map(personName);
+  if (names.length <= 2) return names.join(' et ');
+  return `${names[0]} et ${plural(names.length - 1, 'autre', 'autres')}`;
+}
 
 // Couleur d'une séance d'élève : celle de ma séance si elle vient de mon programme, sinon comme le fil
 function coachSessionColor(s) {
@@ -888,7 +895,7 @@ function coachSessionCell(uid, row) {
               <span class="hcell__title">${esc(s.label)}</span>
               <span class="hcell__when"><span class="hcell__date">${fmtDate(row.doneAt)}</span>${recMark}</span>
               <span class="hcell__sub num">${esc(publicMetaLine(s))}${plan ? ` · ${plan.done}/${plan.total} séries` : ''}</span>
-              ${mine || row.note ? `<span class="coach-sess__tags">${mine ? '<span class="coach-tag">Ton programme</span>' : ''}${row.note ? '<span class="coach-tag coach-tag--note">Commentée</span>' : ''}</span>` : ''}
+              ${mine || row.note ? `<span class="coach-sess__tags">${mine ? '<span class="coach-tag">Envoyé par toi</span>' : ''}${row.note ? '<span class="coach-tag coach-tag--note">Commentée</span>' : ''}</span>` : ''}
             </span>
             ${coachSessionBodyHtml(s.exercises)}
             ${icon('chevron.right', 16)}
@@ -905,7 +912,10 @@ function coachStudentHeroHtml(uid) {
   const row = first && ls && first.doneAt === ls.done_at ? first : null;
   const s = row?.s;
   const mine = ls && coachOwnProgrammeName(ls.programme);
-  const facts = s ? [publicMetaLine(s), reviewVolume(s.exercises) > 0 ? fmtVolume(reviewVolume(s.exercises)) : ''].filter(Boolean).join(' · ') : '';
+  // Volume : le même calcul que la page de la séance (sessionReview : poids du corps partagé compris), jamais deux chiffres
+  // pour la même séance (retours de Sophie du 26/11 : « 800 kg » ici, « 1,4 t » sur la séance)
+  const vol = row ? sessionReview(row, coachSessions(uid).rows).volume : 0;
+  const facts = s ? [publicMetaLine(s), vol > 0 ? fmtVolume(vol) : ''].filter(Boolean).join(' · ') : '';
   const recs = Array.isArray(s?.records) ? s.records.length : 0;
   const g = studentLastGroup(st);
   const when = ls ? capitalize(fmtDate(ls.done_at)).replace(/ /g, '\u00a0') : '';
@@ -913,7 +923,7 @@ function coachStudentHeroHtml(uid) {
             <span class="cstu-hero__text">
               <span class="cstu-hero__eyebrow">Dernière séance</span>
               <span class="cstu-hero__name">${ls ? esc(ls.label) : 'Pas encore de séance'}</span>
-              ${ls ? `<span class="cstu-hero__info num">${esc(when)}${mine ? '<span aria-hidden="true"> · </span><span class="visually-hidden">, </span>ton programme' : ''}</span>` : ''}
+              ${ls ? `<span class="cstu-hero__info num">${esc(when)}${mine ? '<span aria-hidden="true"> · </span><span class="visually-hidden">, </span>programme envoyé par toi' : ''}</span>` : ''}
               ${facts ? `<span class="cstu-hero__info num">${esc(facts)}</span>` : ''}
               ${recs ? `<span class="hcell__rec cstu-hero__rec num">${medalSvg(14)}${plural(recs, 'record', 'records')}</span>` : ''}
             </span>
@@ -973,12 +983,14 @@ function renderCoachStudent(uid) {
         </div>
         ${coachStudentHeroHtml(uid)}
         ${coachWeekSummaryHtml(uid)}
+        ${coachExProgressCellHtml(uid)}
         ${chatCellHtml(uid)}
         ${coachPlanGroupHtml(uid)}
         <div class="group">
           <button class="cell cell--action" data-action="coach-send" data-uid="${esc(uid)}">${icon('paperplane', 20)}<span>Envoyer un programme</span></button>
         </div>
         ${sent}
+        ${coachCheckinSendHtml(uid)}
         ${coachDietGroupHtml(uid)}
         ${coachDietTrackHtml(uid, esc(personName(p)))}
         ${coachBilanHtml(uid, esc(personName(p)))}
@@ -1005,6 +1017,7 @@ SCREENS.set('coach-student', {
     cphCoachRefresh().then(() => { if (cphCoach.key) cphCoachLoad(uid); });   // photos de bilan (liste chiffrée, rien d'ouvert)
     if (!plan.coach && plan.available !== false) coachPlanRefresh();   // planning (serveur sans planification : rien)
     coachProgressRefresh();   // résumé « 7 derniers jours » (5 min au plus entre deux lectures)
+    coachCheckinSendEnter(uid);   // « Envoyer un bilan » et sa dernière demande (serveur sans les bilans : rien)
     coachMarkSeen(uid);
   },
 });
@@ -1056,11 +1069,12 @@ function reviewTile(val, lbl, delta = null, up = false) {
 // poids du corps de l'élève à la date de la séance (il me le partage), compté dans le volume
 function reviewRuleFoot(rows, complete, bodyKg = null) {
   const oldest = rows.reduce((m, r) => Math.min(m, r.doneAt), Infinity);
-  const scope = complete || !Number.isFinite(oldest) ? 'ses séances reçues' : `ses séances reçues depuis le ${fmtDate(oldest, 'short')}`;
+  const scope = complete || !Number.isFinite(oldest) ? 'ses séances précédentes' : `ses séances depuis le ${fmtDate(oldest, 'short')}`;
+  // Une phrase courte, sans « lest ajouté, aide déduite » (retours de Sophie du 26/11 : du jargon)
   const body = bodyKg
-    ? `poids du corps compté (${fmtNum(toUnitW(bodyKg), 1)} ${unitLbl()}, sa dernière pesée partagée à cette date ; lest ajouté, aide déduite)`
-    : 'poids du corps non compté (lest compris)';
-  return `<div class="group-foot review-rule">Volume = charge notée × reps, sans l'échauffement, ${body}. Comparaisons avec ${scope}.</div>`;
+    ? `Son poids du corps (${fmtNum(toUnitW(bodyKg), 1)} ${unitLbl()}) compte pour les exercices au poids du corps.`
+    : 'Le poids du corps ne compte pas.';
+  return `<div class="group-foot review-rule">Volume : charge × reps, sans l'échauffement. ${body} Comparé à ${scope}.</div>`;
 }
 
 function renderCoachSession(uid, id) {
@@ -1085,7 +1099,7 @@ function renderCoachSession(uid, id) {
   const tiles = [
     reviewTile(s.duration ? fmtDuration(s.duration) : '—', 'Durée', s.duration && rv.durGap !== null ? fmtPct(rv.durGap) : null),
     reviewTile(rv.volume > 0 ? fmtVolume(rv.volume) : '—', 'Volume', rv.volume > 0 && vd && vd.dir !== 'same' ? fmtPct(vd.pct) : null, vd?.dir === 'up'),
-    reviewTile(plan ? `${plan.done}/${plan.total}` : n, plan ? 'Séries prévues' : n > 1 ? 'Séries' : 'Série'),
+    reviewTile(plan ? `${plan.done}/${plan.total}` : n, plan ? 'Séries faites sur prévues' : n > 1 ? 'Séries' : 'Série'),
     reviewTile(s.exercises.length, s.exercises.length > 1 ? 'Exercices' : 'Exercice'),
   ].join('');
   // Records notés par son app (toujours sûrs) ; séance d'une version d'avant : recalculés, seulement quand
@@ -1102,7 +1116,7 @@ function renderCoachSession(uid, id) {
         <h1 class="scr-title"><span class="hcell__dot hcell__dot--lg" style="background:${coachSessionColor(s)}" aria-hidden="true"></span>${esc(s.label)}</h1>
         <p class="scr-sub">${when}</p>
         ${vs ? `<p class="review-vs">${vs}</p>` : ''}
-        ${mine ? `<p class="coach-sess__prog"><span class="coach-tag">Ton programme</span> ${esc(mine)}</p>` : ''}
+        ${mine ? `<p class="coach-sess__prog"><span class="coach-tag">Programme envoyé par toi</span> ${esc(mine)}</p>` : ''}
         ${notes}
         <div class="tiles tiles--4">${tiles}</div>
         ${records}
@@ -1311,11 +1325,15 @@ function coachPrescBtnHtml(uid, progId, cat, e) {
 // ── Partage d'un code d'invitation ──────────────────────────
 
 async function shareCoachInvite(code) {
-  const text = coachInviteText(code);
-  if (Native.isNative) { if ((await Native.shareText(text, 'Invitation')) === 'failed') showToast('Partage impossible', { error: true }); return; }
-  if (navigator.share) { try { await navigator.share({ text }); } catch {} return; }
-  try { await navigator.clipboard.writeText(text); showToast('Invitation copiée, colle-la dans un message'); }
-  catch { showToast(`Code : ${code}`); }
+  const r = await shareTextFlow(coachInviteText(code), { title: 'Invitation', copied: 'Invitation copiée, colle-la dans un message' });
+  if (r === 'failed') showToast(`Code : ${code}`);
+}
+// Code de 7 jours encore bon au moins 24 h : « Inviter un élève » le repartage au lieu d'en créer un autre (retours de
+// Sophie du 26/11 : un code créé sans être envoyé, puis un second au toucher suivant). Le plus récent, sinon null
+const COACH_INVITE_KEEP_MS = 86_400_000;
+function coachReusableInvite(now = Date.now()) {
+  const ok = (coach.state?.invites || []).filter(i => i.expires_at - now >= COACH_INVITE_KEEP_MS).sort((a, b) => b.expires_at - a.expires_at);
+  return ok[0]?.code || null;
 }
 
 // Pseudo obligatoire pour rejoindre un coach (le coach reconnaît son élève à son pseudo), comme pour les
@@ -1391,8 +1409,12 @@ registerActions({
     if (coachTipClosed.has(id)) coachTipClosed.delete(id); else coachTipClosed.add(id);
     render();
   },
+  // Un seul geste : le code est créé ET partagé (feuille de partage, sinon copié) ; un code encore bon est repris et
+  // partagé tout de suite, dans le geste (aucun doublon)
   'coach-invite': async (e, el) => {
     if (coachInviteBusy) return;
+    const kept = coachReusableInvite();
+    if (kept) { haptic(); await shareCoachInvite(kept); return; }
     coachInviteBusy = true;
     if (el) el.disabled = true;
     try {
@@ -1510,12 +1532,16 @@ registerActions({
     if (coachToast(r, text.trim() ? 'Commentaire envoyé' : 'Commentaire supprimé', { inline: true })) haptic();
     render();
   },
+  // Envoyer un programme : un des miens, ou un nouveau créé pour cet élève sans toucher à mes séances (retours de
+  // Sophie du 26/11 : 8 touchers et un détour par l'onglet Programme). Le nouveau s'ouvre dans sa page, avec
+  // « Envoyer à <élève> » en bas (js/features/programme.js, progSendHtml)
   'coach-send': async (e, el) => {
-    const uid = el.dataset.uid, ids = coachSendableProgrammes();
-    if (!ids.length) { showToast('Crée d\'abord un programme dans l\'onglet Programme.'); return; }
-    const progId = await dialog({ type: 'sheet', title: 'Envoyer un programme', message: `Choisis un de tes programmes pour ${personName(coachStudent(uid))}.`,
-      actions: [...ids.map(id => ({ label: progMeta(id).name, value: id })), { label: 'Annuler', style: 'cancel' }] });
+    const uid = el.dataset.uid, ids = coachSendableProgrammes(), who = personName(coachStudent(uid));
+    const NEW = '+new';   // jamais un identifiant de programme (COACH_PROG_ID_RE)
+    const progId = await dialog({ type: 'sheet', title: 'Envoyer un programme', message: ids.length ? `Un de tes programmes, ou un nouveau pour ${who}.` : `Crée le programme de ${who}. Tes propres séances ne changent pas.`,
+      actions: [{ label: `Créer un programme pour ${who}`, value: NEW, style: 'preferred' }, ...ids.map(id => ({ label: progMeta(id).name, value: id })), { label: 'Annuler', style: 'cancel' }] });
     if (!progId) return;
+    if (progId === NEW) { await newProgrammeFlow({ student: uid }); return; }
     navigate(makeRoute('coach-send', uid, progId));
   },
   'coach-send-go': async (e, el) => {

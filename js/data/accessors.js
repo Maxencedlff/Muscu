@@ -3,11 +3,36 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
+// Programme affiché par les écrans de réglage (page du programme, séances, exercices) : l'actif, sauf quand on règle
+// un autre programme sans l'utiliser (coach : le programme d'un élève, retours de Sophie du 26/11 : « le programme créé
+// pour l'élève remplaçait le mien »). Le fournisseur est posé par la navigation (js/ui/router.js : la page
+// « programmes:<id> » dans la pile de l'onglet affiché) ; tout ce qui sert l'entraînement du jour (séance, widget,
+// montre, Siri, délais de récupération) passe par onActiveProgramme et ne voit jamais que l'actif.
+let progFocusOf = null;     // () => identifiant de programme ou null (js/ui/router.js)
+let progFocusOff = 0;       // > 0 : dans onActiveProgramme
+function progFocusId() {
+  const id = !progFocusOff && progFocusOf ? progFocusOf() : null;
+  return id && progEditable(id) ? id : data.activeProgramme;
+}
+// Programme qu'on peut ouvrir dans sa page : intégré, ou créé et pas supprimé
+function progEditable(id) {
+  if (!id || id === FREE) return false;
+  if (id === 'custom') return true;
+  const up = data.userProgrammes?.[id];
+  return up ? !up.archived : !!PROGRAMMES[id];
+}
+// fn exécuté sur le programme actif, quel que soit le programme affiché
+function onActiveProgramme(fn) {
+  progFocusOff++;
+  try { return fn(); } finally { progFocusOff--; }
+}
+
 function prog() {
-  if (!data.programmes[data.activeProgramme]) {
-    data.programmes[data.activeProgramme] = { exercises: {}, timers: {}, cooldowns: {} };
+  const id = progFocusId();
+  if (!data.programmes[id]) {
+    data.programmes[id] = { exercises: {}, timers: {}, cooldowns: {} };
   }
-  const p = data.programmes[data.activeProgramme];
+  const p = data.programmes[id];
   if (!p.cooldowns) p.cooldowns = {};
   return p;
 }
@@ -31,7 +56,7 @@ const FREE = 'free';
 const FREE_META = { label: 'Séance libre', color: '#8E8E93', desc: 'Hors programme' };
 
 function progMeta(id) {
-  id = id || data.activeProgramme;
+  id = id || progFocusId();
   if (id === FREE) return { name: FREE_META.label, desc: FREE_META.desc, icon: '', sessions: {}, free: true };
   const up = data.userProgrammes?.[id];
   if (up) {
@@ -67,7 +92,7 @@ function moveSession(progId, from, to) {
 }
 
 function sessionKeys(progId) {
-  progId = progId || data.activeProgramme;
+  progId = progId || progFocusId();
   // Séance retirée par un coach (retired) : lue par rawLabel et sessionMeta (historique), jamais listée
   if (progId === 'custom') return Object.keys(userSessions(progId) || {});
   if (isUserProg(progId)) {
@@ -84,7 +109,7 @@ function catBadge(color) {
 }
 
 function sessionMeta(cat, progId) {
-  progId = progId || data.activeProgramme;
+  progId = progId || progFocusId();
   if (progId === FREE) return { label: FREE_META.label, icon: catBadge(FREE_META.color), desc: FREE_META.desc, color: FREE_META.color };
   if (isUserProg(progId)) {
     const cs = userSessions(progId)?.[cat];
@@ -98,7 +123,7 @@ function sessionMeta(cat, progId) {
 
 // Libellé brut (non échappé) pour les textes affichés via textContent
 function rawLabel(cat, progId) {
-  progId = progId || data.activeProgramme;
+  progId = progId || progFocusId();
   if (progId === FREE) return FREE_META.label;
   if (isUserProg(progId)) return userSessions(progId)?.[cat]?.label || cat;
   return PROGRAMMES[progId]?.sessions[cat]?.label || cat;

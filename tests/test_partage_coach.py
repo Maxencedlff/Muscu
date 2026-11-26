@@ -250,7 +250,7 @@ def t_coach(bench, eng, dev, theme):
         share = page.evaluate("bodyShare({ name: 'Tractions pronation' })")
         expect = page.evaluate(f"fmtVolume(500 + 61.4 * {share} * 18)")
         R.check(expect in st, f'{t} séance : volume avec son poids ({expect!r})')
-        R.check('poids du corps compté (61,4 kg' in st, f'{t} séance : pied de page « poids du corps compté »')
+        R.check('Son poids du corps (61,4 kg) compte' in st, f'{t} séance : pied de page « Son poids du corps (61,4 kg) compte »')
         layout(page, t, 'séance avec poids')
         shot(page, LOT, f'4-seance-poids-{t}')
         # Tom ne partage pas : ni courbe, ni poids dans le volume

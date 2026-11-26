@@ -260,7 +260,7 @@ function renderCoachRequest() {
   if (coachRole().isCoach || req?.is_coach || req?.status === 'approved') {
     return `<div class="view view--grouped coach-req-view">${head}<div class="scr">${hero}
         <div class="group"><div class="cell"><span class="cell__body"><span class="cell__title">Demande</span></span><span class="cell__value">Validée</span></div></div>
-        <div class="group-foot">Rôle coach validé. Code et abonnement coach : Réglages › Coach.</div>
+        <div class="group-foot">Rôle coach validé. Pour inviter tes élèves : onglet Coach, rubrique Invitations. Ton abonnement coach : Réglages › Coach.</div>
         <button class="btn btn--primary btn--full" data-action="coach-open-settings">Voir mon espace coach</button>
       </div></div>`;
   }

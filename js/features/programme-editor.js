@@ -46,7 +46,7 @@ function progPickExercises(cat, names) {
   names.forEach(name => {
     if (list.some(e => sameExerciseName(e.name, name))) return;
     const ex = makeExercise(name, 3);
-    const known = resolveExId(data.activeProgramme, cat, name);   // supprimé puis repris : même suivi (comme save-ex)
+    const known = resolveExId(progFocusId(), cat, name);   // supprimé puis repris : même suivi (comme save-ex)
     if (!list.some(e => e.id === known)) ex.id = known;
     list.push(ex);
     ids.push(ex.id);
@@ -117,7 +117,7 @@ function renderEditor() {
       </div>`;
   }
   const rows = list.map((ex, i) => {
-    const last = lastPerf(data.activeProgramme, cat, ex);
+    const last = lastPerf(progFocusId(), cat, ex);
     const best = last ? bestSet(last.ex.sets, ex) : null;
     const plan = canTech(ex) ? intensText(ex, { short: true }) : '';   // technique prescrite (« 1re en cluster »)
     // Morceaux insécables suivis de leur « · » : la ligne se coupe après le point, jamais devant
@@ -134,7 +134,7 @@ function renderEditor() {
             ${exMusclesSubHtml(ex)}
             ${gripSubHtml(ex)}
             <span class="cell__sub">${sub}</span>
-            ${coachExConsigneSub(data.activeProgramme, ex)}
+            ${coachExConsigneSub(progFocusId(), ex)}
           </span>
           <button class="ed-del" data-action="del-ex" data-i="${i}">Supprimer</button>
           <button class="ed-handle" data-action="reorder-menu" aria-label="Déplacer ${esc(ex.name)}">${icon('line.3.horizontal', 22)}</button>
@@ -150,7 +150,7 @@ function renderEditor() {
           ${exMusclesSubHtml(ex)}
           ${gripSubHtml(ex)}
           <span class="cell__sub">${sub}</span>
-          ${coachExConsigneSub(data.activeProgramme, ex)}
+          ${coachExConsigneSub(progFocusId(), ex)}
         </span>
         ${icon('chevron.right', 16)}
       </button>`;
@@ -160,7 +160,7 @@ function renderEditor() {
     <div class="view editor view--grouped">
       ${navBar({ title: esc(sessionTitle(cat)), right: list.length ? `<button class="navbar__text ${editorEditing ? 'navbar__text--bold' : ''}" data-action="toggle-edit-mode">${editorEditing ? 'OK' : 'Modifier'}</button>` : '' })}
       <div class="scr">
-        ${coachEditorConsigneHtml(data.activeProgramme)}
+        ${coachEditorConsigneHtml(progFocusId())}
         <div class="group-title">Exercices</div>
         <div class="group ed-list">
           ${rows || '<div class="cell"><span class="cell__sub">Aucun exercice pour l\'instant</span></div>'}
@@ -181,14 +181,14 @@ function renderEditor() {
             <span class="cell__value num">${fmtRest(data.defaultRest)}</span>
             ${icon('chevron.right', 16)}
           </button>
-          ${isUserProg(data.activeProgramme) ? `
+          ${isUserProg(progFocusId()) ? `
           <button class="cell cell--nav" data-action="edit-custom-session" data-id="${esc(cat)}">
             <span class="cell__body"><span class="cell__title">Nom et description</span></span>
             ${icon('chevron.right', 16)}
           </button>` : ''}
         </div>
         <div class="group-foot">Récupération : délai avant que la séance soit de nouveau prête.</div>
-        ${isUserProg(data.activeProgramme) ? `
+        ${isUserProg(progFocusId()) ? `
         <div class="group group--gap">
           <button class="cell cell--destructive" data-action="delete-custom-session" data-id="${esc(cat)}">Supprimer la séance</button>
         </div>` : ''}
@@ -662,7 +662,7 @@ registerActions({
       const ex = list[editExIdx];
       if (ex.name !== name) {
         // L'exId garde le lien avec l'historique ; on propose aussi d'y reprendre le nouveau nom
-        const progKey = data.activeProgramme;
+        const progKey = progFocusId();
         const touched = (data.history || []).filter(h => entryProg(h) === progKey && h.category === editorCat
           && (h.exercises || []).some(e => sameEx(e, ex)));
         if (touched.length) {
@@ -690,7 +690,7 @@ registerActions({
     } else {
       const ex = makeExercise(name, sets);
       // Un exercice déjà présent dans l'historique (supprimé puis recréé) retrouve son identifiant
-      const known = resolveExId(data.activeProgramme, editorCat, name);
+      const known = resolveExId(progFocusId(), editorCat, name);
       if (!list.some(e => e.id === known)) ex.id = known;
       ex.target = target;
       ex.rest   = rest;
