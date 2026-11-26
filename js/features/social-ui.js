@@ -66,13 +66,15 @@ function feedRecordHtml(s) {
   const more = (s.records?.length || 0) - 1;
   return `<span class="feed-card__rec">${medalSvg(18)}<span>Record · <span class="num">${esc(notedFeedTxt(r))}</span>${more > 0 ? `<span class="feed-card__rec-more num"> +${more}</span>` : ''}</span></span>`;
 }
+// « 1 560 kg » : l'unité en plus petit, comme au bilan (le volume en kg entiers dépassait d'une case sur Android, 26/11)
+function statUnitHtml(v) { return esc(v).replace(/(\d)[\s\u00a0]((?:kg|lbs))$/, '$1<span class="stat-unit">\u00a0$2</span>'); }
 // Les trois chiffres de la carte : durée, volume, séries (sans l'échauffement) ; un chiffre absent est omis. Même ordre et
 // même style (valeur, puis libellé dessous, avec une capitale) dans la séance d'un ami, Mon profil et le bilan (vague 3)
 function feedStatsHtml(s) {
   const vol = reviewVolume(s.exercises), n = seriesCount(s);
   const stats = [s.duration ? [fmtDuration(s.duration), 'Durée'] : null, vol > 0 ? [fmtVolume(vol), 'Volume'] : null,
     [String(n), n > 1 ? 'Séries' : 'Série']].filter(Boolean);
-  return `<span class="feed-card__stats">${stats.map(([v, l]) => `<span class="feed-card__stat"><span class="feed-card__stat-val num">${esc(v)}</span><span class="feed-card__stat-lbl">${l}</span></span>`).join('')}</span>`;
+  return `<span class="feed-card__stats">${stats.map(([v, l]) => `<span class="feed-card__stat"><span class="feed-card__stat-val num">${statUnitHtml(v)}</span><span class="feed-card__stat-lbl">${l}</span></span>`).join('')}</span>`;
 }
 // Muscles : puces pour l'œil, une phrase pour VoiceOver (hors d'un bouton, aria-label sur un span ne serait pas lu)
 function feedMusclesHtml(s) {

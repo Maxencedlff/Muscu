@@ -151,7 +151,7 @@ function lastSessionHtml(row) {
         <span class="last__eyebrow">Dernière séance · ${esc(fmtDate(row.doneAt))}</span>
         <span class="last__title">${esc(s.label)}</span>
         <span class="sr-text">${esc(`, ${facts.map(f => f[2]).join(', ')}.`)}</span>
-        <span class="last__facts" aria-hidden="true">${facts.map(([l, v]) => `<span class="last__fact"><span class="last__fact-val num">${esc(v)}</span><span class="last__fact-lbl">${l}</span></span>`).join('')}</span>
+        <span class="last__facts" aria-hidden="true">${facts.map(([l, v]) => `<span class="last__fact"><span class="last__fact-val num">${statUnitHtml(v)}</span><span class="last__fact-lbl">${l}</span></span>`).join('')}</span>
         ${s.exercises.length ? `<span class="last__sum">${esc(feedExercisesLine(s))}</span>` : ''}
         ${feedRecordHtml(s)}
       </button>

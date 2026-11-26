@@ -139,6 +139,7 @@ html.type-xl .feed-card__head { min-height: 0; }
 .feed-card__stat { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .feed-card__stat + .feed-card__stat { padding-left: 12px; box-shadow: inset .5px 0 0 var(--sep); }
 .feed-card__stat-val { font-size: var(--fs-title3); line-height: 1.25; font-weight: 700; white-space: nowrap; }
+.stat-unit { font-size: .75em; }   /* « 1 560 kg » : l'unité plus petite que le nombre (statUnitHtml) */
 .feed-card__stat-lbl { font-size: var(--fs-caption); line-height: 1.3; color: var(--label2); }
 /* Record noté : pastille dorée, lisible dans les deux thèmes (--gold-text sur un voile jaune léger) */
 .feed-card__rec {
