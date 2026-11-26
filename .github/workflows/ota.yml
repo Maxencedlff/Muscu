@@ -93,6 +93,9 @@ jobs:
       - name: Tests (rien n'est publié s'ils échouent)
         run: |
           for f in $(find js -name '*.js') sw.js; do node --check "$f"; done
+          # Un test charge le vrai auth-js de supabase-js (tests/unit/coach-web-google.mjs) : dépendances
+          # installées sans scripts, comme dans tests.yml
+          npm ci --ignore-scripts
           node tests/unit/run.mjs
 
       # L'app ouvre les pages de LEGAL_URLS (écran d'abonnement : règle 3.1.2 d'Apple). Elles sont
