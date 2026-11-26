@@ -46,6 +46,9 @@ jobs:
           cache: npm
       - name: Syntaxe des scripts
         run: for f in $(find js coach-web/js coach-embed -name '*.js') sw.js; do node --check "$f"; done
+      # supabase-js et auth-js figés par package-lock : tests/unit/coach-web.mjs fait tourner le vrai auth-js (clés PKCE)
+      - name: Dépendances pour les tests unitaires
+        run: npm ci --ignore-scripts
       - name: Tests unitaires
         run: node tests/unit/run.mjs
       # Postgres local jetable (préinstallé sur ubuntu-latest) : RLS, GRANT et déclencheurs des migrations
