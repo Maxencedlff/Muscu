@@ -577,7 +577,7 @@ def t_programme(bench, eng, dev, theme):
         # Ordre des Réglages iOS (Social et coach seulement avec le module du compte ; Services Apple et Icône : app iOS ;
         # Informations légales en dernier, nuit-legal)
         titles = page.evaluate("[...document.querySelectorAll('.view.settings-view .group-title')].map(e => e.textContent.trim())")
-        want = ['Entraînement', 'Sons et vibrations', 'Apparence'] + (['Social et coach'] if page.evaluate('accountAvailable()') else []) + ['Données', 'Aide', 'Informations légales']
+        want = ['Entraînement', 'Sons et vibrations', 'Tester le son', 'Apparence'] + (['Social et coach'] if page.evaluate('accountAvailable()') else []) + ['Données', 'Aide', 'Informations légales']
         R.check(titles == want, f'{t} réglages : ordre des groupes {titles}')
         # Une icône par ligne, comme les Réglages d'iOS : carré décoratif (VoiceOver le saute), sauf la carte du
         # compte (avatar) et la ligne destructive ; le même symbole ne sert jamais à deux lignes de sens différent

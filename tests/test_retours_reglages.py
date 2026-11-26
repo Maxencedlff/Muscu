@@ -164,7 +164,9 @@ def t_calendrier(bench, eng, dev, theme):
         shot(page, LOT, f'calendrier-{t}')
         big_text(page)
         over = page.evaluate("""[...document.querySelectorAll('.hcal .cal__d--has > .num')].filter(n => { const r = n.getBoundingClientRect(), c = n.parentElement.getBoundingClientRect();
-            return r.left < c.left - 0.5 || r.right > c.right + 0.5; }).length""")
+            return r.left < c.left - 0.5 || r.right > c.right + 0.5; }).length
+            + [...document.querySelectorAll('.hcal .cal__d')].filter(c => { const g = document.querySelector('.hcal').getBoundingClientRect(), r = c.getBoundingClientRect();
+            return r.right > g.right + 0.5 || c.scrollWidth > c.clientWidth + 1; }).length""")
         R.check(over == 0 and page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'), f'{t} calendrier, texte agrandi : cercles dans leur case ({over})')
         page.locator('.hcal').scroll_into_view_if_needed()
         shot(page, LOT, f'calendrier-AX-{t}')

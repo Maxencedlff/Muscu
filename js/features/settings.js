@@ -215,7 +215,7 @@ ${renderConnectionsGroup()}
                  <span class="cell__sub">${esc(liveUpdateLabel())}</span></span></button>`
             : `<button class="cell cell--action" data-action="force-update">${cellIco('arrow.down.circle', 'gray')}<span class="cell__body"><span class="cell__title">Rechercher une mise à jour</span></span></button>`}
         </div>
-        <div class="group-foot credit-foot">${BODY_PARTS_CREDIT.replace(/\//g, '/<wbr>')}</div>
+        <div class="group-foot credit-foot">${BODY_PARTS_CREDIT.replace(/https:\/\/\S+/, u => u.replace(/[/.]/g, '$&<wbr>'))}</div>
 
         <div class="group-title">Informations légales</div>
         <div class="group">

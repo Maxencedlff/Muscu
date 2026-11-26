@@ -461,8 +461,11 @@ button.cal__d[aria-pressed="true"] { background: var(--fill); }
   height: auto; aspect-ratio: 1; line-height: 1; margin-top: -3px; border: 2px solid var(--green-text); border-radius: 50%; }
 .cal__d--empty, span.cal__d:not(.cal__d--has) { color: var(--label2); }
 .hcal-day { margin-bottom: 12px; }
-html.type-xl .hcal .cal__d { font-size: 1rem; min-height: 48px; }
-html.type-xl .hcal .cal__wd { font-size: 0.882rem; }
+/* Texte agrandi : les chiffres grandissent jusqu'à ce que deux chiffres et leur cercle tiennent dans 1/7 de la largeur
+   (iPhone SE en AX33 : « 16 17 » collés et le dimanche hors de la carte, panel du 26/11) */
+.hcal .cal__grid { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+html.type-xl .hcal .cal__d { font-size: min(1rem, 5.2vw); min-height: 48px; }
+html.type-xl .hcal .cal__wd { font-size: min(0.882rem, 4.6vw); }
 html.type-xl .hcal .cal__d--today > .num { width: 1.5em; height: 1.5em; line-height: 1.5em; margin-top: 0; }   /* le cercle d'aujourd'hui suit le texte agrandi */
 
 /* Barres sous l'objectif en gris système (3:1 au moins sur la carte, clair et sombre ; --fill faisait 1,2:1, panel t5),
