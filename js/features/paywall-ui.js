@@ -424,6 +424,8 @@ function renderPaywall(reason = 'offer', tab = 'pro', pre = null) {
     : offered ? `Rien à payer tant que ${myCoachWord('ton')} te suit.`
     : trial ? PT.payHeroTrial(esc(payDurationText(trial.trial)))
     : promo ? PT.payHeroPromo(esc(payDurationText(promo)))
+    // Android avant Google Play : rien à choisir, la note qui suit dit pourquoi
+    : Native.store.soon ? 'Historique, progrès et export restent ouverts.'
     : 'Choisis une formule pour enregistrer des séances.';
   const stale = accessStale() && account.user ? `<p class="social-inline-error" role="status">${esc(access.error === 'offline' ? 'Pas d\'Internet : état pas à jour.' : 'État pas à jour.')}</p>` : '';
   const planned = Native.store.available && access.products?.length && !off;
@@ -517,7 +519,7 @@ function renderSubscription() {
         <div class="group-foot pay-intro-line">${esc(introLine)}.</div>` : ''}${offNote}${alsoNote}${payCoverNoteHtml()}`;
   const actions = `
         <div class="group">
-          ${on && (st === 'none' || st === 'expired' || st === 'unknown')
+          ${on && !Native.store.soon && (st === 'none' || st === 'expired' || st === 'unknown')
             ? '<button class="cell cell--action" data-action="pay-open" data-reason="offer"><span class="cell__title">Voir les formules</span></button>' : ''}
           ${on && coachRole().isCoach ? `<button class="cell cell--action" data-action="pay-open" data-reason="offer" data-tab="coach"><span class="cell__title">${planIsCoach(access.currentProduct) ? 'Changer de palier coach' : 'Voir les formules coach'}</span></button>` : ''}
           ${Native.store.available ? `<button class="cell cell--action" data-action="pay-manage"><span class="cell__title">${PT.payManage}</span></button>` : ''}
