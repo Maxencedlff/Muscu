@@ -79,8 +79,10 @@ def t_annuler_en_ligne(bench):
             page.click('[data-action="validate-set"][data-ei="0"][data-si="0"]')
             settle(page)
             row = page.locator('.ex-card[data-ei="0"] .session-set').first
-            R.check(page.locator('.toast').count() == 0 and row.locator('[data-action="sess-undo"]').count() == 1,
-                    f'{t} série validée : pas de toast, « Annuler » dans sa ligne')
+            # Depuis le 26/11 : « Annuler » sur une ligne sous la série, plus dans la colonne « Avant » (collé au rond vert)
+            R.check(page.locator('.toast').count() == 0 and page.locator('.ex-card[data-ei="0"] [data-action="sess-undo"]').count() == 1
+                    and row.locator('.session-set__prev [data-action="sess-undo"], [data-col="prev"] [data-action="sess-undo"]').count() == 0,
+                    f'{t} série validée : pas de toast, « Annuler » sous la série')
             said = page.evaluate("document.getElementById('sr-polite').textContent")
             R.check('validée' in said and 'Annuler' in said, f'{t} VoiceOver : état annoncé ({said!r})')
             if page.locator('[data-action="expand-rest"]').count():

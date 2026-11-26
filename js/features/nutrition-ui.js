@@ -609,8 +609,9 @@ function nutritionHomeCard() {
   const plan = dietActivePlan(data);
   // Sans plan : une ligne « Noter ce que je mange » (retour de Gérard, 26/11 : rien sur l'accueil ne menait à la
   // Nutrition, trouvée par hasard dans Programme au 13e toucher). Un toucher crée le plan perso et ouvre la journée ;
-  // l'eau suivie garde sa petite carte (js/features/water-ui.js)
-  if (!plan) return card + dietHomeStartHtml() + waterHomeCard();
+  // l'eau suivie garde sa petite carte (js/features/water-ui.js). Cette ligne n'est pas ici mais avec les Défis
+  // (renderDashboard) : sans plan, la Nutrition n'est pas encore choisie, elle ne passe pas devant les cartes
+  if (!plan) return card + waterHomeCard();
   const day = dietDayKey(), pr = dietDayProgress(data, data.dietActive, day);
   // Plan sans aucun aliment, sans objectif de calories et rien de noté : la carte reste, avec l'invite « Rien de noté
   // aujourd'hui · Ajouter » et jamais « 0 sur 0 kcal » (avant le 26/11 elle disparaissait : le plan créé, l'accueil
@@ -665,8 +666,9 @@ function nutritionHomeCard() {
     </section>`;
 }
 
-// Accueil sans plan : la même ligne que « Lancer un défi » (titre de section, cellule avec chevron)
+// Accueil sans plan : la même ligne que « Lancer un défi » (titre de section, cellule avec chevron), juste avant les Défis
 function dietHomeStartHtml() {
+  if (dietActivePlan(data)) return '';
   return `<section class="diet-start" aria-labelledby="homeNutrition"><h2 class="home-list__title" id="homeNutrition">Nutrition</h2>
       <div class="home-card">
         <button class="home-cell" data-action="diet-home-start">

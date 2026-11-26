@@ -473,6 +473,7 @@ function renderDashboard() {
         ${nutritionHomeCard()}
         ${cards}
         ${week}
+        ${dietHomeStartHtml()}
         ${defisHomeHtml()}`)}
       </div>
     </div>`;
