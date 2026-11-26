@@ -180,7 +180,7 @@ def t_programmes(bench, eng, dev, theme):
 
         # 3. Un deuxième programme, copié de PPL, puis renommé
         tab(page, 3)
-        new_programme(page, 'PPL du lundi', 'Copie de PPL')
+        new_programme(page, 'PPL du lundi', 'Copie de Pousser, tirer, jambes')
         d = data(page)
         pid2 = d['activeProgramme']
         R.check(pid2 != pid and len(d['userProgrammes']) == 2, f'{t} deux programmes créés')

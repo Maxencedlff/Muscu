@@ -139,7 +139,7 @@ def t_bilan(bench, eng, dev, theme):
         tiles = page.locator('.view.summary .sum-tiles').inner_text()
         R.check(re.search(r'\d kg', tiles) and not re.search(r'\d t\b', tiles), f'{t} bilan : volume en kg ({tiles!r})')
         why = page.locator('.sum-tile__delta-why')
-        R.check(why.count() == 0 or why.first.inner_text().strip() == 'par rapport à la dernière fois', f'{t} bilan : écart dit en clair')
+        R.check(why.count() == 0 or why.first.inner_text().strip() == 'que la dernière fois', f'{t} bilan : écart dit en clair')
         R.check(page.evaluate("sumDurationHtml(20000).includes('moins d\\'une minute') && !sumDurationHtml(20000).includes('0\\u00a0min')"),
                 f'{t} bilan : moins d\'une minute, jamais « 0 min »')
         st = page.evaluate("(() => { const h = data.history.find(x => x.category === 'push'); return shareStoryStats(h).title; })()")

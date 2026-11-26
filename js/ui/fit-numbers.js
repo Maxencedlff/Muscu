@@ -1,0 +1,31 @@
+// ═══════════════════════════════════════════════════════════
+//  Chiffres en gros des tuiles (bilan de l'historique, séance d'un ami, Mon profil, vue d'ensemble) : réduits juste
+//  ce qu'il faut pour tenir entiers dans leur case, jamais coupés par « … »
+//
+//  Depuis le 26/11 le volume s'écrit en kg entiers (« 10 888 kg », plus « 10,9 t » qu'une débutante ne lisait pas,
+//  js/data/accessors.js fmtVolume) : dans une case d'un quart d'écran, il dépassait. La taille revient à celle du
+//  thème à chaque dessin, puis descend au plus à FIT_NUM_MIN de sa taille ; texte agrandi : les cases sont sur une
+//  ligne chacune (CSS), rien à réduire. Aucun effet au toucher : seulement après le dessin et au redimensionnement.
+// ═══════════════════════════════════════════════════════════
+'use strict';
+
+const FIT_NUM_SEL = '.tile__val, .feed-card__stat-val, .last__fact-val';
+const FIT_NUM_MIN = 0.6;
+
+function fitNumbersNow(scope = document) {
+  scope.querySelectorAll(FIT_NUM_SEL).forEach(el => {
+    if (el.style.fontSize) el.style.fontSize = '';
+    if (!el.getClientRects().length || el.scrollWidth <= el.clientWidth + 1) return;
+    const size = parseFloat(getComputedStyle(el).fontSize);
+    const k = Math.max(FIT_NUM_MIN, (el.clientWidth - 1) / el.scrollWidth);
+    el.style.fontSize = `${Math.floor(size * k * 10) / 10}px`;
+  });
+}
+let fitNumFrame = 0;
+function fitNumbers(scope = document) {
+  fitNumbersNow(scope);
+  cancelAnimationFrame(fitNumFrame);
+  fitNumFrame = requestAnimationFrame(() => fitNumbersNow());   // après la typographie et les polices
+}
+window.addEventListener('resize', () => fitNumbers());
+document.fonts?.ready.then(() => fitNumbers());

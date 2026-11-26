@@ -337,6 +337,7 @@ function paint(scrollY = window.scrollY, html = null) {
   updateChrome();
   observeLargeTitle();
   fitBackLabel();
+  fitNumbers($('#app'));   // chiffres des tuiles entiers dans leur case (js/ui/fit-numbers.js)
   tabletAfterRender($('#app'));   // iPad : titres de groupe gardés avec leur groupe dans les deux colonnes (js/ui/tablet.js)
   window.scrollTo(0, scrollY);
   restoreFocus(focusSels);

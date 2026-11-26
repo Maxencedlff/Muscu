@@ -98,7 +98,7 @@ def t_seance(bench, eng, dev, theme):
         R.check('Séance enregistrée' in page.evaluate("document.getElementById('sr-polite').textContent"), f'{t} enregistrement annoncé à VoiceOver')
         dl = page.locator('.sum-tile__delta')
         if dl.count():
-            R.check('−' not in dl.inner_text(), f'{t} bilan : flèche sans signe moins ({dl.inner_text()})')
+            R.check('−' not in dl.inner_text() and ('de plus' in dl.inner_text() or 'de moins' in dl.inner_text()), f'{t} bilan : écart en mots, sans signe moins ({dl.inner_text()})')
         shot(page, LOT, f'{t}-03-bilan')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 

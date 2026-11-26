@@ -102,7 +102,7 @@ def t_bilan(bench, eng, dev, theme):
         page.evaluate(FAKE_SHARE)
         finish_push(page)
         shot(page, LOT, f'bilan-{t}')
-        url = open_preview(page, t, 'bilan', 'Push')
+        url = open_preview(page, t, 'bilan', 'Pousser')
         check_image(t, 'bilan', url, f'story-bilan-{t}')
         stats = page.evaluate('shareState.stats')
         R.check(stats['records'] == 1 and stats['sets'] == 3, f'{t} bilan : mêmes records que le bilan ({stats["records"]}, {stats["sets"]} séries)')
@@ -138,7 +138,7 @@ def t_historique(bench, eng, dev, theme):
         page.wait_for_selector('.view.history-detail')
         page.locator('[data-action="share-story"]').scroll_into_view_if_needed()
         shot(page, LOT, f'detail-{t}')
-        url = open_preview(page, t, 'historique', 'Legs')
+        url = open_preview(page, t, 'historique', 'Jambes')
         check_image(t, 'historique', url, f'story-historique-{t}')
         with page.expect_download() as dl:
             page.click('[data-action="share-story-send"]')

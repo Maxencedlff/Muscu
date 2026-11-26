@@ -105,8 +105,8 @@ def t_mes_programmes(bench, eng, dev, theme):
         # Modifier : l'actif ne se retire pas ; Bro Split glissé en tête ; PPL retiré
         tap(page, '[data-action="toggle-my-prog-edit"]')
         R.check(page.locator('.mp-row[data-id="bro"] .ed-minus').count() == 0, f'{t} actif : pas de ⊖')
-        R.check(page.locator('.mp-row[data-id="ppl"] .ed-minus').get_attribute('aria-label') == 'Retirer PPL', f'{t} ⊖ nommé « Retirer PPL »')
-        R.check(page.locator('.mp-handle').first.get_attribute('aria-label') == 'Déplacer PPL', f'{t} poignée nommée')
+        R.check(page.locator('.mp-row[data-id="ppl"] .ed-minus').get_attribute('aria-label') == 'Retirer Pousser, tirer, jambes', f'{t} ⊖ nommé « Retirer Pousser, tirer, jambes »')
+        R.check(page.locator('.mp-handle').first.get_attribute('aria-label') == 'Déplacer Pousser, tirer, jambes', f'{t} poignée nommée')
         shot(page, LOT, f'4-modifier-{t}')
         hb = page.locator('.mp-handle').nth(2).bounding_box()
         rh = page.locator('.mp-row').first.bounding_box()['height']

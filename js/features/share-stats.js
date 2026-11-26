@@ -100,7 +100,7 @@ function shareStoryStats(entry, { history = data.history, max = SHARE_MAX_HIGHLI
     color:    sessionMeta(entry.category, prog).color || 'var(--label2)',
     day:      fmtDate(entry.date, sameYear ? 'day' : 'long'),      // « samedi 17 octobre »
     time:     entry.duration ? fmtTime(entry.date) : '',          // une séance passée n'a pas d'heure
-    duration: entry.duration ? fmtDuration(entry.duration) : null,
+    duration: entry.duration ? (entry.duration < 60000 ? '< 1\u00a0min' : fmtDuration(entry.duration)) : null,   // jamais « 0 min » (juges du 26/11)
     volume:   volume > 0 ? fmtVolume(volume) : null,
     sets:     exercises.reduce((a, ex) => a + workSets(ex.sets).length, 0),   // séries de travail
     records:  rows.filter(r => r.record).length,

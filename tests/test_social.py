@@ -339,7 +339,7 @@ def t_record_ami(bench, eng, dev, theme):
         page.locator('.feed-card[data-id="s1"] .feed-card__main').click()
         page.wait_for_selector('.social-session-view .review-rec')
         d = page.inner_text('.social-session-view')
-        R.check(page.locator('.social-session-view .tile').nth(1).inner_text().startswith('1,1 t'), f'{t} volume sans poids du corps : 1 080 kg, soit 1,1 t ({d[:200]!r})')
+        R.check(page.locator('.social-session-view .tile').nth(1).inner_text().replace('\u202f', ' ').startswith('1 080 kg'), f'{t} volume sans poids du corps : 1 080 kg ({d[:200]!r})')
         rec = page.inner_text('.social-session-view .review-rec')
         R.check(page.locator('.social-session-view .review-rec').count() == 1 and 'Squat haltère' in rec and 'Record charge' in rec and '22,5 kg' in rec and 'avant' not in rec, f'{t} un record nommé, sans ancienne valeur ({rec!r})')
         R.check(page.locator('.social-session-view .review-trend').count() == 0, f'{t} aucune flèche')

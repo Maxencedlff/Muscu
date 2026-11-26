@@ -119,8 +119,10 @@ function sumDurationHtml(ms) {
 function summaryDeltaHtml(delta, volume = 0) {
   if (delta === null || Math.round(delta) === 0 || Math.abs(delta) < volume * 0.01) return '';
   const v = fmtVolume(Math.abs(delta)), up = delta > 0;
-  // Juges du 26/11 : « ↑ 124 kg sur la dernière fois » mal dit, sur 3 lignes : « +124 kg », puis « par rapport à la dernière fois »
-  return `<span class="sum-tile__delta ${up ? 'sum-tile__delta--up' : ''}"><span aria-hidden="true"><span class="sum-tile__delta-n">${up ? '+' : '−'}${v}</span> <span class="sum-tile__delta-why">par rapport à la dernière fois</span></span><span class="visually-hidden">, ${v} ${up ? 'de plus' : 'de moins'} que la dernière fois</span></span>`;
+  // Juges du 26/11 : « ↑ 124 kg sur la dernière fois » mal dit, sur 3 lignes : « 124 kg de plus », puis « que la dernière
+  // fois » dessous ; en mots, sans signe ni flèche (panel t6 : pas de signe moins)
+  const more = up ? 'de plus' : 'de moins';
+  return `<span class="sum-tile__delta ${up ? 'sum-tile__delta--up' : ''}"><span aria-hidden="true"><span class="sum-tile__delta-n">${v} ${more}</span> <span class="sum-tile__delta-why">que la dernière fois</span></span><span class="visually-hidden">, ${v} ${more} que la dernière fois</span></span>`;
 }
 
 function summaryRecordsHtml(records) {
