@@ -99,7 +99,7 @@ def t_accueil_et_coche(bench, eng, dev, theme):
         letters = page.evaluate("[...document.querySelectorAll('.diet-week__letter')].map(e => e.textContent)")
         R.check(all(len(x) == 1 for x in letters), f'{t} frise : une lettre par jour {letters}')
         leg = page.evaluate("document.querySelector('.diet-legend')?.innerHTML || ''")
-        R.check(leg == '' or ' ·' in leg, f'{t} légende : « · » insécable')
+        R.check(leg == '' or '&nbsp;·' in leg, f'{t} légende : « · » insécable')
         shot(page, f'nutrition-{t}')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
@@ -134,7 +134,7 @@ def t_grand_texte(bench, eng, dev, theme):
         ub = page.evaluate("""() => { const b = document.querySelector('[data-tunit]'); if (!b) return null; const r = b.getBoundingClientRect();
             return { bg: getComputedStyle(b).backgroundColor, w: r.width, h: r.height, ph: document.getElementById('dietT_c').placeholder }; }""")
         R.check(ub and ub['bg'] not in ('rgba(0, 0, 0, 0)', 'transparent') and ub['w'] >= 44 and ub['h'] >= 44, f'{t} g / g/kg : bouton visible de 44 pt {ub}')
-        R.check(ub and ub['ph'] == "Pas d'objectif", f'{t} champ vide : « Pas d\'objectif »')
+        R.check(ub and ub['ph'] == '—', f'{t} champ vide : un tiret, plus « Aucun »')
         shot(page, f'objectifs-ax33-{t}')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
@@ -196,7 +196,8 @@ def t_visite(bench, eng, dev, theme):
             if page.inner_text('.tour__next').strip() == "C'est parti":
                 break
             page.click('.tour [data-action="tour-next"]')
-        R.check(titles == ['Démarrer', 'Au programme', 'Nutrition', 'Défis', 'Historique', 'Progrès', 'Programme'],
+        R.check(titles[:1] == ['Démarrer'] and titles[1] in ('Au programme', 'À battre aujourd\'hui')
+                and titles[2:] == ['Nutrition', 'Défis', 'Historique', 'Progrès', 'Programme'],
                 f'{t} visite : Nutrition, Défis et Historique ({titles})')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 

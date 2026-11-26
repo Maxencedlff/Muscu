@@ -188,8 +188,8 @@ def t_passer_et_existant(bench, eng, dev, theme):
         page.evaluate("document.querySelector('.hero .targets')?.remove()")
         page.click('.tour [data-action="tour-next"]')
         settle(page)
-        R.check(page.locator('.tour__title').inner_text() == 'Programme', f'{t} élément absent : étape sautée')
-        page.evaluate("document.querySelectorAll('.tabbar [data-tab]').forEach(b => b.remove())")
+        R.check(page.locator('.tour__title').inner_text() == 'Nutrition', f'{t} élément absent : étape sautée')
+        page.evaluate("document.querySelectorAll('.tabbar [data-tab], .defis-home').forEach(b => b.remove())")
         page.click('.tour [data-action="tour-next"]')
         settle(page)
         R.check(page.locator('.tour').count() == 0 and page.evaluate("document.getElementById('app').inert") is False,

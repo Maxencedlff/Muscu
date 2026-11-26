@@ -398,9 +398,11 @@ function dietTargetsEditHtml(t, total, kg, plan, auto) {
       ? `<button type="button" class="diet-field__unitbtn" data-tunit aria-label="g : grammes. Toucher pour passer en g/kg"><span class="diet-field__unittxt">g</span>${icon('chevron.up.chevron.down', 12)}</button>`
       : `<span class="diet-field__unit" aria-hidden="true">${unit}</span>`;
     // Champ et unité ensemble : au grand texte ils passent sous le nom d'un bloc, jamais l'unité seule à la ligne
+    // Champ vide : un tiret (« Aucun g » ne voulait rien dire, « Pas d'objectif » était coupé au grand texte) ; VoiceOver dit
+    // « vide pour aucun objectif », et la note sous les champs le dit à l'écran
     return `<label class="diet-field"><span class="diet-field__label">${dot}${label}</span>
         <span class="diet-field__val"><input id="dietT_${k}" class="diet-field__input num" type="text" inputmode="${k === 'p' ? 'decimal' : 'numeric'}" autocomplete="off"
-          value="${t[k] == null ? '' : k === 'kcal' ? fmtNum(t[k]) : t[k]}" placeholder="Pas d'objectif" aria-label="${label} par jour${k === 'kcal' ? ', en kilocalories' : ', en grammes'}, vide pour aucun objectif">
+          value="${t[k] == null ? '' : k === 'kcal' ? fmtNum(t[k]) : t[k]}" placeholder="—" aria-label="${label} par jour${k === 'kcal' ? ', en kilocalories' : ', en grammes'}, vide pour aucun objectif">
         ${unitHtml}</span></label>`;
   };
   const word = dietPersonal(plan) ? 'Repas types' : 'Repas prévus';

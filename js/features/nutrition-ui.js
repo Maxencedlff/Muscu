@@ -171,7 +171,9 @@ function dietSummaryHtml(pr) {
   const ratio = dietRatio(eaten.kcal, goal.kcal);
   // Calories fixées mais pas cette macro : son total tiré du plan ne colle pas forcément aux calories fixées
   // (2 000 kcal pour des macros qui en font 1 535) : mangé seul, sans repère ni jauge
-  const free = k => own.kcal && !own[k];
+  // Sans repère (plan neuf, aucun objectif ni aliment prévu) : pas de « 0 sur 0 » (26/11), le mangé seul
+  const noGoal = !(goal.kcal > 0);
+  const free = k => (own.kcal && !own[k]) || !(goal[k] > 0);
   const bars = DIET_MACROS.map(({ k, label }) => free(k) ? `
           <div class="diet-bar diet-bar--${k} diet-bar--free" role="img" aria-label="${label} : ${dietN(eaten[k])} grammes, pas d'objectif">
             <div class="diet-bar__head"><span class="diet-bar__label"><i class="diet-dot diet-dot--${k}"></i>${label}</span><span class="diet-bar__val num"><b>${dietN(eaten[k])}</b> g</span></div>
@@ -192,13 +194,14 @@ function dietSummaryHtml(pr) {
   return `
       <section class="diet-sum${fin ? ' diet-sum--complete' : ''}" aria-label="Bilan de la journée">
         <div class="diet-sum__main">
-          <div class="diet-sum__ring" role="img" aria-label="${dietN(eaten.kcal)} kilocalories sur ${dietN(goal.kcal)}">
-            ${dietRingSvg(ratio)}
-            <span class="diet-sum__kcal" aria-hidden="true"><b class="num">${dietN(eaten.kcal)}</b><span class="num">sur ${dietN(goal.kcal)} kcal</span></span>
+          <div class="diet-sum__ring" role="img" aria-label="${dietN(eaten.kcal)} kilocalories${noGoal ? ', pas d\'objectif' : ` sur ${dietN(goal.kcal)}`}">
+            ${dietRingSvg(noGoal ? 0 : ratio)}
+            <span class="diet-sum__kcal" aria-hidden="true"><b class="num">${dietN(eaten.kcal)}</b><span class="num">${noGoal ? 'kcal' : `sur ${dietN(goal.kcal)} kcal`}</span></span>
           </div>
           <div class="diet-sum__bars">${bars}</div>
         </div>
         ${line}
+        ${noGoal && !own.p && !own.c && !own.f && !dietHasMealItems(pr.plan) ? '<p class="diet-sum__hint">Pas encore d\'objectif : touche « Mon plan » en haut, puis « Objectifs du jour ».</p>' : ''}
         ${own.kcal || own.p || own.c || own.f || !dietHasMealItems(pr.plan) ? '' : `<p class="diet-sum__hint">Repère : ${dietPersonal(pr.plan) ? 'le total de tes repas types' : 'le total prévu par ton plan'}${Object.keys(pr.swaps).length ? ', remplacements du jour compris' : ''}.</p>`}
         ${dietLowKcal(pr.plan) ? dietLowNoteHtml(!!pr.plan.targets?.kcal) : ''}
         ${dietSaltRowHtml(pr)}
