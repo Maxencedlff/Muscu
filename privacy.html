@@ -201,6 +201,11 @@
   </section>
 
   <section>
+    <h2 id="diagnostics">Diagnostics (erreurs de l'app)</h2>
+    <p>Quand l'application iOS rencontre une erreur de programmation (un plantage d'un écran, par exemple), elle envoie un court rapport technique au serveur de l'app (Supabase, Union européenne, Irlande) pour que nous puissions la corriger. Ce rapport contient seulement le type de l'erreur, son message technique nettoyé, les fichiers et numéros de ligne du code de l'app où elle s'est produite, la version de l'app et la plateforme (iOS ou Android). Il ne contient <strong>aucune donnée personnelle</strong> : ni ton compte, ni ton pseudo, ni ton e-mail, ni ton poids, ni tes séances, ni tes données Santé, ni l'identifiant de ton appareil. Avant l'envoi, l'app retire du message tous les nombres, les adresses, les textes saisis et les mots qui pourraient venir de tes données ; le serveur refuse tout rapport qui en contiendrait encore. Ton adresse IP n'est pas enregistrée : elle sert seulement, le temps de la requête, à limiter le nombre de rapports par appareil. Les rapports sont effacés au plus tard 90 jours après la dernière fois qu'une erreur s'est produite. Base légale : notre intérêt légitime à corriger les défauts de l'application.</p>
+  </section>
+
+  <section>
     <h2>Suppression</h2>
     <p>Tu peux tout effacer de ton appareil depuis Réglages › Données › Supprimer toutes les données, ou en supprimant l'application. Si tu as un compte, Réglages › Compte › Supprimer mon compte efface aussi tout ce qui est sur le serveur.</p>
   </section>
@@ -313,6 +318,11 @@
   <section>
     <h2>Content updates</h2>
     <p>The iOS app occasionally checks ota.mdlf.app (hosted by Cloudflare) or, depending on the app version, mdlf-ota.vercel.app (hosted by Vercel), from which updates are downloaded, for content updates. The request contains no personal or workout data; as with any Internet connection, your IP address is visible to the host (Cloudflare or Vercel) during the request.</p>
+  </section>
+
+  <section>
+    <h2 id="diagnostics-en">Diagnostics (app errors)</h2>
+    <p>When the iOS app hits a programming error (a screen crashing, for example), it sends a short technical report to the app's server (Supabase, European Union, Ireland) so we can fix it. The report only contains the error type, its cleaned technical message, the app code files and line numbers where it happened, the app version and the platform (iOS or Android). It contains <strong>no personal data</strong>: not your account, username, email, weight, workouts, Health data or device identifier. Before sending, the app removes every number, address, typed text and word that could come from your data; the server rejects any report that still contains some. Your IP address is not stored: it is only used, during the request, to limit the number of reports per device. Reports are deleted at the latest 90 days after the error last occurred. Legal basis: our legitimate interest in fixing the app's defects.</p>
   </section>
 
   <section>

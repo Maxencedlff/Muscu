@@ -52,3 +52,8 @@ verify_jwt = false
 # Appelée par la planification (pg_cron + pg_net, docs/PHOTOS_BILAN.md), jamais par l'app : pas de jeton de
 # session, un secret partagé PHOTOS_PURGE_SECRET vérifié dans le code (en-tête x-purge-secret)
 verify_jwt = false
+
+[functions.error-report]
+# Remontée des erreurs de l'app (docs/ERREURS_PROD.md) : appel anonyme, aucun jeton lu ; corps validé et
+# limite de fréquence dans le code, adresse IP jamais gardée
+verify_jwt = false

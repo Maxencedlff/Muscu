@@ -1,4 +1,4 @@
-// Tests de comportement des 13 fonctions Edge (audit du 12/11, M7) : chaque handler exporté par
+// Tests de comportement des 14 fonctions Edge (audit du 12/11, M7) : chaque handler exporté par
 // supabase/functions/*/index.ts est appelé pour de vrai, avec un faux réseau et de fausses variables
 // d'environnement (tests/deno/fake.ts). Ils vérifient les refus d'entrée (méthode, CORS, jeton de session,
 // secret partagé, signature d'Apple, corps invalide) et, pour delete-account, la règle de connexion récente.
@@ -13,6 +13,7 @@ import { handler as coachPhotosPurge } from '../../supabase/functions/coach-phot
 import { handler as coachRequestAlert } from '../../supabase/functions/coach-request-alert/index.ts';
 import { handler as coachWebOrphan } from '../../supabase/functions/coach-web-orphan/index.ts';
 import { handler as deleteAccount } from '../../supabase/functions/delete-account/index.ts';
+import { handler as errorReport } from '../../supabase/functions/error-report/index.ts';
 import { handler as pushSend } from '../../supabase/functions/push-send/index.ts';
 import { handler as report } from '../../supabase/functions/report/index.ts';
 import { handler as revokeApple } from '../../supabase/functions/revoke-apple/index.ts';
@@ -24,7 +25,7 @@ import { handler as verifyPurchase } from '../../supabase/functions/verify-purch
 const ALL: Record<string, Handler> = {
   'appstore-notify': appstoreNotify, 'coach-photos-purge': coachPhotosPurge, 'coach-promo-offer': coachPromoOffer,
   'coach-request-alert': coachRequestAlert, 'coach-web-orphan': coachWebOrphan,
-  'delete-account': deleteAccount, 'push-send': pushSend, report, 'revoke-apple': revokeApple,
+  'delete-account': deleteAccount, 'error-report': errorReport, 'push-send': pushSend, report, 'revoke-apple': revokeApple,
   'strava-connect': stravaConnect, 'strava-disconnect': stravaDisconnect, 'strava-export': stravaExport,
   'verify-purchase': verifyPurchase,
 };

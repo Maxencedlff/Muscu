@@ -63,7 +63,20 @@ export default function ({ test, assert, sameJSON, ROOT }) {
         policy: 'purge-policy.js',
       },
     };
+    // Dernière exception : error-report (docs/ERREURS_PROD.md), anonyme PAR CONCEPTION (un rapport d'erreur ne
+    // doit jamais être rattaché à un compte) : elle ne lit aucun jeton, et ne touche la base qu'après la
+    // validation du corps (liste blanche) et la limite de fréquence par appareil.
+    const ANONYMOUS = ['error-report'];
     for (const f of open) {
+      if (ANONYMOUS.includes(f)) {
+        const src = read(`supabase/functions/${f}/index.ts`);
+        const handler = src.slice(src.indexOf('export async function handler(req: Request): Promise<Response> {'));
+        assert.ok(!/caller\(|[Aa]uthorization|getUser/.test(handler), `${f} : lit un jeton alors qu'elle doit rester anonyme`);
+        const db = handler.indexOf('adminClient()');
+        assert.ok(db > 0 && handler.indexOf('validateErrorReport(') > 0 && handler.indexOf('validateErrorReport(') < db, `${f} : base touchée avant la validation`);
+        assert.ok(handler.indexOf('limiter.hit(') > 0 && handler.indexOf('limiter.hit(') < db, `${f} : base touchée avant la limite de fréquence`);
+        continue;
+      }
       const src = read(`supabase/functions/${f}/index.ts`);
       const handler = src.slice(src.indexOf('export async function handler(req: Request): Promise<Response> {'));
       assert.ok(handler.length > 20, `${f} : handler exporté introuvable`);
