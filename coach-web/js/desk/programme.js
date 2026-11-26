@@ -3,7 +3,7 @@
 //  maquette 4-programme)
 //
 //  L'éditeur des séances de l'élève en grand écran : exercices, séries, fourchette ou reps fixes, charge prescrite (une
-//  pour toutes les séries, ou série par série : top set et back-off), repos, technique d'intensification et « sur
+//  pour toutes les séries, ou série par série : série lourde et séries allégées), repos, technique d'intensification et « sur
 //  quelle série », consigne ; colonne « La dernière fois » (ce que l'élève a fait, face à la fourchette). Envoi à
 //  l'élève, ou à plusieurs élèves (chacun garde SES charges prescrites). Logique et format : js/desk/prog-model.js
 //  (format de l'app, sans divergence). Rien n'est modifié sur l'iPhone du coach : ses programmes restent les siens ;
@@ -94,7 +94,10 @@ function deskPgRowHtml(e, i, n, rows, name) {
     ? `<div class="loads">${ld.loads.map((kg, j) => `<span class="ld">${deskPgIn(`pg-ld${j}-${k}`, `loads.${j}`, k, deskPgKg(kg), `Charge de la série ${j + 1}, ${e.name}`, { mode: 'decimal', cls: kg !== null && j === 0 && prescSetTag(e, 0) ? 'on' : '' })}<small>${esc(prescSetTag(e, j) || `série ${j + 1}`)}</small></span>`).join('')}</div>`
     : deskPgIn(`pg-ld-${k}`, 'load', k, deskPgKg(ld.load), `Charge prescrite en kilos, ${e.name}`, { mode: 'decimal', cls: 'w' });
   const last = deskPgLast(rows, e);
-  const lastCell = last ? `<span class="tnum">${esc(last.text)}</span>${last.word ? `<span class="${last.status === 'under' ? 'warn' : 'green'} blk">${esc(last.word)}</span>` : ''}<small class="blk faint">${esc(fmtDate(last.doneAt, 'short'))}</small>`
+  const gap = deskPgLoadGap(e, last);
+  const gapHtml = gap ? `<span class="warn blk pg-gap">${esc(`Prescrit ${fmtNum(gap.presc, 2)} kg, fait ${fmtNum(gap.done, 2)} kg`)}</span>${gap.next !== gap.presc
+    ? `<button type="button" class="btn link pg-next" data-pg="use-next" data-k="${k}" data-v="${gap.next}">${esc(`Prescrire ${fmtNum(gap.next, 2)} kg`)}<span class="sr">${esc(`, ${e.name}`)}</span></button>` : ''}` : '';
+  const lastCell = last ? `<span class="tnum">${esc(last.text)}</span>${last.word ? `<span class="${last.status === 'under' ? 'warn' : 'green'} blk">${esc(last.word)}</span>` : ''}<small class="blk faint">${esc(fmtDate(last.doneAt, 'short'))}</small>${gapHtml}`
     : `<span class="${reps ? 'muted' : 'faint'}">${reps ? 'Pas encore fait' : '—'}</span>`;
   const open = pg.open === k;
   return `<li class="pg-row${open ? ' open' : ''}" data-k="${k}">
@@ -125,7 +128,7 @@ function deskPgSettingsHtml(e, i, n, name) {
       <span class="t2">${esc(`${name} la voit dans sa séance, avec la fourchette. Vide : pas de charge prescrite.`)}</span></div>
     <div class="fld sm"><span aria-hidden="true">Technique d'intensification</span>${deskCkSelectHtml(`pg-tech-${k}`, `Technique d'intensification, ${e.name}`, DESK_PG_TECHS, tc.tech, `data-pg-f="tech" data-k="${k}"`)}</div>
     ${chips}` : ''}
-    <div class="fld sm pg-cons"><label for="pg-cons-${k}">Consigne pour ${esc(name)}</label><textarea id="pg-cons-${k}" data-pg-f="consigne" data-k="${k}" rows="2" maxlength="${CONSIGNE_MAX}" placeholder="Ex : 2 reps en réserve sur le top set">${esc(e.consigne || '')}</textarea></div>
+    <div class="fld sm pg-cons"><label for="pg-cons-${k}">Consigne pour ${esc(name)}</label><textarea id="pg-cons-${k}" data-pg-f="consigne" data-k="${k}" rows="2" maxlength="${CONSIGNE_MAX}" placeholder="Ex : 2 reps en réserve sur la série lourde">${esc(e.consigne || '')}</textarea></div>
     <div class="ck-acts"><button type="button" class="btn" data-pg="up" data-k="${k}" ${i === 0 ? 'aria-disabled="true"' : ''}>${deskIcon('up', 'sm')}Monter</button>
       <button type="button" class="btn" data-pg="down" data-k="${k}" ${i === n - 1 ? 'aria-disabled="true"' : ''}>${deskIcon('down', 'sm')}Descendre</button>
       <button type="button" class="btn danger" data-pg="remove" data-k="${k}">${deskIcon('trash', 'sm')}Retirer l'exercice</button></div>
@@ -323,6 +326,11 @@ document.addEventListener('click', async e => {
   if (a === 'remove' && x) {
     if (!(await deskConfirm({ title: `Retirer ${x.e.name} ?`, text: `Il partira de la séance « ${x.s.label} » au prochain envoi.`, ok: 'Retirer', danger: true }))) return;
     x.s.exercises = x.s.exercises.filter(y => y !== x.e); pg.open = null; say(`${x.e.name} retiré`); deskRender(); document.getElementById('pg-add')?.focus(); return;
+  }
+  if (a === 'use-next' && x) {
+    // Charge proposée d'après la dernière fois : la lourde passe à cette charge, les allégées suivent du même écart
+    if (deskPgApplyNext(x.e, Number(el.dataset.v))) say(`${x.e.name} : ${fmtNum(Number(el.dataset.v), 2)} kg prescrits, à envoyer à ton élève.`);
+    deskRender(); (document.querySelector(`[data-pg="use-next"][data-k="${x.e._k}"]`) || document.getElementById(`pg-ld0-${x.e._k}`) || document.getElementById(`pg-ld-${x.e._k}`))?.focus(); return;
   }
   if (a === 'reset') { const cur = pg.list.find(p => p.id === pg.progId); if (cur) deskPgUse(cur); deskRender(); say('Changements annulés'); return; }
   if (a === 'send') deskPgSend();

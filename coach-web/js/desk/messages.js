@@ -164,7 +164,7 @@ function deskThreadHtml(id, { inFiche = false } = {}) {
       <button type="button" class="btn link" data-ms="report">Signaler</button></div>
     <div class="chat-b" id="chat-b" data-keep-scroll="${esc(id)}" role="log" aria-live="polite" aria-relevant="additions" tabindex="0" aria-label="${esc(`Messages avec ${name}`)}">
       <p class="chat-intro">Personne d'autre que toi et ${esc(name)} ne lit ces messages, sauf en cas de signalement. Ils sont supprimés si le suivi s'arrête.</p>${body}</div>
-    ${off ? `<p class="chat-off">${esc(`${name} ne reçoit pas tes messages en notification : ils l'attendent dans l'app.`)}</p>` : ''}
+    ${off ? `<p class="chat-off">${esc(`Notifications coupées chez ${name} : ton message sera là dès que ${name} ouvrira l'app.`)}</p>` : ''}
     <div class="chat-in"><label class="sr" for="chat-in">${esc(`Message à ${name}`)}</label>
       <textarea id="chat-in" data-key="${esc(id)}" rows="1" placeholder="${esc(`Écrire à ${name}`)}" autocomplete="off" aria-describedby="chat-count chat-help"${cnt.over ? ' aria-invalid="true"' : ''}>${esc(draft)}</textarea>
       <button type="button" class="send" data-ms="send" aria-label="Envoyer le message" ${c.sending || chatProblem(draft) ? 'disabled' : ''}>${deskIcon('send')}</button></div>

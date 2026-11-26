@@ -85,7 +85,8 @@ def matrix_case(browser, url, engine, w, h, touch, theme):
         go(page, '#/eleve/LEA/programme', '.pg-row[data-k]')
         check(page.locator('.pg-row[data-k]').count() == 5, f'{tag} : 5 exercices dans Haut A')
         first = page.locator('.pg-row[data-k]').first
-        check('Top set' in first.inner_text() and 'Back-off' in first.inner_text(), f'{tag} : top set et back-off {first.inner_text()!r}')
+        check('Lourde' in first.inner_text() and 'Allégée' in first.inner_text() and 'Top set' not in first.inner_text() and 'Back-off' not in first.inner_text(),
+              f'{tag} : série lourde et séries allégées, en français {first.inner_text()!r}')
         check('45 × 7' in first.inner_text() or '55 × 8' in first.inner_text() or 'Pas encore fait' in first.inner_text(), f'{tag} : la dernière fois')
         common(page, f'{tag} programme', theme)
         k = first.get_attribute('data-k')

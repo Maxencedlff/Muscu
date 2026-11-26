@@ -196,7 +196,7 @@ function deskCkTitle(r, now) {
   const when = r.answeredAt ? `reçu ${deskAgo(r.answeredAt, now)}` : r.cancelledAt ? 'pas rempli à temps' : `envoyé ${deskAgo(r.sentAt, now)}`;
   return { title, sub: `${r.name}, ${when}` };
 }
-// Nombre des photos envoyées dans un bilan (le web ne les déchiffre pas encore : vague 5)
+// Nombre des photos envoyées dans un bilan (elles-mêmes : js/desk/photos.js, ordinateur relié à l'iPhone du coach)
 function deskCkPhotoCount(r) {
   return r.items.filter(it => it.type === 'photo').reduce((a, it) => a + (r.answers[it.key]?.ids?.length || 0), 0);
 }

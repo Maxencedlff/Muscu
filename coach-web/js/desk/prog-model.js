@@ -167,7 +167,7 @@ function deskPgMove(s, k, delta) {
 }
 
 // « La dernière fois » : séries de travail de la dernière séance qui a cet exercice, en texte (« 45 × 7 · 40 × 9, 9, 8 »)
-// et face à la fourchette prescrite. rows : séances reçues (cleanCoachSessionRow). → { text, status, word, doneAt } | null
+// et face à la fourchette prescrite. rows : séances reçues (cleanCoachSessionRow). → { text, status, word, doneAt, kg } | null
 function deskPgLast(rows, e) {
   if (!e || measureOf(e) !== 'reps') return null;
   const last = studentLastLoads(rows, e.name);
@@ -180,7 +180,34 @@ function deskPgLast(rows, e) {
   if (p) status = last.reps.some(n => n < p.lo) ? 'under' : last.reps.every(n => n >= p.hi) ? 'top' : 'in';
   const fixed = !!fixedReps(e);
   const word = { under: fixed ? 'Sous les reps prévues' : 'Sous la fourchette', top: fixed ? 'Reps atteintes : monter' : 'Haut de fourchette : monter', in: 'Dans la fourchette' }[status] || '';
-  return { text, status, word, doneAt: last.doneAt };
+  return { text, status, word, doneAt: last.doneAt, kg: last.kg };
+}
+
+// Charge prescrite loin de ce que l'élève a fait la dernière fois (juges du 26/11 : « prescrit 45 kg » à côté de
+// « 55 × 8, 8, 8, haut de fourchette : monter ») : écart d'un cran de charge (loadStepKg, 2,5 kg à la barre) ou plus,
+// entre la plus lourde prescrite et la plus lourde faite. Charge proposée : celle faite, un cran au-dessus si le haut de
+// la fourchette est atteint. → { presc, done, next } (kg) | null
+function deskPgLoadGap(e, last) {
+  if (!last?.kg?.length || measureOf(e) !== 'reps') return null;
+  const ld = deskPgLoads(e), list = (ld.mode === 'sets' ? ld.loads : [ld.load]).filter(v => v > 0);
+  if (!list.length) return null;
+  const presc = Math.max(...list), done = Math.max(...last.kg);
+  const step = loadStepKg(e);
+  if (!(done > 0) || Math.abs(done - presc) < step - 1e-9) return null;
+  const next = Math.round((last.status === 'top' ? done + step : done) * 4) / 4;
+  return { presc, done, next };
+}
+// Applique la charge proposée : la plus lourde prescrite passe à `next`, les autres séries bougent d'autant (une série
+// allégée reste plus légère que la lourde, du même écart). Rend true si l'exercice a changé.
+function deskPgApplyNext(e, next) {
+  const ld = deskPgLoads(e), list = (ld.mode === 'sets' ? ld.loads : [ld.load]).filter(v => v > 0);
+  if (!list.length || !(next > 0)) return false;
+  const delta = next - Math.max(...list);
+  if (!delta) return false;
+  const move = v => (v > 0 ? Math.max(0.25, Math.round((v + delta) * 4) / 4) : v);
+  if (ld.mode === 'sets') deskPgSetLoads(e, 'sets', null, ld.loads.map(move));
+  else deskPgSetLoads(e, 'one', move(ld.load), []);
+  return true;
 }
 
 // Programme pour un autre élève (Envoyer à plusieurs) : la même séance, mais SES charges prescrites. Charge d'un

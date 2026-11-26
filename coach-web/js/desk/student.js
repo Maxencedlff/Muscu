@@ -99,6 +99,7 @@ function deskStudentHtml(d, ui, tab = 'weeks') {
     <caption class="sr">Semaine par semaine, de la semaine en cours vers le passé</caption>
     <thead><tr><th scope="col">Semaine</th><th scope="col">Poids (kg)</th><th scope="col">Séances</th><th scope="col">Volume</th><th scope="col">Records</th><th scope="col">Diète (jours)</th><th scope="col">Eau</th>${hCols.map(([, l, u]) => `<th scope="col">${esc(l)}<small>${esc(u)}</small></th>`).join('')}${cols.map(k => `<th scope="col">${esc(bodyMeasureLabel(k))} (cm)</th>`).join('')}${ckCols.map(c => `<th scope="col" class="ckh">${esc(c.head)}</th>`).join('')}</tr></thead>
     <tbody>${w.map(x => deskWeekRowHtml(x, cols, ctx, ckCols, d.checkins, hCols)).join('')}</tbody></table></div>
+    <p class="tscroll-hint" id="wk-hint" hidden>${deskIcon('chevron', 'xs')}D'autres colonnes à droite : fais défiler le tableau.</p>
     ${ui.weeks < d.weeks.length ? `<button type="button" class="btn link more" data-action="more-weeks">Afficher les semaines précédentes</button>` : ''}
     <div class="gfoot">Tout se remplit seul avec ce que ${esc(r.name)} partage : pesées, séances, repas cochés, eau, mensurations${hCols.length ? ', pas, sommeil et cardio' : ''}. Poids : moyenne des pesées de la semaine et écart avec la semaine pesée d'avant. Diète : jours suivis sur les jours notés.${hCols.length ? ' Pas, sommeil et cardio : moyenne des jours relevés par son iPhone dans la semaine.' : ''}${deskHealthStale(d.health, d.now) ? ` <span class="h-stale">Pas, sommeil et cardio : dernier jour reçu le ${esc(fmtDate(deskHealthStale(d.health, d.now), 'short'))}.</span>` : ''} Défis : pas encore partagés avec le coach.${d.health && d.health.shared === false ? ` <span class="h-off">${esc(r.name)} ne partage pas ses pas, son sommeil ni son cardio (réglage dans l'app iPhone : Partager avec mon coach).</span>` : ''}${ckCols.length ? ' Dernières colonnes : réponses à ses bilans, semaine où commence la période du bilan.' : ''}</div>`;
   const panel = `<div class="side-panel">
@@ -109,3 +110,17 @@ function deskStudentHtml(d, ui, tab = 'weeks') {
   </div>`;
   return `${head}<div role="tabpanel" id="panel-weeks" aria-labelledby="tab-weeks">${stats}<div class="cols wkc"><div class="tbl-col"><h2 class="gh">Semaine par semaine</h2>${table}</div>${panel}</div></div>`;
 }
+
+// Tableau plus large que son cadre (beaucoup de colonnes partagées) : la colonne Semaine reste collée à gauche (CSS) et
+// une ligne dit qu'il y a d'autres colonnes à droite, tant que le coach n'a pas défilé jusqu'au bout. Appelée après
+// chaque rendu (deskPaint), au redimensionnement et au défilement du tableau.
+function deskTableHints(root = document) {
+  root.querySelectorAll('.tscroll').forEach(el => {
+    const more = el.scrollWidth - el.clientWidth > 1;
+    el.classList.toggle('more', more);
+    const hint = el.nextElementSibling?.classList.contains('tscroll-hint') ? el.nextElementSibling : null;
+    if (hint) hint.hidden = !more || el.scrollLeft + el.clientWidth >= el.scrollWidth - 2;
+  });
+}
+window.addEventListener('resize', () => deskTableHints());
+document.addEventListener('scroll', e => { if (e.target?.classList?.contains('tscroll')) deskTableHints(); }, true);

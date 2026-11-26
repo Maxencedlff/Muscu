@@ -87,3 +87,40 @@ function deskNtPlanLine(plan) {
   if (plan.targets?.water) parts.push(`eau ${fmtNum(plan.targets.water, 2)} L`);
   return parts.join(' · ');
 }
+
+// ── Objectif et prévu, chacun nommé (juges du 26/11 : « 1800 kcal par jour » dans l'en-tête, 1 364 kcal dans les repas,
+// « 1 780 sur 1 800 » le jour même : le coach ne savait plus quel chiffre croire) ──
+
+// Un jour du plan : { goal (objectif fixé, kcal) | null, planned (total de ses repas, kcal) | null, gap (planned − goal,
+// seulement s'il dépasse 5 % de l'objectif) | null }
+function deskNtDayKcal(day) {
+  if (!day) return { goal: null, planned: null, gap: null };
+  const goal = Number(day.targets?.kcal) > 0 ? Math.round(day.targets.kcal) : null;
+  const planned = Math.round(dietPlanMacros(day).kcal) || null;
+  const gap = goal && planned && Math.abs(planned - goal) > goal * 0.05 ? planned - goal : null;
+  return { goal, planned, gap };
+}
+// En-tête du plan : « Objectif 1 800 kcal par jour · repas prévus 1 364 kcal · eau 2,5 L » (le prévu seulement s'il
+// s'écarte de l'objectif) ; plan sur 2 jours : « Entraînement : objectif 2 300 kcal · repos : objectif 2 000 kcal »
+function deskNtPlanHead(plan) {
+  if (!plan) return '';
+  const one = (k, when) => (k.goal ? `objectif ${fmtNum(k.goal)} kcal${when}${k.gap !== null ? `, repas prévus ${fmtNum(k.planned)} kcal` : ''}`
+    : k.planned ? `repas prévus ${fmtNum(k.planned)} kcal${when}` : '');
+  const parts = [];
+  if (plan.days?.mode === 'session') {
+    const t = one(deskNtDayKcal(plan), ''), r = one(deskNtDayKcal(dietDayObj(plan, 1)), '');
+    if (t) parts.push(`Entraînement : ${t}`);
+    if (r) parts.push(`repos : ${r}`);
+  } else {
+    const t = one(deskNtDayKcal(plan.days?.mode === 'week' ? dietDayObj(plan, 0) : plan), plan.days?.mode === 'week' ? ' le lundi' : ' par jour');
+    if (t) parts.push(t.charAt(0).toUpperCase() + t.slice(1));
+  }
+  if (plan.targets?.water) parts.push(`eau ${fmtNum(plan.targets.water, 2)} L`);
+  return parts.join(' · ');
+}
+// Repas cochés d'un jour : { kcal (total prévu par le plan pour ces repas), n } | null si aucun repas coché n'a ses
+// aliments dans le plan
+function deskNtCheckedKcal(meals) {
+  const ok = meals.filter(m => m.ok && m.kcal !== null);
+  return ok.length ? { kcal: ok.reduce((a, m) => a + m.kcal, 0), n: ok.length } : null;
+}

@@ -405,4 +405,48 @@ def t_textes(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_programme_eleve, t_creer_pour_qui, t_envoyer_partager, t_fiche, t_bilan_serveur_ancien, t_inviter, t_fourchette, t_textes])
+# ── Texte agrandi (AX33) : rien de coupé, cibles de 44 pt ───────────
+def cut_texts(page):
+    return page.evaluate("""() => [...document.querySelectorAll('#app *')].filter(e => e.offsetParent && e.children.length === 0
+        && e.textContent.trim() && !e.matches('input, textarea, select, option, svg, use, .icon *, .visually-hidden, .sr-text') && e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).display !== 'inline')
+        .map(e => e.textContent.trim().slice(0, 30))""")
+
+
+def t_ax33(bench, eng, dev, theme):
+    if dev not in ('iPhone SE', 'iPhone 13'):
+        return
+    t = tag(dev, theme) + '-AX33'
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
+        open_app(page, theme)
+        signin(page, 'sophie')
+        ids = setup_coach(page)
+        page.add_style_tag(content='html { font-size: 33px !important; }')
+        page.evaluate("window.dispatchEvent(new Event('resize'))")
+        fiche(page, ids['camille'])
+        page.wait_for_selector('[data-action="coach-ck-send"]')
+        for sel, name in (('[data-action="coach-ex-progress"]', 'charges'), ('[data-action="coach-ck-send"]', 'bilan')):
+            page.locator(sel).scroll_into_view_if_needed()
+            settle(page)
+            R.check(not cut_texts(page) and no_hscroll(page), f'{t} fiche ({name}) : rien de coupé {cut_texts(page)}')
+            shot(page, LOT, f'11-ax33-fiche-{name}-{t}')
+        page.click('[data-action="coach-ex-progress"]')
+        page.wait_for_selector('.coach-exp-view #exChart')
+        settle(page)
+        R.check(not cut_texts(page) and no_hscroll(page) and not small_targets(page, '.coach-exp-view button'), f'{t} courbe : rien de coupé, 44 pt {cut_texts(page)}')
+        shot(page, LOT, f'12-ax33-courbe-{t}')
+        page.evaluate("goBack()")
+        settle(page)
+        page.click('[data-action="coach-send"]')
+        tap_dialog(page, 'Créer un programme pour camille')
+        fill_dialog(page, 'Camille')
+        tap_dialog(page, 'Suivant')
+        tap_dialog(page, 'Copie du PPL') if page.locator('.ios-dialog__btn', has_text='Copie du PPL').count() else tap_dialog(page, 'Copie de PPL')
+        page.wait_for_selector('.programmes [data-action="prog-send-student"]')
+        page.locator('.programmes [data-action="prog-send-student"]').scroll_into_view_if_needed()
+        settle(page)
+        R.check(not cut_texts(page) and no_hscroll(page), f'{t} page du programme : rien de coupé {cut_texts(page)}')
+        shot(page, LOT, f'13-ax33-programme-{t}')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+run_main(R, [t_programme_eleve, t_creer_pour_qui, t_envoyer_partager, t_fiche, t_bilan_serveur_ancien, t_inviter, t_fourchette, t_textes, t_ax33])

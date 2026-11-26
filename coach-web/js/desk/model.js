@@ -58,7 +58,22 @@ function deskPhaseLine(phases, now) {
   if (cur) { const g = phaseProgress(cur, today); return { text: `${phaseTitle(cur)} · sem. ${g.week} sur ${cur.weeks}`, short: phaseTitle(cur), phase: cur, week: g.week }; }
   const next = planNext(phases, today);
   if (next) return { text: `${phaseTitle(next)} : ${phaseStatusText(next, today).toLowerCase()}`, short: phaseTitle(next), phase: next, week: 0 };
+  const last = planSorted(phases).at(-1);
+  if (last) return { text: `${phaseTitle(last)} terminée le ${fmtDate(planTs(phaseLastDay(last)), 'short')}`, short: phaseTitle(last), phase: null, week: 0, ended: last };
   return { text: 'Aucune phase', short: '', phase: null, week: 0 };
+}
+// Suite à prévoir (juges du 26/11) : phase en cours qui finit dans 7 jours ou moins sans phase suivante, ou dernière
+// phase terminée → { kind: 'phase-end' | 'phase-done', text } ; null sinon (serveur sans planification compris)
+function deskPhaseTodo(phases, now) {
+  if (!Array.isArray(phases) || !phases.length) return null;
+  const today = localISO(now), cur = planCurrent(phases, today);
+  if (planNext(phases, today)) return null;
+  if (cur) {
+    const left = phaseProgress(cur, today).daysLeft;
+    if (left > 7) return null;
+    return { kind: 'phase-end', text: `${left <= 1 ? 'Fin de phase aujourd\'hui' : `Fin de phase dans ${left} jours`} : prévoir la suite` };
+  }
+  return { kind: 'phase-done', text: 'Phase terminée : prévoir la suite' };
 }
 
 // Séances de chaque jour des 7 derniers (du plus ancien à aujourd'hui), null sans les faits de coach_progress
@@ -77,7 +92,7 @@ function deskDietDots(ov, now) {
 
 // Ce qu'il y a à faire pour un élève, du plus urgent : { kind, tone, text, n? }.
 // act = demande une action du coach (la ligne va dans « À traiter ») ; les autres informent.
-function deskTodo({ st, pr, unread, dietWarn, noprog, ckToAnswer = 0 }) {
+function deskTodo({ st, pr, unread, dietWarn, noprog, ownProg = false, phaseTodo = null, ckToAnswer = 0 }) {
   const out = [];
   if (pr.tone === 'warn') out.push({ kind: pr.kind, tone: 'warn', text: pr.text, act: true });
   // Bilan reçu, pas encore répondu (coach_checkins_overview, js/desk/checkins-model.js)
@@ -85,6 +100,10 @@ function deskTodo({ st, pr, unread, dietWarn, noprog, ckToAnswer = 0 }) {
   if (dietWarn) out.push({ kind: 'diet', tone: 'warn', text: DIET_SHARE_WARN_TEXT, act: true });
   if (unread > 0) out.push({ kind: 'unread', tone: 'badge', n: unread, text: unread > 1 ? 'messages non lus' : 'message non lu', act: true });
   if (noprog) out.push({ kind: 'noprog', tone: 'warn', text: 'Sans programme', act: true });
+  if (phaseTodo) out.push({ ...phaseTodo, tone: 'warn', act: true });
+  // Phase en cours sans programme envoyé par moi : l'élève garde le sien (juges du 26/11 : « Sans programme » à côté
+  // de « Bloc force · sem. 12 sur 12 » se contredisait)
+  if (ownProg) out.push({ kind: 'own', tone: 'muted', text: 'Suit son propre programme' });
   if (st.new_sessions > 0) out.push({ kind: 'fresh', tone: 'dot', text: plural(st.new_sessions, 'nouvelle séance', 'nouvelles séances') });
   if (pr.kind === 'records') {
     const r = pr.records[0], n = pr.records.length;
@@ -94,7 +113,7 @@ function deskTodo({ st, pr, unread, dietWarn, noprog, ckToAnswer = 0 }) {
   return out;
 }
 // Rang d'urgence dans « À traiter » (plus petit = plus urgent) : sans séance depuis longtemps, en baisse, bilan reçu
-// à répondre, diète, messages, sans programme ; puis le reste
+// à répondre, diète, messages, sans programme ou suite de phase à prévoir ; puis le reste
 function deskUrgency(row) {
   const t = row.todo;
   if (t.some(x => x.kind === 'inactive' || x.kind === 'never')) return 0;
@@ -102,7 +121,7 @@ function deskUrgency(row) {
   if (row.ckToAnswer) return 1.5;
   if (row.dietWarn) return 2;
   if (row.unread) return 3;
-  if (row.noprog) return 4;
+  if (row.noprog || row.phaseTodo) return 4;
   if (row.st.new_sessions) return 5;
   if (row.pr.kind === 'records') return 6;
   return 9;
@@ -121,10 +140,15 @@ function deskStudentRows({ state, facts = null, plans = null, threads = null, di
     const unread = threads?.students?.[st.user_id]?.unread || 0;
     const ov = dietOv ? dietOv[st.user_id] || null : null;
     const dietWarn = !!ov && dietShareWarn(ov, now);
-    const noprog = coachStudentIn('noprog', st, pr);
+    // « Sans programme » : aucun programme envoyé par moi ET aucune phase en cours (une phase sans programme envoyé :
+    // l'élève suit le sien, ce n'est pas un oubli du coach)
+    const noSent = coachStudentIn('noprog', st, pr);
+    const phase = deskPhaseLine(phases, now);
+    const noprog = noSent && !phase?.phase;
+    const ownProg = noSent && !!phase?.phase;
     const lastAt = Math.max(st.last_session?.done_at ?? -Infinity, f?.sessions?.[0]?.at ?? -Infinity);
-    const row = { id: st.user_id, name: personName(st), st, pr, unread, dietWarn, noprog, lastAt: Number.isFinite(lastAt) ? lastAt : null,
-      phase: deskPhaseLine(phases, now), sesDots: deskSessionDots(f, now), n7: pr.n7, dietDots: deskDietDots(ov, now),
+    const row = { id: st.user_id, name: personName(st), st, pr, unread, dietWarn, noprog, ownProg, phaseTodo: deskPhaseTodo(phases, now), lastAt: Number.isFinite(lastAt) ? lastAt : null,
+      phase, sesDots: deskSessionDots(f, now), n7: pr.n7, dietDots: deskDietDots(ov, now),
       dietShared: dietOv ? !!ov : null, dietOk7: ov ? dietShareWeekCount(ov, now) : null, ckToAnswer: ckCounts[st.user_id] || 0 };
     row.todo = deskTodo(row);
     row.act = row.todo.some(x => x.act);

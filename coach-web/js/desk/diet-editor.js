@@ -136,7 +136,7 @@ const DESK_DT_OFF = 'Source : Open Food Facts (openfoodfacts.org), © les contri
 // Éditeur (r : la ligne de l'élève dans l'onglet Nutrition, null dans « Plans diète »)
 function deskDtFrameHtml(r) {
   const back = r ? `<p class="crumb"><a href="#/eleve/${encodeURIComponent(r.id)}/nutrition">${deskIcon('back', 'sm')}Nutrition de ${esc(r.name)}</a></p>`
-    : '<p class="crumb"><a href="#/plans-diete">' + deskIcon('back', 'sm') + 'Plans diète</a></p>';
+    : '<p class="crumb"><a href="#/plans-diete">' + deskIcon('back', 'sm') + 'Plans de nutrition</a></p>';
   if (dt.err) return `${back}<div class="empty" role="alert">${esc(dt.err === 'gone' ? 'Ce plan n\'existe plus.' : deskDtErr(dt.err))}</div>`;
   if (!dt.draft) return `${back}<div class="empty" role="status">Chargement du plan…</div>`;
   return back + deskDtEditorHtml(r);

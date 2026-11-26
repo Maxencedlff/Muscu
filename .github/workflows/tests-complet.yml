@@ -23,6 +23,10 @@ on:
         description: Appareils seulement, séparés par des virgules (ex. « iPhone SE,iPhone 17 »), sur 2 à 4 machines ; vide = tous sur 14
         type: string
         default: ''
+      captures:
+        description: Garder les captures même si tout réussit (relecture des écrans, clair et sombre)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -98,8 +102,8 @@ jobs:
         # RUNNER_TEMP du conteneur (/__w/_temp) : ${{ runner.temp }} donnerait le chemin de l'hôte
         # shellcheck disable=SC2086
         run: cd tests && PPL_SCRATCH="$RUNNER_TEMP/ppl-tests" python -u run_all.py $LOTS
-      - name: Captures en cas d'échec
-        if: failure()
+      - name: Captures en cas d'échec (ou demandées)
+        if: failure() || inputs.captures
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: captures-${{ matrix.part }}
