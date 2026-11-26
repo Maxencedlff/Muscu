@@ -32,3 +32,5 @@ function fitNumbers(scope = document) {
 }
 window.addEventListener('resize', () => fitNumbers());
 document.fonts?.ready.then(() => fitNumbers());
+// Une graisse de police chargée après le dessin (chiffres en gras du Social, police de la CI) : les largeurs changent
+document.fonts?.addEventListener?.('loadingdone', () => fitNumbers());
