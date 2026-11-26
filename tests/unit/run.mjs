@@ -2189,8 +2189,8 @@ test('Diagnostic du son : verdict, action courte, cause, aide, « Joué » ou «
   const two = JSON.parse(JSON.stringify(SELF_OK));
   two.steps[2].peakDb = -90; two.steps[3].peakDb = -90;
   const t2 = c.soundDiagReport(two);
-  assert.equal(t2.title, 'L\'app n\'a pas joué le décompte 1 et le GO');
-  assert.equal(t2.rows.find(x => x[0] === 'Pendant ce test')[1], 'Le décompte 1 et le GO pas joués');
+  assert.equal(t2.title, 'L\'app n\'a pas joué le décompte 1 et le bip de départ');
+  assert.equal(t2.rows.find(x => x[0] === 'Pendant ce test')[1], 'Le décompte 1 et le bip de départ pas joués');
   two.steps.forEach(s => { s.peakDb = -90; });
   assert.equal(c.soundDiagReport(two).title, 'L\'app n\'a pas joué la fin de repos', 'fichier seul');
   two.file = { played: false, error: 'lecture refusée par iOS' };
