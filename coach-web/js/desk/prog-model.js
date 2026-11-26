@@ -129,6 +129,9 @@ function deskPgPatch(e, field, value) {
   } else if (field === 'consigne') {
     const c = cleanConsigne(value);
     if (c) e.consigne = c; else delete e.consigne;
+  } else if (field === 'role') {
+    // Normal, Pré-fatigue, Échauffement (js/data/blocks.js) : le même exercice peut revenir dans la séance
+    if (Object.hasOwn(BLOCK_ROLES, value)) e.role = value; else delete e.role;
   } else return false;
   return JSON.stringify(e) !== before;
 }
@@ -169,7 +172,7 @@ function deskPgMove(s, k, delta) {
 // « La dernière fois » : séries de travail de la dernière séance qui a cet exercice, en texte (« 45 × 7 · 40 × 9, 9, 8 »)
 // et face à la fourchette prescrite. rows : séances reçues (cleanCoachSessionRow). → { text, status, word, doneAt } | null
 function deskPgLast(rows, e) {
-  if (!e || measureOf(e) !== 'reps') return null;
+  if (!e || measureOf(e) !== 'reps' || blockRole(e)) return null;   // pré-fatigue, échauffement : rien à comparer
   const last = studentLastLoads(rows, e.name);
   if (!last) return null;
   const runs = [];
@@ -190,7 +193,9 @@ function deskPgForOther(draft, theirs) {
   for (const s of out.sessions) {
     const ts = theirs?.sessions?.find(x => x.key === s.key);
     for (const e of s.exercises) {
-      const te = ts?.exercises.find(x => sameExerciseName(x.name, e.name));
+      // Le même exercice deux fois (blocs, js/data/blocks.js) : le bloc de même rang chez lui
+      const rank = s.exercises.filter(x => sameExerciseName(x.name, e.name)).indexOf(e);
+      const te = ts?.exercises.filter(x => sameExerciseName(x.name, e.name))[rank];
       deskPgSetLoads(e, 'one', null, []);
       if (te) Object.assign(e, prescLoadFields(te, e.sets));
     }

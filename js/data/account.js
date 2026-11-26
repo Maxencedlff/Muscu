@@ -853,6 +853,8 @@ async function syncNow() {
       applyingRemote = true;
       try {
         sanitizeData(data);
+        // Séance faite sur un appareil resté sur une version d'avant les blocs (js/data/blocks.js) : suivi commun
+        relinkBlockHistory(data);
         // Records notés des séances reçues ou supprimées ailleurs, et de celles d'après : recalculés avec
         // l'historique de cet appareil, sauf ceux reçus d'une séance dont seuls les records ont changé (renoteMerged)
         renoteMerged(merged, data.history);

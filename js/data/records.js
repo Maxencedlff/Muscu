@@ -268,9 +268,11 @@ function notedItem(ex, r) {
 }
 // Cœur de sessionRecords : priorOf(ex, mesure) donne le résumé des séries de travail d'avant de cet
 // exercice (même exercice au sens de sameEx, même mesure).
+// Le même exercice plusieurs fois dans la séance (blocs, js/data/blocks.js) : ses séries comptent ensemble, un seul
+// record par exercice.
 function notedFromPrior(entry, priorOf) {
   const out = [];
-  (entry.exercises || []).forEach(ex => {
+  exerciseGroups(entry.exercises).forEach(({ ex }) => {
     const m = measureOf(ex);
     const cur = recordSets(ex.sets).filter(s => recR(s) > 0);
     if (!cur.length) return;

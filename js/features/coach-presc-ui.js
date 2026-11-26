@@ -35,7 +35,7 @@ function coachPrescDraftFor(route) {
 
 function renderCoachPresc(uid) {
   const route = currentRoute();
-  const { e } = coachPrescCtx(route);
+  const { e, progId, cat } = coachPrescCtx(route);
   if (!e) return `<div class="view view--grouped">${navBar({ title: 'Charge et reps' })}<div class="scr"><div class="empty-note">Cet exercice n'est plus dans ton programme.</div></div></div>`;
   const d = coachPrescDraftFor(route), who = esc(personName(coachStudent(uid))), u = unitLbl();
   const inKg = (id, value, label, ph = '—', attrs = '') => `
@@ -58,7 +58,7 @@ function renderCoachPresc(uid) {
           <label class="cell cell--ctl"><span class="cell__body"><span class="cell__title">Bas de fourchette</span></span>${repIn('cpMin', d.min, 'Bas de fourchette de reps', String(Math.max(1, (num(d.max, 1, 100, true) ?? 12) - 4)))}</label>
           <label class="cell cell--ctl"><span class="cell__body"><span class="cell__title">Haut de fourchette</span></span>${repIn('cpMax', d.max, 'Haut de fourchette de reps')}</label>`;
   // Sa dernière fois, d'après ses séances que j'ai chargées (écran de l'élève) : rien si je ne la vois pas
-  const last = studentLastLoads(coachSessions(uid).rows, e.name);
+  const last = blockRole(e) ? null : studentLastLoads(coachSessions(uid).rows, e.name);   // pré-fatigue : rien à reprendre
   const lastTxt = last ? `${last.kg.map((kg, i) => `${fmtW(kg)} ${u} × ${last.reps[i]}`).slice(0, 3).join(', ')}${last.kg.length > 3 ? '…' : ''}` : '';
   const lastCell = last ? `
           <button class="cell cell--action presc-last" data-action="coach-presc-last">
@@ -80,7 +80,7 @@ function renderCoachPresc(uid) {
           left: '<button class="navbar__text" data-action="coach-presc-cancel">Annuler</button>',
           right: '<button class="navbar__text navbar__text--bold" data-action="coach-presc-ok">OK</button>' })}
       <div class="scr">
-        <h1 class="scr-title">${esc(e.name)}</h1>
+        <h1 class="scr-title">${esc(blockName(e, data.programmes[progId]?.exercises?.[cat]))}</h1>
         <p class="scr-sub">Pour ${who} · ${plural(sets, 'série', 'séries')}</p>
         <div class="group-title">Reps</div>
         <div class="group">
@@ -137,7 +137,7 @@ registerActions({
   },
   'coach-presc-last': () => {
     const { uid, e } = coachPrescCtx(currentRoute());
-    const last = e && studentLastLoads(coachSessions(uid).rows, e.name);
+    const last = e && !blockRole(e) && studentLastLoads(coachSessions(uid).rows, e.name);
     if (!last || !coachPrescDraft) return;
     const first = last.kg[0];
     coachPrescDraft.load = prescKgTxt(first);

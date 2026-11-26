@@ -116,8 +116,10 @@ function cleanCoachSessionRow(r) {
 }
 
 // Programme envoyé, tel que l'app l'accepte : { name, consigne?, sessions: [{ key, label, color,
-// exercises: [{ name, sets, rest?, measure?, tempo?, repMax?, repMin?, repFixed?, load?, loads?, intens?, intensOn?, ss?, grip?, consigne? }] }] }, null s'il est
-// inutilisable. Mêmes bornes que la saisie (sanitizeData) ; clés de séance de SESSION_CAT_RE, uniques.
+// exercises: [{ name, sets, rest?, measure?, tempo?, repMax?, repMin?, repFixed?, load?, loads?, intens?, intensOn?, ss?, grip?, consigne?, role? }] }] }, null s'il est
+// inutilisable. Mêmes bornes que la saisie (sanitizeData) ; clés de séance de SESSION_CAT_RE, uniques. Le même nom peut
+// revenir dans une séance (blocs, js/data/blocks.js : pré-fatigue au début, vraies séries à la fin) ; role : 'prefat' ou
+// 'warmup', ignoré par une version précédente de l'élève (bloc normal).
 function cleanSentProgramme(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
   const name = coachStr(raw.name, 40).trim();
@@ -157,6 +159,7 @@ function cleanSentProgramme(raw) {
           if (g) o.grip = g;
           const c = cleanConsigne(e.consigne);
           if (c) o.consigne = c;
+          if (blockRole(e)) o.role = blockRole(e);   // Pré-fatigue, Échauffement (js/data/blocks.js)
           return o;
         });
       ssNormalize(exercises);
@@ -354,6 +357,7 @@ function programmeToSent(d, progId, over = null) {
         if (cleanGrip(e.grip)) o.grip = cleanGrip(e.grip);
         const c = cleanConsigne(over?.ex?.[s.key]?.[e.id] !== undefined ? over.ex[s.key][e.id] : e.consigne);
         if (c) o.consigne = c;
+        if (blockRole(e)) o.role = blockRole(e);   // rôle du bloc (js/data/blocks.js)
         return o;
       }) })),
   };
@@ -396,7 +400,8 @@ function coachProgrammeStatus(d, item, coachId = null) {
 // Importe ou met à jour le programme reçu item = { id, data, sentAt } de coachPerson = { user_id, username }.
 // Exercices : celui de même nom DANS LA MÊME séance garde son identifiant et ses réglages propres à
 // l'élève (records, muscles choisis, objectif) ; un exercice qui change de séance repart d'un nouvel
-// identifiant (les records se calculent par séance du programme). Ce que le coach décide (séries,
+// identifiant (les records se calculent par séance du programme). Le même nom deux fois dans une séance (blocs,
+// js/data/blocks.js) : les blocs d'avant sont repris dans l'ordre, un bloc de plus rejoint le suivi du premier. Ce que le coach décide (séries,
 // repos, mesure, tempo, fourchette ou reps fixes, charge prescrite, superset, prise, consigne) est remplacé.
 // Séance retirée par le coach : gardée avec retired: true (nom et couleur des séances déjà faites dans
 // l'historique, rawLabel), mais absente de toutes les listes (sessionKeys). Renvoie l'identifiant local.
@@ -415,17 +420,21 @@ function importCoachProgramme(d, item, coachPerson) {
     if (hit) used.add(hit.ex);
     return hit?.ex || null;
   };
-  const COACH_FIELDS = ['rest', 'measure', 'tempo', 'repMax', 'repMin', 'repFixed', 'load', 'loads', 'intens', 'intensOn', 'ss', 'grip', 'consigne'];
+  const COACH_FIELDS = ['rest', 'measure', 'tempo', 'repMax', 'repMin', 'repFixed', 'load', 'loads', 'intens', 'intensOn', 'ss', 'grip', 'consigne', 'role'];
   const sessions = {}, exercises = {};
   sent.sessions.forEach(s => {
     sessions[s.key] = { label: s.label, icon: '', desc: prevUp?.sessions?.[s.key]?.desc || '', color: s.color };
-    exercises[s.key] = s.exercises.map(e => {
-      const ex = take(s.key, e.name) || makeExercise(e.name, e.sets);
+    const list = exercises[s.key] = [];
+    s.exercises.forEach(e => {
+      const kept = take(s.key, e.name);
+      const ex = kept || makeExercise(e.name, e.sets);
       ex.name = e.name; ex.sets = e.sets;
       COACH_FIELDS.forEach(k => { if (e[k] !== undefined) ex[k] = e[k]; else if (k === 'rest') ex.rest = null; else delete ex[k]; });
       // Guidage du tempo : seulement s'il y a encore un tempo
       if (!ex.tempo) { delete ex.tempoGuide; delete ex.tempoPrep; }
-      return ex;
+      // Bloc de plus du même exercice : suivi du premier bloc et rang suivant ; un bloc repris garde les siens
+      if (!kept) linkBlock(list, ex);
+      list.push(ex);
     });
     if (!(s.key in pd.timers)) pd.timers[s.key] = null;
     if (!(s.key in pd.cooldowns)) pd.cooldowns[s.key] = 72;

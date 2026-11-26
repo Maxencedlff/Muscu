@@ -32,7 +32,7 @@ function buildSummary(entry) {
   const noted = entryRecords(entry);
   const priorOf = sessionPriorOf(entry, data.history);   // séries d'avant la séance, pour le 1RM estimé
   entry.exercises.forEach(ex => {
-    const pex = prevH?.exercises.find(e => sameEx(e, ex));
+    const pex = prevH?.exercises.find(e => sameBlock(e, ex));   // le même bloc la dernière fois (js/data/blocks.js)
     const v = exVolume(ex, ex.sets, entryBodyKg(entry));
     cur  += v;
     // Hausse sur le même périmètre que la dernière fois : un exercice ajouté aujourd'hui n'entre pas dans
@@ -54,7 +54,7 @@ function buildSummary(entry) {
     const trend = b ? bestSetTrend(b, pb) : null;
     // Progrès de la meilleure série (ligne sous le titre) : charge gagnée, sinon reps gagnées ; durée, cardio et aide à part
     const gain = trend === 'up' && measureOf(ex) === 'reps' && !isAssisted(ex) ? (b.w > pb.w ? { w: b.w - pb.w } : { r: b.r - pb.r }) : null;
-    rows.push({ name: ex.name, weight: bs.s.weight, reps: bs.s.reps, dist: bs.s.dist, measure: measureOf(ex), kind: setKind(ex), trend, gain });
+    rows.push({ name: blockName(ex, entry.exercises), weight: bs.s.weight, reps: bs.s.reps, dist: bs.s.dist, measure: measureOf(ex), kind: setKind(ex), trend, gain });
   });
   const records = [...noted.map(r => ({ name: r.ex, label: notedLabel(r), txt: notedValueTxt(r) })), ...e1rm];
   return {
@@ -163,7 +163,7 @@ function summaryUnknownMusclesHtml(h) {
 function summaryOrderList(sm) { return data.programmes[sm.programme]?.exercises?.[sm.category] || null; }
 // orderIds : ordre de la séance à la fin (orderByStart sur toute la liste : exercices commencés à leur place, puis ceux
 // pas faits dans l'ordre de la séance), posé par « Terminer » ; sinon l'ordre de l'historique
-function summaryOrderNext(sm, h) { return orderProgrammeLike(summaryOrderList(sm), sm.orderIds || (h?.exercises || []).map(e => e.exId)); }
+function summaryOrderNext(sm, h) { return orderProgrammeLike(summaryOrderList(sm), sm.orderIds || (h?.exercises || []).map(blockKey)); }
 function summaryOrderHtml(sm, h) {
   if (sm.orderKept) return `
         <div class="sum-list sum-order" id="sumOrder" role="status" tabindex="-1">
@@ -291,6 +291,7 @@ function sessionHistoryEntry(sp, sc) {
       .map(ex => ({
         exId: ex.exId || resolveExId(sp, sc, ex.name),
         name: ex.name,
+        ...blockFields(ex),   // rang et rôle du bloc (js/data/blocks.js) : « Avant » du même bloc la prochaine fois
         ...(storedMeasure(ex) ? { measure: storedMeasure(ex) } : {}),
         ...(ex.tempo ? { tempo: ex.tempo } : {}),   // fait au tempo : plus dur, à ne pas comparer sans le savoir
         ...(ssId(ex) ? { ss: ex.ss } : {}),         // superset, affiché comme tel dans Historique et pour les abonnés
@@ -369,7 +370,7 @@ registerActions({
     syncWorkoutToHealth(entry);   // app iOS : entraînement dans Santé, sans attendre
     // Bilan : records notés à l'enregistrement (et 1RM estimé battu, pour soi)
     lastSummary = buildSummary(entry);
-    lastSummary.orderIds = orderByStart(activeSession.exercises).map(ex => ex.exId);   // « Garder cet ordre » (summaryOrderHtml)
+    lastSummary.orderIds = orderByStart(activeSession.exercises).map(blockKey);   // « Garder cet ordre » (summaryOrderHtml), par bloc
     if (lastSummary.records.length) recordSound(); else finishSound();
     haptic(lastSummary.recordCount ? 'success' : 'light');   // record : avec la médaille qui apparaît (css/session.css)
     endSession();

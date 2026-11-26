@@ -56,6 +56,21 @@ obligatoire : valider une série reste un seul toucher sur ✓.
 - Compatibilité : une version précédente ignore le champ (elle voit des séries ordinaires) ; `cleanHistoryEntry`
   ne garde que `true`. Historique › Modifier garde `warmup` et `rir` tels quels.
 
+## Le même exercice deux fois, rôle d'un bloc (26/11/2026)
+
+Retour d'un testeur : 2 séries d'Extension quadriceps en pré-fatigue au début, les vraies séries à la fin. Logique
+dans `js/data/blocks.js`, écrans dans `js/features/blocks-ui.js`.
+- Ajout : Programme › Séance (Bibliothèque : « Déjà dans la séance » reste écrit, le toucher ajoute un bloc), séance
+  en cours (feuille d'ajout), séance passée, programme du coach (app et site). Le 2e bloc s'affiche
+  « Extension quadriceps · 2 » (rang en lisant de haut en bas).
+- Suivi : un seul exercice (même `exId`) ; chaque bloc a un rang stable `occ` qui reprend SA dernière fois
+  (« Avant », séries pré-remplies). Records en direct et notés calculés sur toutes les séries de l'exercice : jamais
+  deux fois le même record dans une séance.
+- Rôle : Normal (par défaut), Pré-fatigue ou Échauffement. Menu ⋯ › Plus d'options › « Rôle : … » (la séance, et le
+  bloc du programme sauf programme d'un coach), Programme › Exercice › Rôle, site du coach › Réglages. Ses séries
+  portent `warmup: true` : exclues comme l'échauffement (liste ci-dessus), « À battre » ne propose rien pour ce bloc.
+  Pré-fatigue : titre « Pré-fatigue » en tête des séries, qui gardent leur numéro (« Série 1 ») ; Échauffement : « É ».
+
 ## RIR
 
 - Après validation d'une série en répétitions (hors échauffement), un sélecteur **RIR 0 · 1 · 2 · 3 · 4+**
