@@ -241,4 +241,23 @@ def t_plus_tard_et_autres(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_parcours, t_plus_tard_et_autres])
+def t_bandeau_testflight(bench, eng, dev, theme):
+    """Bandeau « Nouvelle version dans TestFlight » (js/app/updates.js) : jamais par-dessus un calque plein écran du
+    premier lancement (il cachait « Commencer sans compte » de l'écran de bienvenue, simulateur iPad du 26/11) ; montré
+    dès que le calque se ferme. Build native simulée (Native.appBuild), plus ancienne que LATEST_NATIVE_BUILD."""
+    t = tag(dev, theme)
+    with bench.page(eng, dev, theme) as page:
+        seed(page, theme, None)
+        page.wait_for_selector('.onb__page--place')
+        page.evaluate("() => { Native.appBuild = async () => 1; return maybeShowNativeUpdate(); }")
+        page.wait_for_timeout(300)
+        R.check(page.locator('.update-banner').count() == 0, f'{t} bandeau TestFlight : pas par-dessus les questions')
+        page.evaluate("() => maybeShowNativeUpdate()")   # un 2e appel n'en pose pas un 2e en attente
+        tap(page, '.onb [data-action="onb-later"]')
+        page.wait_for_selector('.onb', state='detached')
+        page.wait_for_selector('.update-banner--native', timeout=4000)
+        R.check(page.locator('.update-banner').count() == 1, f'{t} bandeau TestFlight : un seul, montré à la fermeture des questions')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+run_main(R, [t_parcours, t_plus_tard_et_autres, t_bandeau_testflight])
