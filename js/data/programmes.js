@@ -33,7 +33,7 @@ const PROGRAMMES = {
   fullbody: {
     name: 'Corps entier', alias: 'Full Body', desc: 'Corps entier · 3×/semaine', icon: icon('dumbbell'),
     sessions: {
-      fullbody: { label: 'Full Body', desc: 'Jambes · Pectoraux · Dos · Épaules · Bras', color: 'var(--teal)' },
+      fullbody: { label: 'Full Body', desc: 'Jambes · Dos · Pectoraux · Bras', color: 'var(--teal)' },
     },
     defaults: {
       // Conseillé à qui débute ou reprend (js/data/onboarding.js) : machines et haltères, pas de barre libre,

@@ -24,11 +24,11 @@ function fitNumbersNow(scope = document) {
     el.style.fontSize = `${Math.floor(size * k * 10) / 10}px`;
   });
 }
-let fitNumFrame = 0;
+// Une seule passe, au dessin (après la typographie, router.js) : une seconde passe à l'image suivante changeait le style
+// après coup, et un écran déjà affiché ne doit plus bouger sans geste (test « rien au pointerdown »). Polices chargées
+// ou écran redimensionné : nouvelle passe
 function fitNumbers(scope = document) {
   fitNumbersNow(scope);
-  cancelAnimationFrame(fitNumFrame);
-  fitNumFrame = requestAnimationFrame(() => fitNumbersNow());   // après la typographie et les polices
 }
 window.addEventListener('resize', () => fitNumbers());
 document.fonts?.ready.then(() => fitNumbers());
