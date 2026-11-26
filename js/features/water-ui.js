@@ -201,7 +201,7 @@ function waterLogBodyHtml(day) {
       <div class="water-log__list">${rows}</div>
       <h3 class="water-log__title">7 derniers jours</h3>
       <div class="water-log__week">${week}</div>
-      <p class="water-log__note">Ce que tu bois reste sur cet iPhone et dans tes exports.</p>
+      <p class="water-log__note">${PT.waterNote}</p>
     </div>`;
 }
 async function waterLogSheet(day) {
@@ -253,7 +253,7 @@ function waterSettingsGroupHtml() {
           <button class="cell cell--nav" data-action="go-water-cups">
             <span class="cell__body"><span class="cell__title">Contenants</span><span class="cell__sub">Verre, bouteille, 1 L${mine.length ? ` et ${plural(mine.length, 'perso', 'perso')}` : ''}</span></span>${icon('chevron.right', 16)}</button>
         </div>
-        <div class="group-foot">Ce que tu bois reste sur cet iPhone et dans tes exports : ni copie iCloud, ni serveur, ni coach.</div>`;
+        <div class="group-foot">${PT.waterFoot}</div>`;
 }
 
 function renderWaterCups() {

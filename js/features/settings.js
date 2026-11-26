@@ -218,7 +218,7 @@ ${renderConnectionsGroup()}
           ${SETTINGS_LEGAL_PAGES.map(([page, label, ico]) => `<button class="cell cell--nav" data-action="open-legal" data-page="${page}">
             ${cellIco(ico, 'gray')}<span class="cell__body"><span class="cell__title">${label}</span></span>${icon('chevron.right', 16)}</button>`).join('')}
         </div>
-        <div class="group-foot">Pages du site mdlf.app, ouvertes dans Safari. L'abonnement est vendu et remboursé par Apple.</div>
+        <div class="group-foot">${PT.legalFoot()}</div>
 
       </div>
     </div>`;

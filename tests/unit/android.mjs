@@ -159,22 +159,49 @@ export default function ({ test, assert, run, app, reset, nativeContext, ROOT })
     assert.equal(web.music.available, false);
   });
 
-  test('android : copie de sécurité dans le dossier privé de l\'app (sauvegarde Google), jamais iCloud', async () => {
-    const { Native, calls } = nativeContext({ platform: 'android' });
+  test('android : copies dans le dossier privé de l\'app, la sauvegarde Google sans données de santé, jamais iCloud', async () => {
+    const ctx = nativeContext({ platform: 'android' });
+    const { Native, calls } = ctx;
     assert.equal(await Native.boot(), false, 'rien à restaurer');
     assert.ok(!calls.some(c => c[0] === 'cloudLoad'), 'aucune attente d\'iCloud au démarrage');
-    Native.backup(JSON.stringify({ history: [{ id: 1 }] }));
+    const json = JSON.stringify({ history: [{ id: 1, bodyKg: 81 }], bodyWeightKg: 80, bodyMeasures: [{ waist: 82 }], waterLog: { d: 1 }, strengthSex: 'm', unit: 'kg' });
+    Native.backup(json);
     const writes = calls.filter(c => c[0] === 'writeFile');
-    assert.deepEqual(writes.map(c => c[2]), ['DATA']);
+    assert.deepEqual(writes.map(c => `${c[2]}/${c[1]}`), ['DATA/ppl_v2.json', 'DATA/ppl_v2_cloud.json']);
+    assert.equal(ctx.file(), json, 'copie locale complète (transfert direct vers un nouveau téléphone)');
+    const google = JSON.parse(ctx.files['ppl_v2_cloud.json']);
+    for (const k of ['bodyWeightKg', 'bodyMeasures', 'waterLog', 'strengthSex']) assert.ok(!(k in google), `${k} jamais dans la sauvegarde Google`);
+    assert.ok(!('bodyKg' in google.history[0]), 'poids noté avec la séance : jamais dans la sauvegarde Google');
+    assert.equal(google.unit, 'kg', 'le reste y est, comme dans la copie iCloud');
     assert.ok(!calls.some(c => c[0] === 'cloudSave'));
   });
 
-  test('android : réinstallation, la copie restaurée par Google est remise en place', async () => {
+  test('android : la sauvegarde Google ne contient que la copie filtrée, le transfert direct la copie complète', () => {
+    const rules = read('android/app/src/main/res/xml/data_extraction_rules.xml').replace(/<!--[\s\S]*?-->/g, '');
+    const part = tag => [...(rules.match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`))?.[1] || '').matchAll(/path="([^"]+)"/g)].map(m => m[1]);
+    assert.deepEqual(part('cloud-backup'), ['ppl_v2_cloud.json']);
+    assert.deepEqual(part('device-transfer'), ['ppl_v2.json']);
+    const legacy = read('android/app/src/main/res/xml/backup_rules.xml').replace(/<!--[\s\S]*?-->/g, '');
+    assert.deepEqual([...legacy.matchAll(/path="([^"]+)"/g)].map(m => m[1]), ['ppl_v2_cloud.json'], 'Android 11 et avant : nuage et transfert mêlés, copie filtrée seulement');
+    assert.match(read('js/platform/native.js'), /GOOGLE_BACKUP_FILE = 'ppl_v2_cloud\.json'/);
+  });
+
+  test('android : réinstallation, la copie complète est remise en place', async () => {
     const json = JSON.stringify({ history: [{ id: 1 }, { id: 2 }] });
     const ctx = nativeContext({ platform: 'android', fileData: json });
     assert.equal(await ctx.Native.boot(), true);
     assert.equal(ctx.storage.getItem('ppl_v2'), json);
     assert.ok(ctx.isReloaded());
+  });
+
+  test('android : nouveau téléphone restauré par Google, la copie filtrée est remise en place', async () => {
+    const json = JSON.stringify({ history: [{ id: 1 }, { id: 2 }], unit: 'kg' });
+    const ctx = nativeContext({ platform: 'android', files: { 'ppl_v2_cloud.json': json } });
+    assert.equal(await ctx.Native.boot(), true);
+    assert.equal(ctx.storage.getItem('ppl_v2'), json);
+    // iOS ne lit jamais ce fichier
+    const ios = nativeContext({ platform: 'ios', files: { 'ppl_v2_cloud.json': json } });
+    assert.equal(await ios.Native.boot(), false);
   });
 
   test('android : iOS garde ses Documents et sa copie iCloud', async () => {
@@ -250,11 +277,11 @@ export default function ({ test, assert, run, app, reset, nativeContext, ROOT })
     assert.match(manifest, /<package android:name="com\.google\.android\.apps\.healthdata" \/>/);
   });
 
-  test('android : sauvegarde Google = le fichier de copie du pont natif, rien d\'autre', () => {
-    const file = read('js/platform/native.js').match(/BACKUP_FILE\s*=\s*'([^']+)'/)[1];
+  test('android : sauvegarde Google = les fichiers de copie du pont natif, rien d\'autre', () => {
+    const files = ['BACKUP_FILE', 'GOOGLE_BACKUP_FILE'].map(n => read('js/platform/native.js').match(new RegExp(`\\b${n}\\s*=\\s*'([^']+)'`))[1]);
     for (const rel of ['android/app/src/main/res/xml/data_extraction_rules.xml', 'android/app/src/main/res/xml/backup_rules.xml']) {
       const includes = [...read(rel).matchAll(/<include domain="(\w+)" path="([^"]+)"/g)].map(m => `${m[1]}:${m[2]}`);
-      assert.ok(includes.length > 0 && includes.every(i => i === `file:${file}`), rel);
+      assert.ok(includes.length > 0 && includes.every(i => files.some(f => i === `file:${f}`)), rel);
     }
     assert.doesNotMatch(read('android/app/src/main/res/xml/file_paths.xml'), /external-path/, 'stockage partagé jamais exposé');
   });
@@ -422,7 +449,7 @@ export default function ({ test, assert, run, app, reset, nativeContext, ROOT })
 
   test('android Santé : « Aucune pesée lue » indique le chemin Health Connect, pas les Réglages de l\'iPhone', () => {
     const src = read('js/features/apple-services.js');
-    const [android, ios] = src.match(/const HEALTH_TEXT = [\s\S]*?\n};/)[0].split(/\n} : \{/);
+    const [android, ios] = src.match(/const HEALTH_TEXT = [\s\S]*?\n\} \}\);/)[0].split(/\n\}, ios: \{/);
     assert.match(android, /noWeight: '[^']*Health Connect › Autorisations des applications[^']*'/);
     assert.doesNotMatch(android, /iPhone/);
     assert.match(ios, /noWeight: '[^']*Réglages de l\\'iPhone/);

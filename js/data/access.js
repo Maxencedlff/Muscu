@@ -261,7 +261,7 @@ function accessDoubleSub() {
 // Texte de la carte (sobre, sans remboursement : on dit seulement qu'il peut résilier)
 function accessDoubleSubText(d) {
   return d.trialEnds
-    ? `${myCoachWord('Ton')} t'offre l'accès. Ton propre essai devient payant le ${fmtDate(d.trialEnds)} : résilie-le dans « Gérer chez Apple » pour ne pas être prélevé.`
+    ? PT.payDoubleTrial(myCoachWord('Ton'), fmtDate(d.trialEnds))
     : `${myCoachWord('Ton')} t'offre l'accès. Tu peux résilier ton abonnement.`;
 }
 
@@ -284,31 +284,22 @@ const ACCESS_SERVER_ERRORS = ['invalid_jws', 'bad_bundle', 'bad_environment', 'b
   'transaction_taken', 'unknown_product', 'invalid_transaction', 'rate_limited', 'not_found'];
 const ACCESS_ERROR_TEXT = {
   offline: 'Pas d\'Internet : réessaie avec du réseau.',
-  invalid_jws: 'Cet achat n\'a pas pu être vérifié auprès d\'Apple.',
   bad_bundle: 'Cet achat vient d\'une autre app.',
   transaction_taken: 'Cet abonnement est déjà rattaché à un autre compte MDLF. Connecte-toi à ce compte pour le retrouver.',
-  not_found: 'Apple ne retrouve pas cet achat. Réessaie dans un moment.',
   unknown_product: 'Cet achat ne correspond à aucune formule de l\'app.',
   bad_environment: 'Cet achat vient d\'un environnement de test que l\'app ne reconnaît pas.',
   bad_type: 'Ce type d\'achat n\'est pas reconnu par l\'app.',
-  not_purchased: 'Cet achat n\'est pas rattaché à ton identifiant Apple. Le partage familial n\'est pas accepté.',
-  invalid_transaction: 'Apple n\'a pas reconnu cette transaction.',
   promo_unavailable: 'L\'essai coach offert n\'est pas disponible pour ce compte. Rien n\'a été débité, la formule reste au prix affiché.',
-  promo_refused: 'Apple n\'a pas accepté l\'essai coach offert. Rien n\'a été débité.',
-  blocked: 'Les achats sont bloqués sur cet iPhone. Regarde dans Réglages, Temps d\'écran.',
-  retry: 'Apple ne répond pas. L\'achat n\'est pas perdu : l\'app réessaiera toute seule, inutile de racheter.',
   rate_limited: 'Trop de tentatives. Réessaie dans une heure.',
   invalid_code: 'Ce code n\'existe pas. Vérifie les lettres et les chiffres.',
   code_expired: 'Ce code a expiré.',
   code_used_up: 'Ce code a atteint son nombre maximal d\'utilisations.',
   already_redeemed: 'Tu as déjà utilisé ce code.',
   cancelled: 'Achat annulé.',
-  pending: 'Achat en attente d\'autorisation. L\'accès s\'ouvrira dès qu\'Apple l\'aura validé.',
-  no_products: 'Les formules ne sont pas encore proposées par Apple. Réessaie plus tard.',
-  no_store: 'Les achats se font dans l\'app MDLF Training sur iPhone.',
-  nothing: 'Aucun achat à restaurer sur cet identifiant Apple.',
   signed_out: 'Connecte-toi d\'abord à ton compte.',
   server: 'Action impossible. Réessaie dans un moment.',
+  // Ceux qui nomment la boutique (Apple ou Google Play) : js/data/platform-texts.js
+  ...PT.accessErrors,
 };
 function accessErrorText(kind) { return ACCESS_ERROR_TEXT[kind] || ACCESS_ERROR_TEXT.server; }
 

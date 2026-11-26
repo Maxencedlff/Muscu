@@ -32,7 +32,7 @@ export default function ({ test, assert, ROOT }) {
   const storage = new MemoryStorage();
   const app = vm.createContext({ localStorage: storage, atob, btoa, window: {}, navigator: {} });
   // isIPad (js/platform/native.js) : la seule règle « iPad » de l'app, partagée avec la mise en page tablette
-  for (const f of ['js/platform/native.js', 'js/data/account-auth.js', 'js/data/coach-desk.js']) vm.runInContext(read(f), app, { filename: f });
+  for (const f of ['js/platform/native.js', 'js/data/platform-texts.js', 'js/data/account-auth.js', 'js/data/coach-desk.js']) vm.runInContext(read(f), app, { filename: f });
   const run = c => vm.runInContext(c, app);
   const eligible = o => run(`coachDeskEligible(${JSON.stringify(o)})`);
 

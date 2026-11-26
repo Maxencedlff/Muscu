@@ -358,7 +358,7 @@ function recapSignature(ctx, c, f, icon, y) {
   else { ctx.fillStyle = c.fg; ctx.fill(); }
   ctx.textAlign = 'left'; ctx.fillStyle = c.fg;
   ctx.font = f(800, 50); setTracking(ctx, -.5); ctx.fillText('MDLF Training', SIDE + s + 26, y + 46); setTracking(ctx, 0);
-  ctx.globalAlpha = .75; ctx.font = f(600, 36); ctx.fillText('Suivi de musculation sur iPhone', SIDE + s + 26, y + 90); ctx.globalAlpha = 1;
+  ctx.globalAlpha = .75; ctx.font = f(600, 36); ctx.fillText(PT.recapTagline, SIDE + s + 26, y + 90); ctx.globalAlpha = 1;
   if (STORY_INSTAGRAM) {
     ctx.textAlign = 'right'; ctx.font = f(700, 38);
     ctx.fillText(`@${STORY_INSTAGRAM.replace(/^@/, '')}`, W - SIDE, y + 46); ctx.textAlign = 'left';

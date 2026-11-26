@@ -42,11 +42,10 @@ const PAYWALL_VIEWS = ['paywall', 'subscription'];
 const PAY_TERMS_URL   = LEGAL_URLS.terms;
 const PAY_SALES_URL   = LEGAL_URLS.sales;
 const PAY_PRIVACY_URL = LEGAL_URLS.privacy;
-const PAY_MANAGE_URL  = 'https://apps.apple.com/account/subscriptions';
 const PAY_PLAN_LABEL  = { [ACCESS_MONTHLY_ID]: 'Mensuel', [ACCESS_YEARLY_ID]: 'Annuel' };
 // Deux sortes de codes, jamais mélangées : le code cadeau MDLF se saisit dans l'app (« J'ai un
-// code »), le code d'offre d'abonnement d'Apple passe par la fenêtre d'Apple.
-const PAY_CODE_NOTE = 'Un code MDLF se saisit ici, avec « J\'ai un code ». Un code d\'offre reçu d\'Apple s\'ouvre dans la fenêtre d\'Apple.';
+// code »), le code d'offre d'abonnement de la boutique passe par sa fenêtre (PT.payCodeNote,
+// js/data/platform-texts.js : tous les textes qui nomment Apple ou Google Play).
 const PAY_CODE_NOTE_IOS = 'Un code d\'offre reçu d\'Apple se saisit avec « J\'ai un code d\'offre Apple », dans la fenêtre d\'Apple.';
 
 let payBusy = false;   // un seul achat, une seule restauration à la fois
@@ -97,7 +96,7 @@ function payCoverNote() {
   if (cover.state === 'active') return null;
   if (cover.state === 'grace') {
     // Fin de grâce : jamais d'essai promis (Apple seul sait s'il y a droit, l'écran des formules le lit chez StoreKit)
-    return { tone: 'warn', text: `${who} a arrêté ou changé son abonnement coach. L'accès reste offert ${cover.until ? `jusqu'au ${fmtDate(cover.until)}` : 'encore quelques jours'}${mine ? ', puis ton abonnement Apple reprend et sera facturé' : ', puis tu pourras t\'abonner'}.` };
+    return { tone: 'warn', text: `${who} a arrêté ou changé son abonnement coach. L'accès reste offert ${cover.until ? `jusqu'au ${fmtDate(cover.until)}` : 'encore quelques jours'}${mine ? PT.payGraceMine : ', puis tu pourras t\'abonner'}.` };
   }
   if (mine) return null;
   return { tone: 'warn', text: cover.state === 'over_limit'
@@ -153,7 +152,7 @@ function payToast(r, okText) {
 async function payTakenDialog() {
   const choice = await dialog({
     title: 'Abonnement sur un autre compte',
-    message: 'Cet abonnement Apple est rattaché à un autre compte MDLF. Connecte-toi à ce compte pour le retrouver.',
+    message: PT.payTaken,
     actions: [{ label: 'Voir le compte', value: 'account', style: 'preferred' },
       { label: 'Plus tard', style: 'cancel' }] });
   if (choice === 'account') navigate('account');
@@ -163,13 +162,20 @@ async function payTakenDialog() {
 // giftCodeInApp) ; dans l'app iOS, le code d'offre d'abonnement d'Apple (sa propre fenêtre)
 function payCodeCellsHtml() {
   return `${giftCodeInApp(Native.platform) ? '<button class="cell cell--action" data-action="pay-code"><span class="cell__title">J\'ai un code</span></button>' : ''}
-          ${Native.store.available ? '<button class="cell cell--action" data-action="pay-apple-code"><span class="cell__title">J\'ai un code d\'offre Apple</span></button>' : ''}`;
+          ${Native.store.available ? `<button class="cell cell--action" data-action="pay-apple-code"><span class="cell__title">${PT.payOfferCode}</span></button>` : ''}`;
 }
 // Note sous les codes : dans l'app iOS, seul le code d'offre d'Apple existe
 function payCodeNoteHtml() {
-  const note = giftCodeInApp(Native.platform) ? PAY_CODE_NOTE : Native.store.available ? PAY_CODE_NOTE_IOS : '';
+  const note = giftCodeInApp(Native.platform) ? PT.payCodeNote : Native.store.available ? PAY_CODE_NOTE_IOS : '';
   return note ? `<div class="group-foot">${note}</div>` : '';
 }
+
+// « Restaurer mes achats » : sauf là où rien ne s'achète encore (Android avant Google Play, Native.store.soon)
+function payRestoreCellHtml() {
+  return Native.store.soon ? '' : '<button class="cell cell--action" data-action="pay-restore"><span class="cell__title">Restaurer mes achats</span></button>';
+}
+// Gestion de l'abonnement dans la boutique : sur Android, la page Google Play de la formule en cours si elle est connue
+function payManageUrl() { return PT.payManageUrl(access.currentProduct || null); }
 
 // Feuille de saisie du code cadeau MDLF. L'erreur reste dans la feuille, la saisie est gardée (même
 // règle que la feuille du code coach). Renvoie { kind } une fois le code accepté, null sinon.
@@ -267,7 +273,6 @@ function payYearMonths(list, p) {
 
 // Ce que donne l'abonnement, dit avant les formules
 const PAY_BENEFITS = 'L\'abonnement permet d\'enregistrer des séances et de mettre une photo de profil. Historique, progrès et export restent ouverts sans abonnement.';
-const PAY_COACH_BENEFITS = 'Tes élèves ne paient rien : l\'abonnement coach comprend ton accès et le leur. Tu peux changer de palier à tout moment chez Apple.';
 
 // Mentions exigées par Apple (règle 3.1.2) à côté des boutons d'achat : durée de l'essai, prix et
 // période après l'essai, renouvellement automatique, résiliation à tout moment. Tout est lu chez
@@ -276,17 +281,15 @@ function payTermsHtml(list) {
   const trial = list.find(p => p.trial);
   const promo = trial ? null : list.map(p => accessCoachPromoFor(p)).find(Boolean);
   const prices = list.map(p => `${esc(p.price)} ${payPer(p)}`).join(' ou ');
-  const first = trial
-    ? `Essai gratuit de ${esc(payDurationText(trial.trial))}, puis ${prices} selon la formule choisie. Le paiement est débité sur ton compte Apple à la fin de l'essai, sauf si tu le résilies au moins 24 heures avant la fin de l'essai.`
-    : promo
-    ? `Essai coach : ${esc(payDurationText(promo))} offerts, puis ${prices} selon la formule choisie. Le paiement est débité sur ton compte Apple à la fin de l'essai, sauf si tu le résilies au moins 24 heures avant la fin de l'essai.`
-    : `${prices} selon la formule choisie, débité sur ton compte Apple à la confirmation de l'achat.`;
+  const first = trial ? PT.payTermsTrial(esc(payDurationText(trial.trial)), prices)
+    : promo ? PT.payTermsPromo(esc(payDurationText(promo)), prices)
+    : PT.payTermsPlain(prices);
   // Conditions de l'offre (règle 3.1.2 et page Abonnements d'Apple : dire les limites d'éligibilité)
-  const promoRule = promo ? '<p>Essai coach réservé aux coachs vérifiés qui n\'ont jamais eu d\'abonnement coach, une seule fois par compte. Si Apple ne l\'accepte pas, rien n\'est débité.</p>' : '';
+  const promoRule = promo ? `<p>${PT.payPromoRule}</p>` : '';
   return `
         <div class="pay-terms" role="note">
           <p>${first}</p>${promoRule}
-          <p>L'abonnement se renouvelle automatiquement pour la même période, sauf si tu le résilies au moins 24 heures avant la fin de la période en cours. Tu peux le résilier à tout moment dans les réglages de ton identifiant Apple.</p>
+          <p>${PT.payTermsRenew}</p>
         </div>`;
 }
 
@@ -321,7 +324,7 @@ function payCoachHtml(list, pre) {
           <button class="segmented__btn ${per === 'month' ? 'segmented__btn--active' : ''}" aria-pressed="${per === 'month'}" data-action="pay-period" data-period="month">Mensuel</button>
           <button class="segmented__btn ${per === 'year' ? 'segmented__btn--active' : ''}" aria-pressed="${per === 'year'}" data-action="pay-period" data-period="year">Annuel</button>
         </div></div>`;
-  const count = `<p class="pay-benefits">${PAY_COACH_BENEFITS} Tu suis ${plural(students, 'élève', 'élèves')}.</p>`;
+  const count = `<p class="pay-benefits">${PT.payCoachBenefits} Tu suis ${plural(students, 'élève', 'élèves')}.</p>`;
   const plans = shown.map(p => {
     const t = planOf(p.id).tier;
     return payPlanHtml(p, { label: t.label, current: current === p.id, tag: t === wanted && current !== p.id ? 'Conseillé' : '',
@@ -337,9 +340,7 @@ function payMissingHtml() {
   // Apple ne connaît pas encore les produits (contrat Paid Apps en attente, produit pas validé) :
   // on le dit, sans prix inventé et sans écran cassé
   const pending = access.missing && access.missing.length;
-  return `<div class="pay-note" role="status"><p>${pending
-    ? 'Les formules ne sont pas encore proposées par Apple.'
-    : 'Les formules n\'ont pas pu être lues chez Apple.'}</p>
+  return `<div class="pay-note" role="status"><p>${pending ? PT.payMissingPending : PT.payMissingFailed}</p>
           <p>Séances, progrès et export restent accessibles.</p>
           <button class="pay-note__btn" data-action="pay-reload-products">Réessayer</button></div>`;
 }
@@ -353,12 +354,13 @@ function payPlansHtml(tab = 'pro', pre = null) {
     return `<div class="pay-note" role="status"><p>Rien à acheter pendant le lancement. Les séances s'enregistrent sans abonnement.</p></div>`;
   }
   if (!Native.store.available) {
-    return `<div class="pay-note" role="status"><p>Les abonnements s'achètent dans l'app MDLF Training sur iPhone.</p>
-          <p>Séances et progrès restent accessibles ici.</p></div>`;
+    return `<div class="pay-note" role="status"><p>${PT.payNoStore[0]}</p>
+          <p>${PT.payNoStore[1]}</p></div>`;
   }
   if (access.canPay === false) {
-    return `<div class="pay-note" role="status"><p>Les achats sont bloqués sur ${thisPhone()}.</p>
-          <p>Regarde dans Réglages, Temps d'écran, Restrictions, Achats intégrés.</p></div>`;
+    const [blocked, where] = PT.payBlocked();
+    return `<div class="pay-note" role="status"><p>${blocked}</p>
+          <p>${where}</p></div>`;
   }
   const list = access.products;
   if (list === null) return '<div class="pay-note" role="status"><p>Chargement des formules…</p></div>';
@@ -420,10 +422,8 @@ function renderPaywall(reason = 'offer', tab = 'pro', pre = null) {
   const sub = off ? 'L\'abonnement n\'est pas encore demandé.'
     : forever ? 'Tu enregistres tes séances sans abonnement.'
     : offered ? `Rien à payer tant que ${myCoachWord('ton')} te suit.`
-    : trial
-    ? `${esc(payDurationText(trial.trial))} gratuits, puis l'abonnement continue sauf si tu le résilies au moins 24 heures avant la fin de l'essai.`
-    : promo
-    ? `Essai coach : ${esc(payDurationText(promo))} offerts, puis l'abonnement continue sauf si tu le résilies au moins 24 heures avant la fin de l'essai.`
+    : trial ? PT.payHeroTrial(esc(payDurationText(trial.trial)))
+    : promo ? PT.payHeroPromo(esc(payDurationText(promo)))
     : 'Choisis une formule pour enregistrer des séances.';
   const stale = accessStale() && account.user ? `<p class="social-inline-error" role="status">${esc(access.error === 'offline' ? 'Pas d\'Internet : état pas à jour.' : 'État pas à jour.')}</p>` : '';
   const planned = Native.store.available && access.products?.length && !off;
@@ -441,11 +441,11 @@ function renderPaywall(reason = 'offer', tab = 'pro', pre = null) {
         ${coachTab ? '' : payCoverNoteHtml()}
         ${payPlansHtml(coachTab ? 'coach' : 'pro', pre)}
         <div class="group">
-          <button class="cell cell--action" data-action="pay-restore"><span class="cell__title">Restaurer mes achats</span></button>
+          ${payRestoreCellHtml()}
           ${payCodeCellsHtml()}
         </div>
         ${payCodeNoteHtml()}
-        ${forever || offered ? '' : '<div class="group-foot">Un seul essai gratuit par identifiant Apple. Un abonnement ne sert qu\'à un compte MDLF.</div>'}
+        ${forever || offered || Native.store.soon ? '' : `<div class="group-foot">${PT.payTrialFoot}</div>`}
         ${coachTab ? '' : payCoachLinkHtml()}
         ${planned ? '' : payLegalHtml()}
       </div>
@@ -498,7 +498,7 @@ function renderSubscription() {
   // renouvellement automatique n'est pas lu, d'où le conditionnel). Un palier coach, lui, reste utile :
   // il donne le nombre d'élèves
   const alsoNote = on && accessGiftForever() && access.currentProduct && !planIsCoach(access.currentProduct) ? `
-        <div class="group-foot" role="note">Avec l'accès à vie, l'abonnement Apple ne sert plus. S'il se renouvelle encore, résilie-le dans « Gérer chez Apple ».</div>` : '';
+        <div class="group-foot" role="note">${PT.payLifetimeNote}</div>` : '';
   // Élève offert par son coach : « Offert par ton coach <nom> » en clair (titre sur toute la largeur)
   const offered = on && st === 'coach_team';
   const rows = `
@@ -520,12 +520,12 @@ function renderSubscription() {
           ${on && (st === 'none' || st === 'expired' || st === 'unknown')
             ? '<button class="cell cell--action" data-action="pay-open" data-reason="offer"><span class="cell__title">Voir les formules</span></button>' : ''}
           ${on && coachRole().isCoach ? `<button class="cell cell--action" data-action="pay-open" data-reason="offer" data-tab="coach"><span class="cell__title">${planIsCoach(access.currentProduct) ? 'Changer de palier coach' : 'Voir les formules coach'}</span></button>` : ''}
-          ${Native.store.available ? '<button class="cell cell--action" data-action="pay-manage"><span class="cell__title">Gérer chez Apple</span></button>' : ''}
-          <button class="cell cell--action" data-action="pay-restore"><span class="cell__title">Restaurer mes achats</span></button>
+          ${Native.store.available ? `<button class="cell cell--action" data-action="pay-manage"><span class="cell__title">${PT.payManage}</span></button>` : ''}
+          ${payRestoreCellHtml()}
           ${payCodeCellsHtml()}
         </div>
         ${payCodeNoteHtml()}
-        <div class="group-foot">Formule et résiliation se gèrent dans les réglages de l'identifiant Apple.</div>`;
+        <div class="group-foot">${PT.payManageFoot()}</div>`;
   const stale = accessStale() ? `<p class="social-inline-error" role="status">${esc(access.error === 'offline' ? 'Pas d\'Internet : état pas à jour.' : 'État pas à jour.')}</p>` : '';
   return `
     <div class="view view--grouped pay-settings-view">
@@ -584,7 +584,7 @@ registerActions({
   'pay-terms': () => { window.open(PAY_TERMS_URL, '_blank'); },
   'pay-sales': () => { window.open(PAY_SALES_URL, '_blank'); },
   'pay-privacy': () => { window.open(PAY_PRIVACY_URL, '_blank'); },
-  'pay-manage': () => { window.open(PAY_MANAGE_URL, '_blank'); },
+  'pay-manage': () => { window.open(payManageUrl(), '_blank'); },
   'pay-reload-products': async () => { access.products = null; render(); await accessLoadProducts({ force: true }); render(); },
   'pay-buy': async (e, el) => {
     if (payBusy) return;
@@ -617,7 +617,7 @@ registerActions({
   'pay-apple-code': async () => {
     const r = await accessRedeemCode();
     if (!r.ok) { payToast(r); return; }
-    showToast('Saisis le code dans la fenêtre d\'Apple');
+    showToast(PT.payOfferCodeToast);
   },
   'access-retry': async () => { await accessRefresh(); render(); },
 });

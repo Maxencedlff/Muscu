@@ -275,7 +275,7 @@ const COACH_ERROR_TEXT = {
   // Photos de bilan (js/data/coach-photos.js)
   get not_ready() { return `${myCoachWord('Ton')} n'a pas encore activé la réception des photos.`; },
   get key_changed() { return `${myCoachWord('Ton')} a changé de clé : réessaie.`; },
-  key_exists: 'La réception des photos est déjà activée sur un autre iPhone.',
+  key_exists: PT.coachKeyExists,
   invalid_photo: 'Cette photo ne peut pas être envoyée.',
   not_uploaded: 'Envoi interrompu, rien n\'est resté sur le serveur. Réessaie.',
   invalid_key: 'Clé illisible : réessaie.',
@@ -285,7 +285,7 @@ const COACH_ERROR_TEXT = {
   empty_message: 'Écris quelque chose avant d\'envoyer.',
   busy: 'Envoi déjà en cours.',
   missing: 'Pas encore disponible : réessaie après la prochaine mise à jour.',
-  age_limited: 'Le contrôle parental de cet iPhone limite les échanges : les messages ne sont pas disponibles.',
+  age_limited: PT.coachAgeLimited,
   signed_out: 'Connecte-toi d\'abord à ton compte.',
   server: 'Action impossible. Réessaie dans un moment.',
 };

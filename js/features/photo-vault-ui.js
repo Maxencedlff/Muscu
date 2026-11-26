@@ -47,7 +47,7 @@ function photoVaultCellHtml() {
           <button class="cell cell--nav pv-entry" data-action="go-photo-vault">
             <span class="pv-entry__glyph" aria-hidden="true">${icon('lock', 18)}</span>
             <span class="cell__body"><span class="cell__title">Coffre à photos</span>
-              <span class="cell__sub">${pvIos() ? 'Photos de progression, protégées par Face ID' : 'Photos de progression, dans l\'app iPhone seulement'}</span></span>
+              <span class="cell__sub">${pvIos() ? 'Photos de progression, protégées par Face ID' : PT.vaultCellSub}</span></span>
             ${icon('chevron.right', 16)}
           </button>
         </div>`;
@@ -75,7 +75,7 @@ function pvCenterHtml() {
   const view = {
     unavailable: { title: 'Coffre indisponible', text: pvIos()
       ? 'Le coffre arrive avec la prochaine version de l\'app. Tes photos déjà prises restent sur ton iPhone et y seront rangées.'
-      : Native.isNative ? 'Le coffre n\'existe pour l\'instant que dans l\'app iPhone. Tes photos déjà prises restent sur ce téléphone.'
+      : Native.isNative ? PT.vaultUnavailable
       : 'Le coffre n\'existe que dans l\'app iPhone.' },
     error: { title: 'Coffre à photos', text: 'Le coffre ne s\'ouvre pas.', retry: 'Réessayer' },
     nopasscode: { title: `Code ${ofThePhone()} requis`, text: `Le coffre s'ouvre avec Face ID ou le code de ton ${phoneName()}. Active un code dans Réglages › Face ID et code, puis reviens ici.`, retry: 'Réessayer' },

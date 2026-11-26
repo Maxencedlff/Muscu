@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Sauvegarde Google : seulement ppl_v2.json (xml/data_extraction_rules.xml, xml/backup_rules.xml) -->
+    <!-- Sauvegarde Google : seulement la copie sans données de santé, ppl_v2_cloud.json (xml/data_extraction_rules.xml, xml/backup_rules.xml) -->
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"

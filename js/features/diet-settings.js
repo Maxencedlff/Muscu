@@ -131,7 +131,7 @@ function renderDietSettings() {
           ${sw('diet-coach-toggle', dietCoachAccepted(), `Recevoir les plans de nutrition ${elide('de', nameBreakHtml(coachName()))}`)}
         </div>
         <div class="group-foot">Ses plans restent sur le serveur jusqu'au retrait de l'accord ou la fin du coaching. ${myCoachWord('Ton')} voit seulement si tu les as ouverts.</div>` : ''}
-        <div class="group-foot diet-foot">Les plans sont sur ${thisPhone()}, dans la copie iCloud de l'app et dans les exports. Les repas cochés et les aliments remplacés restent seulement sur ${thisPhone()} et dans les exports.</div>
+        <div class="group-foot diet-foot">${PT.dietFoot()}</div>
         <div class="group group--gap"><button class="cell cell--nav" data-action="diet-privacy">
           <span class="cell__body"><span class="cell__title">Confidentialité de la nutrition</span></span>${icon('chevron.right', 16)}</button></div>
       </div>
@@ -216,7 +216,7 @@ registerActions({
   'diet-coach-accept': async () => { await dietAskCoachAccept(); render(); },
   'diet-coach-toggle': async () => {
     if (dietCoachAccepted()) {
-      if (!(await confirmSheet('Ne plus recevoir ses plans ?', `Les plans envoyés par ${myCoachWord('ton')} sont supprimés du serveur. Ceux déjà pris restent sur cet iPhone.`, 'Retirer'))) return;
+      if (!(await confirmSheet('Ne plus recevoir ses plans ?', PT.dietCoachRemove(myCoachWord('ton')), 'Retirer'))) return;
       await dietCoachApply(false);
     } else await dietAskCoachAccept();
     render();

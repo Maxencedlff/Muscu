@@ -209,7 +209,7 @@ function friendsBodyHtml(st = friendsState()) {
         <div class="social-hero">
           <span class="social-hero__icon" aria-hidden="true">${icon('person.2', 40)}</span>
           <h2 class="social-hero__title">Entraîne-toi avec tes amis</h2>
-          <p class="social-hero__sub">Le social demande un compte MDLF, dans l'app iPhone.</p>
+          <p class="social-hero__sub">${PT.socialUnavailable}</p>
         </div>`;
   if (st === 'out') return `
         <div class="social-hero">

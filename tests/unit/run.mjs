@@ -20,6 +20,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '.
 const SCRIPTS = [
   'js/platform/native.js',
   'js/core/util.js',
+  'js/data/platform-texts.js',
   'js/data/programmes.js',
   'js/data/tempo.js',
   'js/data/grips.js',
@@ -862,15 +863,26 @@ test('esc, normName, sameEx, plural, setsVolume', () => {
 // simule un changement venu d'iCloud, cloud.saved liste les écritures acceptées.
 // storage : stockage web d'un lancement précédent (relance de l'app) ;
 // manualTimers : les minuteries attendent timers.flush() au lieu de partir tout de suite
-function nativeContext({ native = true, platform = 'ios', localData = null, fileData = null, shareCancelled = false, cloud = {}, storage = new MemoryStorage(), manualTimers = false, plugins: extra = {}, available = [], headers } = {}) {
+// fileData : contenu de ppl_v2.json (copie complète) ; files : les autres fichiers de l'app, par nom (ex. ppl_v2_cloud.json,
+// copie filtrée de la sauvegarde Google sur Android)
+function nativeContext({ native = true, platform = 'ios', localData = null, fileData = null, files = {}, shareCancelled = false, cloud = {}, storage = new MemoryStorage(), manualTimers = false, plugins: extra = {}, available = [], headers } = {}) {
   const calls = [];
   const pending = [];
   if (localData !== null) storage.setItem('ppl_v2', localData);
   let reloaded = false;
   const plugins = {
     Filesystem: {
-      writeFile: async (o) => { calls.push(['writeFile', o.path, o.directory]); fileData = o.data; return { uri: `file:///${o.directory}/${o.path}` }; },
-      readFile:  async () => { if (fileData === null) throw new Error('absent'); return { data: fileData }; },
+      writeFile: async (o) => {
+        calls.push(['writeFile', o.path, o.directory]);
+        // ppl_v2.json et toute écriture hors des copies (ex. image partagée) : file() ; copie Google : files
+        if (o.path === 'ppl_v2_cloud.json') files[o.path] = o.data; else fileData = o.data;
+        return { uri: `file:///${o.directory}/${o.path}` };
+      },
+      readFile: async (o) => {
+        const data = o.path === 'ppl_v2_cloud.json' ? files[o.path] ?? null : fileData;
+        if (data === null) throw new Error('absent');
+        return { data };
+      },
     },
     LocalNotifications: {
       checkPermissions:   async () => ({ display: 'prompt' }),
@@ -911,7 +923,7 @@ function nativeContext({ native = true, platform = 'ios', localData = null, file
   const c = vm.createContext(box);
   vm.runInContext(fs.readFileSync(path.join(ROOT, 'js/platform/native.js'), 'utf8') + '\nthis.Native = Native;', c);
   const timers = { flush: () => pending.splice(0).forEach(f => f?.()) };
-  return { Native: c.Native, calls, storage, cloud, timers, isReloaded: () => reloaded, file: () => fileData };
+  return { Native: c.Native, calls, storage, cloud, timers, files, isReloaded: () => reloaded, file: () => fileData };
 }
 
 test('native : dans le navigateur, tout est sans effet', () => {
@@ -2450,6 +2462,8 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 (await import('./coach-ipad.mjs')).default({ test, assert, ROOT });
 // ── Mise en page tablette, 26/11 (tests dans tablet.mjs, contextes à part) ──
 (await import('./tablet.mjs')).default({ test, assert, ROOT });
+// ── Textes propres au système, panel Android du 26/11 (tests dans platform-texts.mjs, contextes à part) ──
+(await import('./platform-texts.mjs')).default({ test, assert, sameJSON, nativeContext, ROOT });
 
 // ── Exécution ───────────────────────────────────────────────
 

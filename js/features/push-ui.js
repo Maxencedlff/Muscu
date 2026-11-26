@@ -24,7 +24,7 @@ function renderPushSettings() {
   const head = navBar({ title: 'Notifications', large: false });
   if (!pushPossible()) {
     return `<div class="view view--grouped push-view">${head}<div class="scr">
-        <div class="empty-note">Les notifications demandent l'app iPhone et un compte.</div></div></div>`;
+        <div class="empty-note">${PT.pushUnavailable}</div></div></div>`;
   }
   if (!push.prefs) {
     const note = push.error
