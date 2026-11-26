@@ -9,11 +9,14 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-const FIT_NUM_SEL = '.tile__val, .feed-card__stat-val, .last__fact-val';
+// Cases connues, plus tout chiffre (.num) qui finit par un volume (« 5 515 kg ») : relevé du coach, listes du Social
+const FIT_NUM_SEL = '.tile__val, .feed-card__stat-val, .last__fact-val, .num';
+const FIT_NUM_VOL = /\d[\s\u00a0\u202f]?(?:kg|lbs)$/;
 const FIT_NUM_MIN = 0.6;
 
 function fitNumbersNow(scope = document) {
   scope.querySelectorAll(FIT_NUM_SEL).forEach(el => {
+    if (el.matches('.num') && !el.matches('.tile__val, .feed-card__stat-val, .last__fact-val') && !FIT_NUM_VOL.test(el.textContent.trim())) return;
     if (el.style.fontSize) el.style.fontSize = '';
     if (!el.getClientRects().length || el.scrollWidth <= el.clientWidth + 1) return;
     const size = parseFloat(getComputedStyle(el).fontSize);

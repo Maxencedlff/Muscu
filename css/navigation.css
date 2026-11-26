@@ -104,7 +104,7 @@ html.type-xl .navbar__title-sub { font-size: min(0.882rem, 20px); line-height: m
 /* Nom trop long pour une ligne (« Tirage horizontal câ… », « Rowing… » en texte agrandi : 16 juges du 26/11) : il prend
    aussi la ligne du compteur, sur deux lignes au plus, et le compteur s'efface le temps qu'il est affiché (la barre de
    repos garde le minuteur) ; la barre ne change pas de hauteur */
-.navbar--ex2 .navbar__title-ex { grid-row: 1 / span 2; align-self: center; white-space: normal; text-overflow: clip;
+.navbar--ex2 .navbar__title-ex { grid-row: 1 / span 2; align-self: center; white-space: normal; text-overflow: ellipsis; overflow-wrap: anywhere;
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.1; font-size: .9em; }
 .navbar--ex.navbar--ex2 .navbar__title-sub { visibility: hidden; }
 .navbar__title:has(> .navbar__title-ex) > .navbar__title-sub { grid-row: 2; grid-column: 1; }

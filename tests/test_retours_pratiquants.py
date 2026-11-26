@@ -48,7 +48,7 @@ def t_premier_lancement(bench, eng, dev, theme):
         page.click('.onb [data-action="onb-freq"][data-val="3"]'); settle(page)
         page.click('.onb [data-action="onb-level"][data-val="debutant"]'); settle(page)
         R.check(page.locator('#onbTitle').inner_text().strip() == 'Corps entier', f'{t} résultat : nom en français')
-        R.check(page.locator('.onb .prog-alias').inner_text().strip() == 'Appelé aussi Full Body', f'{t} résultat : nom courant en petit')
+        R.check(page.locator('.onb .onb__eyebrow').inner_text().strip() == 'Ton programme · Full Body', f'{t} résultat : nom courant en petit, sur la ligne du dessus')
         R.check(page.locator('.onb .prog-sess .cat-badge, .onb .prog-sess [class*="badge"]').count() == 0, f'{t} résultat : plus de pastille devant la séance')
         row = page.locator('.onb .prog-sess').first.inner_text()
         R.check('Corps entier' in row and 'jambes' in row.lower(), f'{t} résultat : séance en clair, muscles dessous ({row!r})')

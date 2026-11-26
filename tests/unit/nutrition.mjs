@@ -1101,9 +1101,12 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
 
   test('accueil sans plan : « Noter ce que je mange » crée le plan et ouvre la journée', () => {
     run('delete data.dietPlans; delete data.dietActive; delete data.dietLog;');
-    const h = run('nutritionHomeCard()');
-    assert.match(h, /data-action="diet-home-start"[\s\S]*Noter ce que je mange/, 'la ligne de l\'accueil');
-    assert.doesNotMatch(h, /class="home-card diet-home/, 'pas de carte de plan');
+    // La ligne est posée avec les Défis (renderDashboard), pas devant les cartes : sans plan, la Nutrition n'est pas choisie
+    const h = run('nutritionHomeCard()'), start = run('dietHomeStartHtml()');
+    assert.match(start, /data-action="diet-home-start"[\s\S]*Noter ce que je mange/, 'la ligne de l\'accueil');
+    assert.doesNotMatch(h, /class="home-card diet-home|diet-home-start/, 'ni carte de plan ni ligne en tête des cartes');
+    run("data.dietPlans = { p1: { name: 'Mon plan', meals: [] } }; data.dietActive = 'p1';");
+    assert.equal(run('dietHomeStartHtml()'), '', 'avec un plan : plus de ligne');
   });
 
 }

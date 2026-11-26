@@ -115,9 +115,8 @@ const ONB_STEPS = {
   result: () => {
     const id = recommendProgramme(onb);
     return `
-      <p class="onb__eyebrow">Ton programme</p>
+      <p class="onb__eyebrow">Ton programme${PROGRAMMES[id].alias ? ` · ${esc(PROGRAMMES[id].alias)}` : ''}</p>
       <h1 class="auth__title auth__title--left" id="onbTitle" tabindex="-1">${esc(PROGRAMMES[id].name)}</h1>
-      ${progAliasHtml(id, 'onb__alias')}
       <p class="auth__lead auth__lead--left onb__reason">${recommendReason(id, onb)}</p>
       <p class="onb__label" id="onbBodies">Quelle silhouette te ressemble&nbsp;?</p>
       <div class="onb__bodies" role="group" aria-labelledby="onbBodies">${onbBodiesHtml(programmeMuscleLevels(id))}</div>
