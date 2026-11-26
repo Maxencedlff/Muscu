@@ -45,7 +45,7 @@ scripts/              construction de l'app (build-web.mjs, empreinte native par
 privacy.html, mentions-legales.html, cgu.html, cgv.html, legal.css
                       pages juridiques publiques (mdlf.app, publiées par le job deploy via web-public/), sans script ; docs/JURIDIQUE.md
 store/                fiche App Store (captures.py) et captures de revue des abonnements (captures_revue.py → docs/revue/)
-js/platform/native.js pont vers les modules natifs (iOS, Android) ; sans effet dans le navigateur
+js/platform/native.js pont vers les modules natifs (iOS, Android) ; sans effet dans le navigateur ; `isIPad()`, seule règle « est-ce un iPad » de l'app
 ios/                  coquille iOS (Capacitor, modules Swift, extension Live Activity) : IOS.md
 android/              coquille Android en préparation (Capacitor, modules Kotlin) : docs/ANDROID.md
 ```
@@ -207,9 +207,9 @@ fait rien. Dans une action, `return` remplace l'ancien `break` de sortie du `swi
 | Fichier | Rôle |
 |---|---|
 | `theme.js` | Thème clair / sombre / auto (appliqué au chargement), classe du design choisi (`applyDesign`, `body.design-bleu`), Dynamic Type (`type-xl` ; l'accueil se redessine quand elle change), bascule différée pendant une séance |
-| `tablet.js` | Classe `tablet` sur `<html>` (`tabletDevice` : iPad, iPadOS en mode ordinateur tactile, tablette Android ; jamais un iPhone, Duo compris), posée avant le premier dessin ; `tabletAfterRender` (appelée par `paint()` de `router.js`) range chaque titre de groupe avec son groupe dans un `.tablet-keep` sur les écrans en deux colonnes. Règles : `css/tablet.css`, docs/IPAD.md |
+| `tablet.js` | Classe `tablet` sur `<html>` (`tabletDevice` : `isIPad()` de `js/platform/native.js` ou tablette Android ; jamais un iPhone, Duo compris), posée avant le premier dessin ; `tabletColsHtml` (Accueil en deux colonnes fixes, enveloppes posées seulement sur une tablette) ; `tabletAfterRender` (appelée par `paint()` de `router.js`) range chaque titre de groupe avec son groupe dans un `.tablet-keep` sur les écrans en deux colonnes. Règles : `css/tablet.css`, docs/IPAD.md |
 | `router.js` | Routes paramétrées (`makeRoute`, `routeName`, `routeParams`), cinq onglets (`TABS` : Entraînement, Historique, Progrès, Programme, Social, ou Coach pour un compte coach) et piles d'écrans (`nav`), `currentView()` (et `view` en lecture seule), synchronisation avec l'historique du navigateur (`popstate`, entrées des feuilles), mémoire de défilement, table des écrans (`SCREENS` : `render`, `mount`, `enter`, `leave`), `render()` / `paint()` / `show()` avec transitions, `navBoot()` ; actions `back`, `go-home` |
-| `navbar.js` | Tab bar (badge des demandes reçues sur Social / Coach : `updateTabBadge` ; libellé et icône du 5e onglet : `syncTabMeta`) et mini-barre de séance (posées une fois hors de `#app`), `navBar()`, titres de retour, grand titre qui se replie |
+| `navbar.js` | Tab bar (badge des demandes reçues sur Social / Coach : `updateTabBadge` ; libellé et icône du 5e onglet : `syncTabMeta`) et mini-barre de séance (posées une fois hors de `#app`), `navBar()`, titres de retour, grand titre qui se replie ; `bottomBarTop()` (haut de la barre d'onglets quand elle est en bas, sinon `innerHeight` : seule mesure du bas de l'écran, barre latérale de l'iPad comprise), `sideBarRight()` (bord de la barre latérale, geste de retour) |
 | `sheet.js` | `sheet()` : feuille modale générique (Annuler / OK, glisser pour fermer) |
 | `forms.js` | `switchHtml`, `cellIco(symbole, teinte)` (icône de ligne des Réglages, décorative), `flagInvalid`, `weightOk`, `weightMsg` |
 | `edge-swipe.js` | Geste de retour depuis le bord gauche (app installée sur iOS) : l'écran courant et le précédent glissent en calques figés, faits par `screenImage()` (`router.js` : copie du HTML avec la valeur courante des champs, jamais `innerHTML` seul, qui remontrait un message déjà envoyé) |
