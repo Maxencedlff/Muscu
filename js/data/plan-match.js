@@ -23,6 +23,9 @@ const PARSE_ABBREV = [
   [/\btirage poit(?:\.|rine)?(?=\s|$)/g, 'tirage poitrine'], [/\bt-?bar\b/g, 't bar'], [/\bez\b/g, 'ez'], [/\bisch(?:io|ios|\.)?(?=\s|$)/g, 'ischios'],
   [/\bpecs?\b/g, 'pec'], [/\bpushdowns?\b/g, 'pushdown'], [/\bdev(?:\.|elop|eloppe)?\s*epaules?\b/g, 'developpe epaules'],
   [/\bdc\s*serre\b/g, 'developpe couche serre'], [/\bcurls\b/g, 'curl'],
+  // Carnets anglais : « F SQT » (front squat), « B SQT » (back squat), « Mil Press », « P Cln » (power clean)
+  [/\bsqt\b|\bsq\.(?=\s|$)/g, 'squat'], [/\bf\s*squat\b|\bfsq\b/g, 'front squat'], [/\bb\s*squat\b|\bbsq\b/g, 'back squat'],
+  [/\bmil(?:itary)?\.?\s*press\b/g, 'developpe militaire barre'], [/\bcln\b/g, 'clean'], [/\bp\.?\s*clean\b|\bpwr\s*clean\b/g, 'power clean'],
   // Homophones de la dictée (reconnaissance vocale d'iOS) : « lègue curl », « leg cœur l », « face poule », « squatte »
   [/\blegue\b/g, 'leg'], [/\b(?:coeur|cœur)\s*l\b|\bcoeurl\b/g, 'curl'], [/\bpoule\b/g, 'pull'], [/\bsquatte?s?\b/g, 'squat'],
   [/\broming\b/g, 'rowing'], [/\bdeveloppee?r?s?\b/g, 'developpe'], [/\bcoucher?s?\b/g, 'couche'], [/\bhips?\s+trust\b/g, 'hip thrust'],
@@ -63,8 +66,13 @@ const PARSE_EXTRA_ALIASES = [
   ['Fentes', 'fente|fentes avant|fentes alternees|fentes halteres|fentes statiques'],
   ['Développé décliné', 'developpe decline barre'],
   ['Écarté haltères plat', 'ecarte|ecartes|ecarte plat|ecartes couche|ecarte halteres couche'],
-  ['Pompes', 'pompe|push ups'],
+  ['Pompes', 'pompe|push ups|pushups|push up|pushup|press ups|press up'],
   ['Barre au front', 'skull crushers|barre front ez'],
+  // Formes CrossFit et anglaises d'exercices de la bibliothèque (le même mouvement, pas un voisin)
+  ['Corde à sauter', 'double unders|double under|single unders|single under|jump rope|skipping rope'],
+  ['Rameur', 'calorie row|cal row|row calories|row ergometer|concept 2|concept2'],
+  ['Squat poids du corps', 'air squat|air squats|airsquats|airsquat|bodyweight squat'],
+  ['Toes to bar', 'toes 2 bar|toes to bars'],
 ];
 
 // Mots qui ne disent rien du mouvement : retirés des deux côtés avant de comparer
@@ -160,7 +168,7 @@ function planFormScore(qWords, qJoined, f) {
 
 const PARSE_MATCH_MIN = 0.62;   // en dessous : pas reconnu (gardé sous son nom, « Pas compris »)
 // Précisions qui ne changent pas la fiche (« Dips lestés », « Squat pause », « Tractions strictes ») : retirées en dernier recours
-const PARSE_MODIFIERS = /\b(?:lest[ée]e?s?|lourde?s?|l[ée]g[eè]re?s?|explosi(?:f|ve)s?|strict(?:e|es|s)?|partiel(?:le)?s?|lents?|lente?s?|tempo|pause|avec\s+pause|weighted|paused|heavy|light)\b/gi;
+const PARSE_MODIFIERS = /\b(?:rings?|anneaux|aux\s+anneaux|lest[ée]e?s?|lourde?s?|l[ée]g[eè]re?s?|explosi(?:f|ve)s?|strict(?:e|es|s)?|partiel(?:le)?s?|lents?|lente?s?|tempo|pause|avec\s+pause|weighted|paused|heavy|light)\b/gi;
 const PARSE_MATCH_CACHE = new Map();
 // Reconnaissance du nom brut. learned : dictionnaire appris { clé : nom } (planAliasKey, js/data/plan-aliases.js), lu
 // d'abord ; le reste ne dépend que du texte et de la bibliothèque, mémorisé

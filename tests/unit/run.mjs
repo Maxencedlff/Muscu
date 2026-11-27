@@ -90,6 +90,7 @@ const SCRIPTS = [
   'js/data/plan-grammar.js',
   'js/data/plan-match.js',
   'js/data/plan-table.js',
+  'js/data/plan-blocks.js',
   'js/data/plan-parser.js',
   'js/data/import-measures.js',
   'js/data/progress-photos.js',

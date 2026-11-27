@@ -101,6 +101,8 @@ function planRowCells(line, head) {
   return out;
 }
 
+// Charges homme / femme sans unité d'un tableau de WOD (« 95/65 », « 20/14 ») : la plus lourde d'abord
+function planRxPair(t) { const m = String(t).trim().match(/^(\d{2,3})\s*\/\s*(\d{2,3})$/); return !!m && +m[1] > +m[2]; }
 // Rangée sans en-tête (« Squat | 4 | 8-10 | 90 ») : première case de texte = nom, nombres seuls dans l'ordre séries, reps, repos
 function planBareRow(line) {
   const { cells, sep } = planCells(line);
@@ -109,7 +111,27 @@ function planBareRow(line) {
   const numeric = t => /^\d{1,3}(?:\s*[-/à]\s*\d{1,3})*(?:\s*(?:s|sec|min|'|"|kg|%|reps?))?$/i.test(t) || /^\d{1,2}\s*[x×*]\s*\d{1,3}/i.test(t);
   const nameIdx = texts.findIndex(t => !numeric(t));
   if (nameIdx < 0 || texts.filter(numeric).length < 2) return null;
+  // « 36 | DEADLIFTS | 185/135 » : reps devant le nom et charges homme / femme, lus par la grammaire comme une ligne
+  if (nameIdx === 1 && /^\d{1,3}$/.test(texts[0]) && texts.slice(2).every(t => !numeric(t) || planRxPair(t))) return null;
   const out = { name: texts[nameIdx] };
+  // Reps série par série (« Squats | 315 LB | 5 | 5 | 5 | 5 | 5 », carnet « DL : 5|5|3|2|1 ») : quatre nombres seuls ou
+  // plus, côte à côte et sans unité, donnent les séries et la fourchette de reps
+  const bareInts = texts.map((t, i) => (i !== nameIdx && /^\d{1,2}$/.test(t) ? +t : null));
+  let runStart = -1, best = null;
+  bareInts.forEach((v, i) => {
+    if (v !== null && v >= 1 && v <= 30) { if (runStart < 0) runStart = i; if (i - runStart + 1 >= 4) best = [runStart, i]; }
+    else runStart = -1;
+  });
+  if (best) {
+    // « DL : 5 | 5 | 3 » : le premier nombre est resté collé au nom
+    const glued = best[0] === nameIdx + 1 && texts[nameIdx].match(/^(.*\S)\s*[:\s]\s*(\d{1,2})$/);
+    if (glued) { out.name = glued[1]; bareInts[nameIdx] = +glued[2]; best[0] = nameIdx; }
+    const reps = bareInts.slice(best[0], best[1] + 1);
+    out.setsReps = `${reps.length} x ${Math.min(...reps)}${Math.max(...reps) > Math.min(...reps) ? `-${Math.max(...reps)}` : ''}`;
+    // Charge avant les reps ; ce qui suit (« GREAT! +5 LB NEXT TIME ») est un commentaire de l'appli, laissé de côté
+    texts.forEach((t, i) => { if (i !== nameIdx && i < best[0] && /kg|lb|%/i.test(t)) out.load = t; });
+    return out;
+  }
   const order = ['sets', 'reps', 'rest', 'load'];
   let k = 0;
   texts.forEach((t, i) => {
@@ -157,9 +179,13 @@ function planTextFromBoxes(items, { maxItems = 4000 } = {}) {
   if (!list.length) return '';
   list.sort((a, b) => (a.y + a.h / 2) - (b.y + b.h / 2) || a.x - b.x);
   const rows = [];
+  // Deux morceaux d'une même rangée sont côte à côte : un morceau qui chevauche en largeur ceux d'une rangée (photo
+  // de biais, ligne penchée) ouvre la sienne au lieu d'y être mêlé
+  const sideBySide = (r, it) => r.items.every(o => Math.min(o.x + o.w, it.x + it.w) - Math.max(o.x, it.x) <= Math.min(o.w, it.w) * 0.3);
   for (const it of list) {
     const cy = it.y + it.h / 2;
-    const row = rows.find(r => Math.abs(r.cy - cy) <= Math.max(r.h, it.h) * 0.5);
+    let row = null;
+    for (const r of rows) if (Math.abs(r.cy - cy) <= Math.max(r.h, it.h) * 0.5 && sideBySide(r, it) && (!row || Math.abs(r.cy - cy) < Math.abs(row.cy - cy))) row = r;
     if (row) { row.items.push(it); row.cy = (row.cy * (row.items.length - 1) + cy) / row.items.length; row.h = Math.max(row.h, it.h); }
     else rows.push({ cy, h: it.h, items: [it] });
   }
@@ -217,7 +243,11 @@ function planTextFromPages(pages) {
     const put = (t, b) => { if (t && b) items.push({ text: t, x: b.x * W, y: top + b.y * H, w: b.w * W, h: b.h * H }); };
     for (const l of Array.isArray(p?.lines) ? p.lines : []) {
       const words = Array.isArray(l?.words) ? l.words.filter(w => w?.text && w.box) : [];
-      if (words.length) words.forEach(w => put(String(w.text), w.box)); else put(String(l?.text ?? ''), l?.box);
+      if (!words.length || !l?.box) { put(String(l?.text ?? ''), l?.box); continue; }
+      // Mots d'une ligne de Vision tous à la hauteur du centre de la ligne (une ligne penchée reste une rangée), et
+      // hauts comme le plus petit mot : la boîte d'une ligne de biais est bien plus haute que son texte
+      const cy = l.box.y + l.box.h / 2, h = Math.min(l.box.h, ...words.map(w => w.box.h).filter(v => v > 0));
+      words.forEach(w => put(String(w.text), { x: w.box.x, w: w.box.w, y: cy - h / 2, h }));
     }
     top += H + 60;
   }

@@ -27,8 +27,13 @@ const PARSE_REST_DAY_RE = new RegExp(`^(?:(?:${PARSE_DAYS}|jour\\s*\\d+|day\\s*\
 const PARSE_SKIP_SECTION_RE = /^(?:echauffement|echauffements|warm\s*-?\s*up|retour au calme|cool\s*-?\s*down|etirements?|stretching|mobilite|notes?|conseils?|remarques?|important|nutrition|alimentation)\b/;
 // Mots qui recoupent une dictée (pas de retour à la ligne) : un nouvel exercice ou une nouvelle séance commence
 const PARSE_DICT_BREAK = /\s+(?=(?:ensuite|puis|apres ca|apres|et pour finir|pour finir|on termine|on enchaine|on finit|enfin|exercice suivant|dernier exercice|et on finit|on passe a)\b)/gi;
-const PARSE_DICT_SESSION = new RegExp(`\\s+(?=(?:(?:premiere|deuxieme|troisieme|quatrieme|cinquieme|1re|2e|3e|4e)\\s+seance|seance\\s+(?:suivante|[a-z0-9]{1,3}\\b|push|pull|jambes|legs|haut|bas)|jour\\s+\\d|(?:${PARSE_DAYS})\\b))`, 'gi');
+const PARSE_DICT_SESSION = new RegExp(`\\s+(?=(?:(?:premiere|deuxieme|troisieme|quatrieme|cinquieme|1re|2e|3e|4e)\\s+seance|seances?\\s+(?:suivantes?|[a-z0-9]{1,3}\\b|push|pull|jambes|legs|haut|bas)|jour\\s+\\d|(?:${PARSE_DAYS})\\b))`, 'gi');
 
+const PARSE_DATE_LINE = /\bdate\s*:|^(?:(?:le|du|on)\s+)?(?:\w+\s+)?\d{1,2}[-/.]\d{1,2}[-/.](?:\d{2}|\d{4})$/;
+// Ligne de groupe d'un tableau ou d'une liste : « Superset modifié », « Biset abdos », « Tri-set » ouvrent un groupe ;
+// « En séries combinées avec », « enchaîné avec » seuls sur leur ligne relient l'exercice d'avant à celui d'après
+const PARSE_GROUP_OPEN = /^(?:super\s*-?\s*sets?|bi\s*-?\s*sets?|tri\s*-?\s*sets?|giant\s*sets?|series?\s+combinees?|series?\s+enchainees?)\b/;
+const PARSE_GROUP_JOIN = /^(?:en\s+)?(?:series?\s+combinees?|combine(?:e|es|s)?|enchaine(?:e|es|s|r|z)?|en\s+superset|superset|en\s+biset|alterne(?:e|es|s)?|alternance)\s+(?:avec|with)\s*:?$|^(?:with|avec)\s+(?:the\s+)?next$/;
 // Ligne de texte simple, minuscules sans accents, sans puces ni décorations (« ## », « ** », « === »)
 const planBare = s => planPlain(planTidy(s)).replace(/[*#_=~]+/g, ' ').replace(/^[\s\-•·▪►>|]+/, '').replace(/\s+/g, ' ').trim();
 
@@ -51,7 +56,7 @@ function planHeaderOf(line, read) {
   // « PUSH », « JAMBES / FESSIERS » en capitales, ou une ligne courte finie par « : » qui n'est pas un exercice
   const letters = planTidy(line).replace(/[^A-Za-zÀ-ÿ]/g, '');
   const caps = letters.length >= 3 && letters === letters.toUpperCase();
-  if ((caps || /:\s*$/.test(line)) && words.length <= 5) {
+  if ((caps || /:\s*$/.test(line)) && words.length <= 5 && !/^\s*[([]/.test(planTidy(line))) {
     const m = planMatchExercise(read.name);
     if (m.score < 0.9) return { label };
   }
@@ -88,8 +93,9 @@ function planSourceLines(text) {
   const lines = s.split('\n');
   const long = lines.filter(l => l.length > 160);
   // Dictée ou paragraphe : coupé aux mots de passage et aux séances, en gardant la phrase source
-  if (long.length) {
-    s = lines.map(l => (l.length > 160 || (lines.length <= 3 && l.length > 80) ? planPlainSafe(l) : l)).join('\n');
+  const few = lines.filter(l => l.trim()).length <= 3;
+  if (long.length || (few && lines.some(l => l.length > 80))) {
+    s = lines.map(l => (l.length > 160 || (few && l.length > 80) ? planPlainSafe(l) : l)).join('\n');
   }
   const all = s.split('\n'), out = all.slice(0, PARSE_MAX_LINES);
   out.cut = all.length > PARSE_MAX_LINES || String(text ?? '').length > PARSE_MAX_CHARS;   // texte coupé : dit à l'écran
@@ -164,6 +170,7 @@ function planParse(text, { learned = null } = {}) {
   // cut : limites atteintes (texte, exercices, séances), dites à l'écran « Vérifier l'import »
   const draft = { title: null, sessions: [], lines: [], notes: [], cut: { text: !!src.cut, items: false, sessions: false } };
   let session = null, skipSection = false, table = null, pendingName = null, ssOpen = null, nItems = 0, seq = 0;
+  let block = null, joinNext = false;   // bloc répété en cours (js/data/plan-blocks.js), groupe annoncé par la ligne d'avant
   const lineRec = (txt, role, item = null) => { const r = { text: txt, role }; if (item) r.item = item; draft.lines.push(r); return r; };
   const ensureSession = () => {
     if (!session) { session = { label: '', src: null, items: [] }; draft.sessions.push(session); }
@@ -172,7 +179,8 @@ function planParse(text, { learned = null } = {}) {
   const pushItem = (srcLine, read, m) => {
     if (nItems >= PARSE_MAX_ITEMS) { draft.cut.items = true; return null; }
     const item = { id: `l${++seq}`, src: srcLine, raw: read.name.slice(0, PARSE_NAME_MAX), name: m.name, score: m.score, how: m.how,
-      guess: m.guess || null, presc: { ...read.presc }, marks: read.marks };
+      guess: m.guess || null, presc: planBlockApply(read.presc, block), marks: read.marks };
+    if (block) block.used = true;
     // « Weighted dips », « Dips lestés » : la fiche est « Dips », le lest reste dans la consigne
     if (PARSE_WEIGHTED.test(read.name) && !/lest|weighted/i.test(m.name || '')) item.presc.weighted = true;
     ensureSession().items.push(item);
@@ -180,10 +188,22 @@ function planParse(text, { learned = null } = {}) {
     return item;
   };
   const lastItem = () => session?.items.at(-1) || null;
+  // Ligne de groupe (PARSE_GROUP_OPEN, PARSE_GROUP_JOIN) : ouvre le groupe ou relie au suivant ; false sinon
+  const planGroupLine = txt => {
+    const b = planBare(txt).replace(/[:()]+/g, ' ').replace(/\s+/g, ' ').trim();
+    if (PARSE_GROUP_JOIN.test(b)) { joinNext = true; return true; }
+    const o = b.match(PARSE_GROUP_OPEN);
+    if (!o) return false;
+    const rest = b.slice(o[0].length).trim();
+    if (rest && planMatchExercise(rest, learned).score >= 0.8) return false;
+    if (rest.split(' ').length > 4) return false;
+    ssOpen = { key: `g${++seq}`, left: /^tri/.test(b) ? 3 : /^giant/.test(b) ? 5 : 2 };
+    return true;
+  };
 
   for (let i = 0; i < src.length; i++) {
     const line = src[i];
-    if (!line.trim()) { lineRec(line, 'blank'); table = null; ssOpen = null; continue; }
+    if (!line.trim()) { lineRec(line, 'blank'); table = null; ssOpen = null; if (block?.used) block = null; continue; }
     // Tableau : en-tête, puis rangées jusqu'à la prochaine ligne vide ou sans colonnes
     const head = planTableHeader(line);
     if (head) { table = head; lineRec(line, 'table-head'); continue; }
@@ -194,6 +214,7 @@ function planParse(text, { learned = null } = {}) {
       if (row && keys.length) {
         // Rangée qui ne porte qu'un nom : en-tête de séance (« | Jour 1 : Haut | | | »), ou nom coupé sur deux lignes
         // (« Développé incliné » puis « haltères  3  10 ») gardé pour la rangée suivante
+        if (keys.length === 1 && row.name && planGroupLine(row.name)) { lineRec(line, 'note'); continue; }
         if (keys.length === 1 && row.name) {
           const hr = planReadLine(row.name);
           if (planHeaderOf(row.name, hr)) { text = row.name; table = { ...table, pendingName: null }; }
@@ -213,21 +234,32 @@ function planParse(text, { learned = null } = {}) {
       if (bare) { text = planRowText(bare); fromTable = true; }
     }
     const read = planReadLine(text);
-    // Ouverture d'un groupe : « Superset : », « Bi-set », « Tri-set », « Circuit » seuls sur la ligne
+    // Ouverture d'un groupe : « Superset : », « Bi-set abdos », « Tri-set » ; « En séries combinées avec » seul
     const bareLine = planBare(text);
-    const opener = bareLine.match(/^(?:super\s*-?\s*set|superset|bi\s*-?\s*set|tri\s*-?\s*set|giant\s*set)\s*(?:[a-z0-9]{1,2})?\s*:?\s*(?:\(.*\))?$/);
-    if (opener && !planHasWork(read.presc) && !fromTable) {
-      ssOpen = { key: `g${++seq}`, left: /tri/.test(bareLine) ? 3 : /giant/.test(bareLine) ? 5 : 2 };
+    if (!fromTable && !planHasWork(read.presc) && planGroupLine(text)) { lineRec(line, 'note'); continue; }
+    // Bloc répété : « 5 rounds », « EMOM 12 », « 2:00 each station » ; il vaut pour les exercices qui suivent
+    const blk = fromTable ? null : planBlockOf(text);
+    if (blk) {
+      block = block && !block.used ? { ...block, ...blk } : blk;
       lineRec(line, 'note');
       continue;
     }
+    // « Rest » seul dans un circuit : un poste de repos, pas un jour de repos
+    if (block && /^(?:rest|repos|pause|recup(?:eration)?)$/.test(bareLine)) { lineRec(line, 'note'); continue; }
     // Consigne générale (« Repos : 3 à 5 min sur les mouvements de force ») : une note
     if (!fromTable && /^(?:repos|recup|recuperation|rest|pause|note|nb|attention|conseils?|important|objectif|progression|frequence|si\s|ou\s|variante|remplace|alternative|option)\b/.test(bareLine) && !planWorkComplete(read.presc)) {
       lineRec(line, 'note'); draft.notes.push(text.trim()); continue;
     }
+    // Date seule (« Date: 5-9-12 », « Mon Tue Wed… Date: Mon 5-14-12 ») : une nouvelle séance d'un carnet
+    if (!fromTable && PARSE_DATE_LINE.test(planBare(text)) && !planHasWork(read.presc) && planMatchExercise(read.name, learned).score < PARSE_MATCH_MIN) {
+      if (session?.items.length) { session = { label: '', src: line, items: [] }; draft.sessions.push(session); }
+      block = null; ssOpen = null; pendingName = null;
+      lineRec(line, 'note');
+      continue;
+    }
     const hd = fromTable ? null : planHeaderOf(text, read);
     if (hd) {
-      pendingName = null; ssOpen = null;
+      pendingName = null; ssOpen = null; block = null;
       if (hd.rest) { lineRec(line, 'rest-day'); session = null; skipSection = false; continue; }
       const b = planBare(text);
       if (PARSE_SKIP_SECTION_RE.test(b)) { skipSection = true; lineRec(line, 'note'); continue; }
@@ -267,7 +299,8 @@ function planParse(text, { learned = null } = {}) {
     for (const piece of pieces) {
       const r = piece.text === text ? read : planReadLine(piece.text);
       const m = r.name ? planMatchExercise(r.name, learned) : { name: null, score: 0, how: 'none' };
-      const work = planHasWork(r.presc);
+      // Un poste de circuit vaut un exercice, même hors bibliothèque (« Wall Balls ») s'il a l'air d'un nom
+      const work = planHasWork(r.presc) || (!!block && !/^\s*[([]/.test(piece.text) && (m.score >= PARSE_MATCH_MIN || (r.name.match(/[a-zà-ÿ]{2,}/gi) || []).length >= 2));
       const prev = lastItem();
       // Ligne de suite : rien d'un nom, seulement du repos, un tempo, une technique, une charge (« Repos 2 min »)
       if (!m.score && !work && prev && Object.keys(r.presc).length && r.name.split(' ').filter(w => w.length > 2).length <= 2) {
@@ -276,7 +309,7 @@ function planParse(text, { learned = null } = {}) {
         continue;
       }
       // Prescription seule sous un nom seul (mode guidé de la dictée, case de tableau sur deux lignes)
-      if (work && (!r.name || m.score < 0.5) && pendingName) {
+      if (work && pendingName && !r.marks.lead && (!r.name || (m.score < 0.5 && r.name.split(' ').filter(w => w.length > 2).length <= 1))) {
         pendingName.presc = planMergePresc(pendingName.presc, r.presc);
         pendingName = null;
         lineRec(line, 'cont', prev);
@@ -294,6 +327,8 @@ function planParse(text, { learned = null } = {}) {
       if (r.marks.plus && prev) item.joinPrev = true;
       if (prev?.marks?.plusAfter) item.joinPrev = true;
       if (/\b(?:avec|and)\s+(?:la\s+)?(?:ligne|exercice|exo)\s+suivant(?:e)?\b|\bwith\s+next\b/i.test(planPlain(r.text))) item.marks = { ...item.marks, plusAfter: true };
+      if (joinNext && prev && prev !== item) item.joinPrev = true;
+      joinNext = false;
       if (ssOpen && ssOpen.left > 0) { item.ssKey = ssOpen.key; ssOpen.left--; if (!ssOpen.left) ssOpen = null; }
       pendingName = work ? null : item;
       lineRec(line, 'exercise', item);
@@ -332,8 +367,9 @@ function planFinish(draft) {
 }
 // Groupes de superset d'une séance : A1/A2 (même lettre, à la suite), « + » et « enchaîné avec », « Superset : »
 function planGroupSupersets(items) {
-  let n = 0;
+  let n = 0, nb = 0;
   const key = () => `s${++n}`;
+  planBraceRuns(items, () => `b${++nb}`);
   items.forEach((it, i) => {
     const prev = items[i - 1];
     const letter = it.marks?.ss?.[0];
@@ -368,6 +404,8 @@ function planConsigne(p) {
   if (p.seconds) bits.push(`${fmtNum(p.seconds)} s par série`);
   if (p.pyramid) bits.push(`Reps ${p.pyramid}`);
   if (p.uni) bits.push('Par bras ou par jambe');
+  if (p.meters) bits.push(p.meters >= 1000 ? `${fmtNum(p.meters / 1000)} km` : `${p.meters} m`);
+  if (p.every) bits.push(`Une série toutes les ${p.every % 60 ? `${p.every} s` : `${p.every / 60} min`}`);
   return bits.join(' · ');
 }
 // Exercice du programme pour un élément du brouillon : séries (3 sans indication), reps fixes ou fourchette, repos,

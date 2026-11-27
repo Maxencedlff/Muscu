@@ -22,6 +22,7 @@ function planTidy(s) {
     .replace(/[–—−‐‑]/g, '-')
     .replace(/[’‘´`ʼ]/g, '\'')
     .replace(/[″“”«»]/g, '"')
+    .replace(/(?<=\d)[Øø]|[Øø](?=[\dØø])/g, '0')      // zéro barré d'un tableau blanc (« 3Ø », « 4ØØM »)
     .replace(/[ \t]+$/g, '');
 }
 // Minuscules sans accents, caractère par caractère : même longueur que le texte, pour retirer ce qui est lu au même endroit
@@ -86,10 +87,10 @@ const PARSE_RE = {
   tempoKw: /\btempo\s*[:=]?\s*\(?\s*([0-9x])\s*[-/. ]?\s*([0-9x])\s*[-/. ]?\s*([0-9x])(?:\s*[-/. ]?\s*([0-9x]))?\)?(?![0-9])/,
   tempoBare: /(?<![0-9x-])([0-9x])-([0-9x])-([0-9x])(?:-([0-9x]))?(?![0-9-])/,
   pct: /@?\s*(\d{2,3}(?:[.,]\d)?)\s*%\s*(?:(?:du|de\s+ton|de|of)\s+)?(?:max|1\s*rm|rm|1rm|cmr)?/,
-  load: /(?:@|(?<![a-z])a)?\s*(\+?\d{1,3}(?:[.,]\d{1,2})?)\s*(kgs?|kilos?|lbs?|livres)(?![a-z])/,
+  load: /(?:@|(?<![a-z])a)?\s*(\+?\d{1,3}(?:[.,]\d{1,2})?)\s*(kgs?|kilos?|lbs?|livres|#)(?![a-z])(?:\s*\/\s*\d{1,3}(?:[.,]\d{1,2})?\s*(?:kgs?|kilos?|lbs?|livres|#)?(?![a-z0-9]))*/,
   rpe: /\b(?:rpe|@)\s*[:=]?\s*(\d{1,2}(?:[.,]5)?)(?![0-9%])/,
   rir: [/\brir\s*[:=]?\s*(\d)(?![0-9])/, /(?<![0-9])(\d)\s*rir\b/, /(?<![0-9])(\d)\s*(?:reps?\s*)?(?:en|de)\s*reserve\b/],
-  uni: /(?:\b(?:par|chaque|each|per)\s+|\/\s*)(bras|jambes?|cotes?|side|arm|leg|mains?)\b|\bde\s+chaque\s+cote\b/,
+  uni: /(?:\b(?:par|chaque|each|per)\s+|\/\s*)(bras|jambes?|cotes?|side|arm|leg|mains?)\b|\bde\s+chaque\s+cote\b|(?<=\d)\s*\/\s*s(?![a-z0-9])/,
   ssLead: /^\s*([a-f])\s*([1-6])\s*[).:-]?\s+(?=\S)/,
   ssWord: /\b(?:super\s*-?\s*set|superset|bi\s*-?\s*set|tri\s*-?\s*set|enchaine(?:r|z)?\s+avec|en\s+superset\s+avec|sans\s+repos\s+avec)\b/,
   setsReps: new RegExp(String.raw`(?<![0-9.,])(\d{1,2})\s*(?:x|series?\s*(?:de|x|of|au|a)?|sets?\s*(?:of|de|x)?|tours?\s*(?:de|x)?)\s*\(?\s*(?:(?:${PARSE_TIME_SRC})|(?:${PARSE_REPS_SRC}))\s*\)?\s*(?:(?:reps?|repetitions?|mouvements?|r)(?![a-z]))?`),
@@ -99,7 +100,25 @@ const PARSE_RE = {
   restKw: new RegExp(String.raw`\b(?:repos|recup(?:eration)?|rest|pause|r)\s*[:=]?\s*(?:de\s+|of\s+)?(?:${PARSE_TIME_SRC})|(?:${PARSE_TIME_SRC})\s*(?:de\s+)?(?:repos|recup(?:eration)?|rest|pause|entre)`),
   timeBare: new RegExp(PARSE_TIME_SRC),
   amrapWord: /\b(?:jusqu'?a\s+l'?echec|a\s+l'?echec|amrap|max\s+reps?)\b/,
+  // Accolade d'un bloc répété, en fin de ligne (« >x3 », « } x 3 ») : séries du bloc (planBlocks, js/data/plan-blocks.js)
+  brace: /(?:^|\s)[>}\])]+\s*x\s*(\d{1,2})\s*$/,
+  every: new RegExp(String.raw`\b(?:every|toutes?\s+les|chaque)\s+(?:${PARSE_TIME_SRC})`),
+  setsDist: /(?<![0-9.,])(\d{1,2})\s*x\s*(\d{1,4}(?:[.,]\d)?)\s*(m|km)(?![a-z0-9'])/,
+  dist: /(?<![0-9.,:/x])(\d{2,5}|\d{1,3}[.,]\d{1,2}|\d{1,3}(?=\s*(?:km|mi|miles?)))\s*(m|km|mi|miles?|yd|yards?|metres?|meters?)(?![a-z0-9'])/,
+  // Reps en tête, avant le nom (« 10 PUSHUPS », « 36 BOX JUMPS », « 30-AIRSQUATS »), sans autre prescription
+  lead: /^\s*(\d{1,3})(?:\s*-\s*|\s+)(?=[a-z]{2})(?!(?:min|mn|sec|secondes?|kgs?|kilos?|lbs?|livres|reps?|repetitions?|series?|sets?|fois|tours?|rounds?|rft|ans?|jours?|semaines?|heures?|cm|km|mi|miles?|metres?|meters?|minutes?|seances?|exercices?|mouvements?|calories?|cal)\b)/,
+  // Reps en chaîne sans séries (« 12-10-8 TIRAGE », « SNATCH 1-1-1-1-1 », « 21-15-9 ») : une série par nombre
+  chain: /(?<![0-9.,/:-])(\d{1,3})((?:\s*[-/]\s*\d{1,3}){2,9})(?![0-9/:-])/,
+  // Charges à l'aveugle (« @ 245/250/250 » d'un carnet, « 95/65 » homme / femme) : sans unité, ôtées du nom
+  bareLoads: /@\s*\d{2,4}(?:\s*[/|]\s*\d{0,4})*|(?<![0-9.,/x-])(\d{2,3})\s*\/\s*(\d{2,3})(?![0-9/])/,
 };
+// Distance en mètres (« 400 m », « 1,5 km », « 3 mi »)
+function planMeters(n, unit) {
+  const v = planDec(n), u = String(unit).toLowerCase();
+  const k = /^k/.test(u) ? 1000 : /^mi/.test(u) ? 1609 : /^y/.test(u) ? 0.9144 : 1;
+  const out = Math.round(v * k);
+  return out >= 5 && out <= 100000 ? out : null;
+}
 const PARSE_TECH_RES = [
   ['topback', /\btop\s*-?\s*sets?\b|\bback\s*-?\s*offs?\b/],
   ['rp', /\brest\s*-?\s*pause\b|\brepos\s*-?\s*pause\b|(?<![a-z])rp(?![a-z])/],
@@ -117,9 +136,11 @@ const planDec = s => +String(s).replace(',', '.');
 // (« 4x8 », « 90s », « 1min30 », « 62,5kg ») et les repères de superset (« A1 ») ne sont pas touchés
 const PARSE_UNIT_TAIL = /^(?:x\d.*|s|sec|secs|secondes?|min|mn|m|kg|kgs|kilos?|lbs?|reps?|x|er|re|e|eme|ere|rm|'.*|".*|h)$/;
 function planDeOcr(s) {
+  // « lO PUSHUPS », « IO BOX JUMPS » : 10 lu en lettres en tête de ligne, devant un nom
+  s = s.replace(/^(\s*)[lI|1][oO0](?=\s+[A-Za-zÀ-ÿ]{3})/, '$110');
   return s.replace(/[A-Za-zÀ-ÿ0-9|]+/g, w => {
     if (!/[0-9|]/.test(w) || !/[A-Za-zÀ-ÿ]/.test(w)) return w;
-    if (/^[A-Fa-f][1-6]$/.test(w)) return w;
+    if (/^[A-Fa-f][1-6]$/.test(w) || /^x\d{1,2}$/i.test(w)) return w;
     const m = w.match(/^(\d+(?:[.,]\d+)?)(.*)$/);
     if (m) {
       // Commence par un nombre : « 4xl0 », « 3x1O » corrigés dans la prescription ; « 5ur », « 5eries » relus en mots
@@ -145,8 +166,10 @@ const planOcrLetters = w => w.replace(/0/g, 'o').replace(/[1|]/g, 'l').replace(/
 
 // Ligne lue. presc : ce qui est compris (champs absents = pas dit) ; name : le reste, nom de l'exercice brut ;
 // marks : repères de mise en page (ss : « A1 » ; ssWord : « superset », « enchaîné avec » ; plus : « + » en tête)
+// Hésitations de la dictée (« trois séries de euh cinq ») : ôtées avant la lecture des nombres
+const PARSE_HESIT = /(?:^|\s)(?:euh+|heu+|hum+|hmm+|bah)(?=[\s,.;]|$)/gi;
 function planReadLine(raw) {
-  const text = planDigits(planDeOcr(planTidy(raw)));
+  const text = planDigits(planDeOcr(planTidy(raw).replace(PARSE_HESIT, ' ')));
   let low = planPlain(text);
   const keep = Array(text.length).fill(true);
   const take = (m, from = 0) => {   // retire la correspondance m (sur low) et la masque pour les motifs suivants
@@ -162,11 +185,17 @@ function planReadLine(raw) {
   if (/^\s*\+/.test(low)) { marks.plus = true; take(low.match(/^\s*\+/)); }
   if (/\+\s*$/.test(low)) { marks.plusAfter = true; take(low.match(/\+\s*$/)); }
   if ((m = low.match(PARSE_RE.ssWord))) { marks.ssWord = true; take(m); }
+  if ((m = low.match(PARSE_RE.brace))) { marks.brace = +m[1]; take(m); }
   if ((m = find(PARSE_RE.tempoKw))) presc.tempo = planTempo(m);
+  // Cadence d'un EMOM (« 3 reps every 3 minutes », « toutes les 2 min ») : le départ de chaque série, pas un repos
+  if ((m = low.match(PARSE_RE.every))) { const v = planTimeValue(m, 1); take(m); if (v) presc.every = v; }
+  // Distance (« 400 m », « Run 800m », « 3 mi », « 2x10m ») : notée, jamais lue comme des reps ni des minutes
+  if ((m = low.match(PARSE_RE.setsDist))) { take(m); presc.sets = Math.min(clampInt(m[1], 1, 99) || 1, PARSE_SETS_MAX); presc.meters = planMeters(m[2], m[3]); }
+  else if ((m = low.match(PARSE_RE.dist))) { const v = planMeters(m[1], m[2]); if (v) { take(m); presc.meters = v; } }
   if ((m = find(PARSE_RE.pct))) { const v = planDec(m[1]); if (v >= 30 && v <= 105) presc.pct = v; }
   if ((m = find(PARSE_RE.load))) {
     let v = planDec(m[1].replace('+', ''));
-    if (/^l/.test(m[2])) v = Math.round(v / 2.20462 * 10) / 10;
+    if (/^l|#/.test(m[2])) v = Math.round(v / 2.20462 * 10) / 10;
     if (v > 0 && v <= 500) presc.load = v;
   }
   for (const re of PARSE_RE.rir) {   // « RIR 2 » d'abord : dans « 4 x 8 RIR 2 », le 8 est la rep, pas la réserve
@@ -215,6 +244,18 @@ function planReadLine(raw) {
     if ((m = find(PARSE_RE.repsOnly))) planReps(presc, m[1] ?? m[4], m[2] ?? m[5], m[3] ?? m[6]);
   }
   if (!presc.amrap && presc.repMax === undefined && presc.seconds === undefined && (m = find(PARSE_RE.amrapWord))) presc.amrap = true;
+  if (!planHasWork(presc) && !/\bdate\b/.test(low) && (m = low.match(PARSE_RE.chain))) {
+    const nums = [m[1], ...m[2].split(/[-/]/).filter(x => x.trim())].map(x => clampInt(x.trim(), 1, PARSE_REPS_MAX));
+    if (nums.every(x => x !== null)) { take(m); presc.sets = Math.min(nums.length, PARSE_SETS_MAX); planReps(presc, undefined, m[1], m[2]); }
+  }
+  if (!planHasWork(presc) && (m = low.match(PARSE_RE.lead))) {
+    const n = clampInt(m[1], 1, PARSE_REPS_MAX);
+    if (n !== null) { take(m); presc.repMin = n; presc.repMax = n; marks.lead = true; }
+  }
+  for (let k = 0; k < 4 && (m = low.match(PARSE_RE.bareLoads)); k++) {
+    if (m[2] !== undefined && +m[1] < +m[2]) break;   // « 8/12 » : pas une paire de charges
+    take(m);
+  }
   if ((m = find(/\b(?:pas\s+de|sans|aucun|0\s*s(?:ec)?\s*de)\s+(?:repos|recup(?:eration)?|pause)\b|\brepos\s*[:=]?\s*(?:0|aucun|non|-)(?![0-9a-z])/))) presc.rest = 0;
   else if ((m = low.match(PARSE_RE.restKw))) {
     const off = m[1] !== undefined || m.slice(1, 1 + PARSE_TIME_GROUPS).some(x => x !== undefined) ? 1 : 1 + PARSE_TIME_GROUPS;
