@@ -107,10 +107,14 @@ export function measureReal() {
   for (const d of docs) {
     const cat = d.category;
     run(d, cat, 'texte', d.text, { where: d.where });
+    const pj = outs.get(`${d.id}.pdfjs.json`);
+    if (pj) run(d, cat, 'pdfjs', ctx.planTextFromBoxes(readJson(pj).boxes), { where: d.where });
+    const te = outs.get(`${d.id}.tesseract.json`);
+    if (te) run(d, cat, 'tesseract', ctx.planTextFromPages(readJson(te).pages), { where: d.where });
     const o = outs.get(`${d.id}.ocr.json`);
     if (!o) { missing.ocr.push(d); continue; }
     const r = readJson(o);
-    run(d, cat, 'vision', ctx.planTextFromPages(r.pages), { where: d.where, lines: r.pages.reduce((a, p) => a + p.lines.length, 0) });
+    run(d, cat, 'vision', ctx.planTextFromPages(r.pages), { where: d.where });
   }
   for (const d of dictations) {
     run(d, 'dictee', 'texte', d.text);
@@ -137,7 +141,7 @@ export function measureReal() {
   }
   // Erreurs les plus fréquentes sur les vraies lectures (Vision, SFSpeech, whisper), avec un exemple
   const fam = new Map();
-  for (const c of cases.filter(x => x.source !== 'texte')) {
+  for (const c of cases.filter(x => ['vision', 'pdfjs', 'sfspeech'].includes(x.source))) {
     for (const e of c.errors) {
       for (const w of e.why) {
         const k = errorFamily(w);
@@ -181,7 +185,7 @@ function prepare() {
 
 // ── Affichage ──────────────────────────────────────────────
 const ORDER = ['imprime', 'tableau', 'manuscrit', 'capture', 'pdf-texte', 'pdf-scanne', 'dictee'];
-const SOURCE = { texte: 'texte parfait', vision: 'Apple Vision', sfspeech: 'SFSpeechRecognizer', whisper: 'whisper.cpp' };
+const SOURCE = { texte: 'texte parfait', vision: 'Apple Vision', pdfjs: 'pdf.js (app)', tesseract: 'Tesseract (approx.)', sfspeech: 'SFSpeechRecognizer', whisper: 'whisper.cpp' };
 function table(r, md) {
   const rows = Object.values(r.by).sort((a, b) => ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind) || Object.keys(SOURCE).indexOf(a.source) - Object.keys(SOURCE).indexOf(b.source));
   const head = ['Catégorie', 'Lu par', 'Docs', 'Lignes', 'Justes', 'Exercice', 'Prescription', 'En trop', 'Séances justes'];
@@ -189,12 +193,12 @@ function table(r, md) {
   const out = [];
   if (md) {
     out.push(`| ${head.join(' | ')} |`, `|${head.map(() => '---').join('|')}|`, ...body.map(x => `| ${x.join(' | ')} |`));
-    out.push('', '**Erreurs les plus fréquentes (vraies lectures)**', '', '| # | Erreur | Fois | Docs | Exemple |', '|---|---|---|---|---|');
+    out.push('', '**Erreurs les plus fréquentes (Apple Vision, pdf.js, SFSpeechRecognizer)**', '', '| # | Erreur | Fois | Docs | Exemple |', '|---|---|---|---|---|');
     r.top.forEach((t, i) => out.push(`| ${i + 1} | ${t.family} | ${t.n} | ${t.docs} | ${t.ex.id} (${SOURCE[t.ex.source]}) : « ${String(t.ex.line).slice(0, 60).replace(/\|/g, '/')} » → ${t.ex.why.replace(/\|/g, '/')} |`));
   } else {
     const w = head.map((h, i) => Math.max(h.length, ...body.map(x => String(x[i]).length)));
     out.push(head.map((h, i) => h.padEnd(w[i])).join('  '), ...body.map(x => x.map((v, i) => (i < 2 ? String(v).padEnd(w[i]) : String(v).padStart(w[i]))).join('  ')));
-    out.push('', 'Erreurs les plus fréquentes (vraies lectures) :');
+    out.push('', 'Erreurs les plus fréquentes (Apple Vision, pdf.js, SFSpeechRecognizer) :');
     r.top.forEach((t, i) => out.push(`${String(i + 1).padStart(2)}. ${t.family} : ${t.n} fois, ${t.docs} docs\n    ex. ${t.ex.id} (${SOURCE[t.ex.source]}) « ${String(t.ex.line).slice(0, 70)} » → ${t.ex.why}`));
   }
   const local = r.docs.filter(d => d.where === 'local');

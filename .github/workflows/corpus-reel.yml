@@ -83,38 +83,54 @@ jobs:
           done
           ls work/audio | wc -l
 
-      # La reconnaissance vocale demande une autorisation (fenêtre impossible sur une machine sans écran) : elle est
-      # accordée d'avance dans la base TCC, comme le fait l'image GitHub pour ses propres outils (SIP désactivé sur
-      # ces machines). Plusieurs clients possibles selon le processus que macOS tient pour responsable.
-      - name: Autoriser la reconnaissance vocale (base TCC)
+      # La reconnaissance vocale demande une autorisation (fenêtre impossible sur une machine sans écran). Elle est
+      # accordée d'avance dans la base TCC (SIP est désactivé sur ces machines, l'image GitHub fait de même pour ses
+      # propres outils). macOS rattache la demande au processus « responsable » : un binaire lancé par bash ne l'est
+      # pas, d'où un vrai paquet .app signé, lancé par `open` (il devient son propre responsable), avec son exigence de
+      # signature (csreq) dans la base.
+      - name: Paquet .app et autorisation de la reconnaissance vocale (base TCC)
         continue-on-error: true
         run: |
-          BIN="$PWD/work/speech-transcribe"
+          APP="$PWD/work/SpeechTranscribe.app"
+          mkdir -p "$APP/Contents/MacOS"
+          cp work/speech-transcribe "$APP/Contents/MacOS/speech-transcribe"
+          cp tools/plan-corpus/speech-Info.plist "$APP/Contents/Info.plist"
+          plutil -insert CFBundleExecutable -string speech-transcribe "$APP/Contents/Info.plist"
+          plutil -insert CFBundlePackageType -string APPL "$APP/Contents/Info.plist"
+          codesign -s - -f --identifier com.mdlf.corpus.speech "$APP"
+          codesign -d -r- "$APP" 2>&1 | sed -n 's/^designated => //p' > work/req.txt
+          cat work/req.txt
+          csreq -r work/req.txt -b work/csreq.bin && HEX=$(xxd -p work/csreq.bin | tr -d '\n') || HEX=""
+          CSREQ=$([ -n "$HEX" ] && echo "X'$HEX'" || echo NULL)
           NOW=$(date +%s)
-          WORKER=$(ps -axo comm | grep -m1 'Runner.Worker' || true)
-          PROV=$(ps -axo comm | grep -m1 'provisioner' || true)
-          grant() {
-            local db="$1" sudo="$2"
-            for c in "com.mdlf.corpus.speech:0" "$BIN:1" "/bin/bash:1" "/bin/zsh:1" "/bin/sh:1" "${WORKER:-none}:1" "${PROV:-none}:1"; do
-              client="${c%:*}"; type="${c##*:}"
-              [ "$client" = none ] && continue
-              $sudo sqlite3 "$db" "INSERT OR REPLACE INTO access (service, client, client_type, auth_value, auth_reason, auth_version, flags, last_modified) VALUES ('kTCCServiceSpeechRecognition', '$client', $type, 2, 3, 1, 0, $NOW);" \
-                && echo "accordé : $client ($db)" || echo "refusé : $client ($db)"
+          for db in "$HOME/Library/Application Support/com.apple.TCC/TCC.db" "/Library/Application Support/com.apple.TCC/TCC.db"; do
+            sudo sqlite3 "$db" "INSERT OR REPLACE INTO access (service, client, client_type, auth_value, auth_reason, auth_version, csreq, flags, last_modified) VALUES ('kTCCServiceSpeechRecognition', 'com.mdlf.corpus.speech', 0, 2, 3, 1, $CSREQ, 0, $NOW);" \
+              && echo "accordé : com.mdlf.corpus.speech ($db)"
+            for c in "$APP/Contents/MacOS/speech-transcribe" "$PWD/work/speech-transcribe"; do
+              sudo sqlite3 "$db" "INSERT OR REPLACE INTO access (service, client, client_type, auth_value, auth_reason, auth_version, flags, last_modified) VALUES ('kTCCServiceSpeechRecognition', '$c', 1, 2, 3, 1, 0, $NOW);"
             done
-          }
-          grant "$HOME/Library/Application Support/com.apple.TCC/TCC.db" ""
-          grant "/Library/Application Support/com.apple.TCC/TCC.db" "sudo"
-          csrutil status || true
+            sudo sqlite3 "$db" "SELECT service, client, client_type, auth_value FROM access WHERE service = 'kTCCServiceSpeechRecognition';"
+          done
 
       - name: SFSpeechRecognizer sur les dictées
         continue-on-error: true
         run: |
-          work/speech-transcribe --status --words work/mots-tout.json | tee work/sorties/speech-status.json || true
-          # Hors ligne si la machine le sait ; sinon serveurs d'Apple (dit dans chaque sortie : onDevice)
-          work/speech-transcribe --words work/mots-tout.json --allow-server --out work/sorties work/audio/*.wav
+          APP="$PWD/work/SpeechTranscribe.app"
+          ls work/audio/*.wav | sed "s|^|$PWD/|" > work/audio-liste.txt
+          # État d'abord (binaire lancé par bash, puis paquet lancé par open), journal TCC pour voir qui est demandé
+          work/speech-transcribe --status --words work/mots-tout.json || true
+          open -W -n --stdout "$PWD/work/status.out" --stderr "$PWD/work/status.err" "$APP" --args --status --words "$PWD/work/mots-tout.json" || true
+          cat work/status.out work/status.err || true
+          cp work/status.out work/sorties/speech-status.json 2>/dev/null || true
+          log show --last 2m --style compact --predicate 'subsystem == "com.apple.TCC" AND eventMessage CONTAINS[c] "SpeechRecognition"' 2>/dev/null | tail -20 || true
+          # Transcription : hors ligne si la machine le sait, sinon serveurs d'Apple (dit dans chaque sortie : onDevice)
+          open -W -n --stdout "$PWD/work/stt.out" --stderr "$PWD/work/stt.err" "$APP" --args --words "$PWD/work/mots-tout.json" --allow-server --out "$PWD/work/sorties" $(cat work/audio-liste.txt) || true
+          cat work/stt.out work/stt.err || true
+          ls work/sorties/*.stt.json 2>/dev/null | wc -l
 
       - name: whisper.cpp sur les dictées (repli)
-        if: ${{ github.event_name == 'push' || inputs.whisper }}
+        # 20 min environ : sur un push, seulement si le message du commit contient [whisper]
+        if: ${{ (github.event_name == 'push' && contains(github.event.head_commit.message, '[whisper]')) || inputs.whisper }}
         continue-on-error: true
         run: |
           brew install whisper-cpp
