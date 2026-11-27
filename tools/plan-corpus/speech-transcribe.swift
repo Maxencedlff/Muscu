@@ -29,14 +29,18 @@ var phrases: [String] = []
 var allowServer = false
 var statusOnly = false
 var inputs: [String] = []
+func nextArg(_ msg: String) -> String {
+    guard !args.isEmpty else { fail(msg) }
+    return args.removeFirst()
+}
 while !args.isEmpty {
     let a = args.removeFirst()
     switch a {
-    case "--out": outDir = args.isEmpty ? fail("--out sans dossier") : args.removeFirst()
+    case "--out": outDir = nextArg("--out sans dossier")
     case "--allow-server": allowServer = true
     case "--status": statusOnly = true
     case "--words":
-        let p = args.isEmpty ? fail("--words sans fichier") : args.removeFirst()
+        let p = nextArg("--words sans fichier")
         guard let d = FileManager.default.contents(atPath: p), let list = try? JSONSerialization.jsonObject(with: d) as? [String] else { fail("mots illisibles : \(p)") }
         var seen = Set<String>()
         for s in list {
@@ -73,9 +77,9 @@ if auth == .notDetermined {
 }
 let recognizer = SFSpeechRecognizer(locale: Locale(identifier: "fr-FR"))
 let onDeviceSupported = recognizer?.supportsOnDeviceRecognition ?? false
-let os = ProcessInfo.processInfo.operatingSystemVersionString
+let osVersion = ProcessInfo.processInfo.operatingSystemVersionString
 let status: [String: Any] = ["authorization": statusName(auth), "recognizer": recognizer != nil, "available": recognizer?.isAvailable ?? false,
-                             "supportsOnDeviceRecognition": onDeviceSupported, "os": os, "contextualStrings": phrases.count]
+                             "supportsOnDeviceRecognition": onDeviceSupported, "os": osVersion, "contextualStrings": phrases.count]
 if statusOnly || inputs.isEmpty {
     print(String(data: try! JSONSerialization.data(withJSONObject: status, options: [.sortedKeys]), encoding: .utf8)!)
     exit(auth == .authorized && recognizer != nil && (onDeviceSupported || allowServer) ? 0 : 2)
@@ -112,8 +116,8 @@ for path in inputs {
     if !finished { task.cancel(); errorText = errorText ?? "délai dépassé" }
     if text.isEmpty { failures += 1 }
     let out: [String: Any] = ["id": id, "tool": "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)",
-                              "os": os, "onDevice": onDeviceSupported, "contextualStrings": phrases.count, "text": text,
-                              "segments": segments, "error": errorText ?? NSNull(), "ms": Int(Date().timeIntervalSince(t0) * 1000)]
+                              "os": osVersion, "onDevice": onDeviceSupported, "contextualStrings": phrases.count, "text": text,
+                              "segments": segments, "error": errorText.map { $0 as Any } ?? NSNull(), "ms": Int(Date().timeIntervalSince(t0) * 1000)]
     let data = try! JSONSerialization.data(withJSONObject: out, options: [.prettyPrinted, .sortedKeys])
     FileManager.default.createFile(atPath: (outDir as NSString).appendingPathComponent("\(id).stt.json"), contents: data)
     print("\(id) : \(onDeviceSupported ? "sur la machine" : "serveurs Apple"), \(text.count) caractères\(errorText.map { ", erreur : \($0)" } ?? "")")

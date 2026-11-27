@@ -30,12 +30,16 @@ var args = Array(CommandLine.arguments.dropFirst())
 var outDir = "."
 var customWords: [String] = []
 var inputs: [String] = []
+func nextArg(_ msg: String) -> String {
+    guard !args.isEmpty else { fail(msg) }
+    return args.removeFirst()
+}
 while !args.isEmpty {
     let a = args.removeFirst()
     switch a {
-    case "--out": outDir = args.isEmpty ? fail("--out sans dossier") : args.removeFirst()
+    case "--out": outDir = nextArg("--out sans dossier")
     case "--words":
-        let p = args.isEmpty ? fail("--words sans fichier") : args.removeFirst()
+        let p = nextArg("--words sans fichier")
         guard let d = FileManager.default.contents(atPath: p), let list = try? JSONSerialization.jsonObject(with: d) as? [String] else { fail("mots illisibles : \(p)") }
         // Même filtre que PlanReaderPlugin.customWords : 300 au plus, 60 caractères, sans doublon
         var seen = Set<String>()
@@ -142,7 +146,7 @@ func recognize(_ image: CGImage) throws -> [String: Any] {
 }
 
 // ── Boucle sur les fichiers ─────────────────────────────────
-let os = ProcessInfo.processInfo.operatingSystemVersionString
+let osVersion = ProcessInfo.processInfo.operatingSystemVersionString
 var failures = 0
 for raw in inputs {
     var path = raw, wantedPages: [Int]? = nil
@@ -177,7 +181,7 @@ for raw in inputs {
         FileHandle.standardError.write("\(id) : lecture impossible (\(error))\n".data(using: .utf8)!)
         continue
     }
-    var out: [String: Any] = ["id": id, "tool": "Apple Vision VNRecognizeTextRequest (.accurate, usesLanguageCorrection)", "os": os,
+    var out: [String: Any] = ["id": id, "tool": "Apple Vision VNRecognizeTextRequest (.accurate, usesLanguageCorrection)", "os": osVersion,
                               "languages": usedLanguages, "customWords": customWords.count, "pages": pages,
                               "ms": Int(Date().timeIntervalSince(t0) * 1000)]
     extra.forEach { out[$0.key] = $0.value }
