@@ -21,6 +21,8 @@ Les vraies photos et dictées faites sur un iPhone avec la build ont leur propre
 ```sh
 node tools/plan-corpus/mesure-reel.mjs              # tableau par catégorie et 10 erreurs les plus fréquentes
 node tools/plan-corpus/mesure-reel.mjs --erreurs    # détail par document
+node tools/plan-corpus/mesure-reel.mjs --lots       # lot d'apprentissage et lot de contrôle (tools/plan-corpus/lots.json), chiffres seuls
+node tools/plan-corpus/mesure-reel.mjs --lot apprentissage --erreurs   # le seul lot dont on regarde les erreurs
 node tools/plan-corpus/lecture-locale.mjs           # documents locaux : pdf.js (comme l'app) et Tesseract (approximation)
 ```
 

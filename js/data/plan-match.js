@@ -217,7 +217,8 @@ function planMatchLibrary(text, none) {
   const idx = planMatchIndex();
   const trimmed = [...new Set(planMatchVariants(text).map(v => planTrimUnknown(idx, planMatchKey(v))).filter(Boolean))];
   const t = trimmed.length ? planMatchForms(trimmed, text, none) : none;
-  const st = t.name ? Math.round(Math.min(t.score, 0.9) * 0.95 * 100) / 100 : 0;
+  // Seulement un nom sûr une fois rogné : un rapprochement faible sur un morceau du nom serait une invention
+  const st = t.name && t.score >= 0.85 ? Math.round(Math.min(t.score, 0.9) * 0.95 * 100) / 100 : 0;
   const best = st > (r.name ? r.score : 0) ? { ...t, score: st, how: 'fuzzy' } : r;
   if (best.name && best.score >= 0.75) return best;
   // Dernier recours, la prononciation (dictée) : « Lip trust » = hip thrust, « quête Lebel swing » = swing kettlebell

@@ -70,6 +70,7 @@ function planDigits(s) {
     .replace(/(\d+\s*fois\s+)(?:le|les|de)\s+(?=\d)/gi, '$1')   // « quatre fois le 10 » (dictée)
     .replace(/(\d+\s*fois\s+)([a-zà-ÿ]{3,6})\b/gi, (m, a, w) => a + planNumberHeard(w))
     .replace(/(\d+)\s*fois\s*(\d+)/gi, '$1 x $2')
+    .replace(/(\d+)\s*fois\s+(?:au\s+)?(max(?:imum)?|l'echec|l'échec)\b/gi, '$1 x $2')
     // Tempo dicté (« tempo trois zéro un zéro ») : « un » y est un chiffre
     .replace(/\btempo((?:\s+(?:\d|une?|x)\b){3,4})/gi, (m, d) => `tempo${d.replace(/\bune?\b/gi, '1')}`);
 }

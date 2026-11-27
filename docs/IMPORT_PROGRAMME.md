@@ -49,10 +49,24 @@ forme (`tests/test_import_programme.py`).
 - `plan-match.js` : le nom. Dictionnaire appris d'abord, bibliothèque et alias, abréviations de salle (DC, DI, DM,
   SDT, RDL, OHP, HT, élév lat, leg ext, ext triceps…), homophones de la dictée (« lègue curl », « face poule »,
   « squatte »), noms anglais des apps, puis recherche approchée (fautes, mots collés, index inversé). Score de 0 à 1 ;
-  sous 0,62 : pas reconnu, gardé sous son nom.
+  sous 0,62 : pas reconnu, gardé sous son nom. Le matériel écrit mais absent de la fiche pèse moitié moins que le
+  mouvement (« Rowing menton barre » = rowing menton) ; « X ou Y » = X ; un nom pas sûr est relu sans ses mots
+  inconnus du début et de la fin (« à la maison avec la kettlebell swing »), puis par la prononciation.
 - `plan-table.js` : tableaux en texte (tabulations, « | », espaces alignés ; en-tête français ou anglais, fautes de
   lecture tolérées ; noms coupés sur deux lignes ; colonne « Séance » ; semaines en colonnes : la première) et texte
-  placé d'une photo ou d'un PDF.
+  placé d'une photo ou d'un PDF. Tableaux réels : colonne de groupe (« Muscles (superset) ») et première case vide =
+  même groupe, sa case de repos fusionnée vaut pour lui ; une seule case de repos au milieu d'un tableau vaut pour tout
+  le tableau ; colonne N° (machine) ignorée ; planning de la semaine (« Jours | Groupes musculaires ») sans exercice ;
+  catalogue d'une fiche de salle (rangée sans séries ni reps) pas pris pour un exercice ; fiche en cartes (étiquette
+  du groupe, nom, en-tête des cases, valeurs) ; reps série par série (« 5 | 5 | 5 | 5 | 5 »). Texte placé : une ligne
+  de Vision penchée reste une rangée (morceaux d'une rangée côte à côte, jamais l'un sur l'autre) ; lettres d'une
+  autre police collées par pdf.js (« sé » « A » « nces ») ; décor d'une capture (barre d'état, « 1 of 2 ») ignoré.
+- `plan-blocks.js` : blocs d'un WOD ou d'un circuit (« 5 rounds », « 6 RFT », « faire 4 tours », « EMOM 12 »,
+  « Tabata », « 21-15-9 », « 2:00 each station ») qui valent pour les exercices qui suivent, et accolade « >x3 » en fin
+  de ligne (les lignes de reps voisines prennent ses séries et s'enchaînent).
+- `plan-phonetic.js` : phonétique simplifiée du français pour la dictée (règles générales, pas une liste de cas) ;
+  dernier recours du nom (« Lip trust » = hip thrust, « quête Lebel swing » = swing kettlebell) et des nombres mal
+  entendus après « fois » (« quatre fois nuit » = 4 x 8).
 - `plan-parser.js` : découpage (dictée recoupée aux « ensuite », « séance suivante » et entre deux prescriptions ;
   « Lundi : DC 4x8, squat 5x5 » = une séance, deux exercices), en-têtes (« Lundi », « Séance A », « Push »,
   « Jour 1 », capitales), jours de repos, sections ignorées (échauffement, conseils, variantes), lignes de suite
@@ -119,8 +133,28 @@ node tools/plan-corpus/mesure.mjs --erreurs  # détail des lignes fausses
 Seuils vérifiés par `tests/unit/plan-import.mjs` : 90 % sur les plans propres et les tableaux, 75 % sur le libre, la
 dictée et la photo.
 
-Limites connues : la dictée « en superset X et Y, chacun 4 × 10 », le circuit « 4 tours » qui donne les séries à
-tous ses postes, les distances (« 6 × 20 m »), les reps d'un top set « de 3 » sans séries.
+Limites connues : les reps d'un top set « de 3 » sans séries. (La dictée « en superset X et Y, chacun 4 × 10 », le
+circuit « 4 tours » donné à tous ses postes et les distances « 6 × 20 m » sont lus depuis le corpus réel.)
+
+### Corpus réel (27/11/2026)
+
+41 documents réels et 15 dictées dites par des voix de macOS (`tests/fixtures/plans/reels/SOURCES.md`), lus par
+Apple Vision, pdf.js, SFSpeechRecognizer et whisper.cpp. `node tools/plan-corpus/mesure-reel.mjs --lots`.
+
+Contre le sur-réglage : partage fait **avant** de toucher au moteur (`tools/plan-corpus/lots.json` : par document,
+par catégorie, ordre d'un hachage du nom, 60 % en apprentissage). Le moteur n'a été réglé que sur le lot
+d'apprentissage ; le lot de contrôle ne montre que ses chiffres (`--lot controle --erreurs` refuse). Aucune règle
+écrite pour un seul document ni mot tiré d'une vérité ; les exemples des tests (`tests/unit/plan-import-reel.mjs`)
+sont écrits pour eux. Justesse des lignes, toutes sources : apprentissage 12,7 % → 33,3 %, contrôle 16,5 % → 25,2 %
+(détail par catégorie dans le message du commit et le rapport du 27/11). L'écart entre les deux lots dit ce qui reste
+propre au lot d'apprentissage.
+
+Ce qui reste dur : la fiche en cartes à plusieurs colonnes lue par pdf.js (trois cartes côte à côte, cases sur
+plusieurs lignes), les voix de synthèse robotiques (Eddy, Flo) que la reconnaissance vocale ne comprend pas, les
+photos de biais ou floues (Vision mêle ou perd les lignes), les mouvements CrossFit absents de la bibliothèque (box
+jump, wall ball, power clean, thruster à la barre, push press : un exercice demande ses sous-muscles sourcés,
+fichier généré `js/data/exercise-parts.js`, et sa fiche « Comment faire »), les choix d'interprétation d'une vérité
+(« Pull over » seul = haltère ou poulie, « Développé haltères » = couché ou militaire selon la séance).
 
 ## Notre propre IA (préparée, pas branchée)
 

@@ -2384,6 +2384,7 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 (await import('./unilateral.mjs')).default({ test, run, reset, assert, sameJSON });
 // ── Import d'un programme : grammaire, reconnaissance, tableaux, corpus (tests dans plan-import.mjs) ──
 (await import('./plan-import.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
+(await import('./plan-import-reel.mjs')).default({ test, run, assert, sameJSON });
 
 // ── Import depuis Hevy et Strong (tests dans import-csv.mjs) ──
 (await import('./import-csv.mjs')).default({ test, run, reset, assert, app, sameJSON, ROOT });

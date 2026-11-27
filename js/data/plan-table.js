@@ -245,9 +245,9 @@ function planTextFromBoxes(items, { maxItems = 4000, glue = true } = {}) {
       // Morceaux collés d'un PDF (écart nul, une ou deux lettres d'une autre police : « sé » « A » « nces ») : un seul mot.
       // Pas sur une photo (glue faux) : les mots de Vision écrits serrés restent des mots
       const gap = it.x - (last?.x + last?.w);
-      const glued = glue && gap < it.h * 0.12 && (it.text.length <= 2 || /(?:^|\s)\S{1,2}$/.test(last?.text || ''));
-      if (last && gap <= hMed * 1.2) { last.text += glued ? it.text : ` ${it.text}`; last.w = it.x + it.w - last.x; }
-      else r.cells.push({ text: it.text, x: it.x, w: it.w });
+      const glued = glue && gap < it.h * 0.12 && (it.text.length <= 2 || last?.short);
+      if (last && gap <= hMed * 1.2) { last.text += glued ? it.text : ` ${it.text}`; last.w = it.x + it.w - last.x; last.short = it.text.length <= 2; }
+      else r.cells.push({ text: it.text, x: it.x, w: it.w, short: it.text.length <= 2 });
     }
   });
   // Blocs de rangées à plusieurs cases qui se suivent : colonnes communes

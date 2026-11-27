@@ -53,7 +53,7 @@ function planHeaderOf(line, read) {
   const words = b.split(/[\s/+&,()-]+/).filter(Boolean);
   const label = planLabel(line);
   if (PARSE_HEAD_RE.test(b) && words.length <= 9) return { label, strong: true };
-  if (words.length <= 6 && words.every(w => PARSE_SPLIT_WORDS.has(w))) return { label };
+  if (words.length <= 6 && words.every(w => PARSE_SPLIT_WORDS.has(w)) && !words.every(w => /^(?:et|and|du|de|a)$/.test(w))) return { label };
   // « PUSH », « JAMBES / FESSIERS » en capitales, ou une ligne courte finie par « : » qui n'est pas un exercice
   const letters = planTidy(line).replace(/[^A-Za-zÀ-ÿ]/g, '');
   const caps = letters.length >= 3 && letters === letters.toUpperCase();
@@ -446,7 +446,9 @@ function planParse(text, { learned = null } = {}) {
       // ou détail d'une appli sous le nom (« Lunges » puis « Barra Completa 2.5kg, 8 reps »)
       const detail = !r.name || (m.score < 0.5 && r.name.split(' ').filter(w => w.length > 2).length <= 1);
       const appDetail = (m.score < PARSE_MATCH_MIN || (m.how === 'fuzzy' && m.score < 0.75)) && r.name.split(' ').length <= 3;
-      if (work && pendingName && !r.marks.lead && (detail || (appDetail && pendingName.score >= 0.85 && !Object.keys(pendingName.presc).length))) {
+      // (seulement sous une ligne d'appli « nom	groupe musculaire » : ailleurs, un nom inconnu avec sa prescription est un exercice)
+      const appLine = /\t/.test(pendingName?.src || '');
+      if (work && pendingName && !r.marks.lead && (detail || (appDetail && appLine && pendingName.score >= 0.85 && !Object.keys(pendingName.presc).length))) {
         pendingName.presc = planMergePresc(pendingName.presc, r.presc);
         pendingName = null;
         lineRec(line, 'cont', prev);
