@@ -11,6 +11,9 @@
 //  node tools/plan-corpus/mesure-reel.mjs --erreurs       plus le détail par document
 //  node tools/plan-corpus/mesure-reel.mjs --markdown      même tableau en Markdown (résumé du workflow)
 //  node tools/plan-corpus/mesure-reel.mjs --json          résultat complet
+//  node tools/plan-corpus/mesure-reel.mjs --lot apprentissage   seulement un lot (tools/plan-corpus/lots.json)
+//  node tools/plan-corpus/mesure-reel.mjs --lots          les deux lots côte à côte, chiffres seuls : le lot de
+//                                                         contrôle ne montre jamais ses erreurs (anti sur-adaptation)
 //  Préparation sur la machine macOS (corpus-reel.yml) :
 //    --vocabulaire DOSSIER   mots-exercice.json et mots-tout.json (planDictationWords, comme l'app)
 //    --liste-ocr             une entrée par ligne pour vision-ocr (fichier, ou fichier.pdf:pages)
@@ -50,6 +53,10 @@ export function loadReal() {
   return docs;
 }
 export const loadDictations = () => jsonIn(path.join(REELS, 'dictees-scripts')).map(readJson);
+
+// Lots d'apprentissage et de contrôle (partage fait avant de toucher au moteur, voir lots.json)
+export const LOTS = readJson(path.join(path.dirname(fileURLToPath(import.meta.url)), 'lots.json'));
+const inLot = lot => (lot ? id => LOTS[lot].includes(id) : () => true);
 
 // Fichier d'un document : versionné d'abord, sinon le dossier local
 function docFile(d) {
@@ -93,11 +100,12 @@ export function errorFamily(why) {
 // ── Mesure ─────────────────────────────────────────────────
 const pct = v => (Number.isFinite(v) ? `${(v * 100).toFixed(1).replace('.', ',')} %` : '—');
 
-export function measureReal() {
+export function measureReal({ lot = null } = {}) {
+  if (lot && !LOTS[lot]) throw new Error(`lot inconnu : ${lot} (apprentissage ou controle)`);
   const ctx = planEngine();
   const outs = outputs();
-  const docs = loadReal();
-  const dictations = loadDictations();
+  const docs = loadReal().filter(d => inLot(lot)(d.id));
+  const dictations = loadDictations().filter(d => inLot(lot)(d.id));
   const cases = [];
   const missing = { ocr: [], stt: 0 };
   const run = (plan, kind, source, text, meta = {}) => {
@@ -229,8 +237,30 @@ function table(r, md) {
   return out.join('\n');
 }
 
+// Les deux lots, taux « justes » seuls par catégorie et par source
+function lotsTable() {
+  const a = measureReal({ lot: 'apprentissage' }), c = measureReal({ lot: 'controle' });
+  const keys = [...new Set([...Object.keys(a.by), ...Object.keys(c.by)])]
+    .sort((x, y) => ORDER.indexOf(x.split('|')[0]) - ORDER.indexOf(y.split('|')[0]) || Object.keys(SOURCE).indexOf(x.split('|')[1]) - Object.keys(SOURCE).indexOf(y.split('|')[1]));
+  const cell = b => (b ? `${pct(b.lineRate)} (${b.docs} doc, ${b.lines} l.)` : '—');
+  const head = ['Catégorie', 'Lu par', 'Apprentissage', 'Contrôle'];
+  const body = keys.map(k => [k.split('|')[0], SOURCE[k.split('|')[1]], cell(a.by[k]), cell(c.by[k])]);
+  const tot = r => { const t = Object.values(r.by).reduce((s, b) => ({ ok: s.ok + b.ok, n: s.n + b.lines + b.extra }), { ok: 0, n: 0 }); return pct(t.ok / Math.max(1, t.n)); };
+  body.push(['TOUT', 'toutes sources', tot(a), tot(c)]);
+  if (argv.includes('--markdown')) return [`| ${head.join(' | ')} |`, `|${head.map(() => '---').join('|')}|`, ...body.map(x => `| ${x.join(' | ')} |`)].join('\n');
+  const w = head.map((h, i) => Math.max(h.length, ...body.map(x => String(x[i]).length)));
+  return [head, ...body].map(x => x.map((v, i) => String(v).padEnd(w[i])).join('  ')).join('\n');
+}
+
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]) && !prepare()) {
-  const r = measureReal();
+  if (argv.includes('--lots')) { console.log(lotsTable()); process.exit(0); }
+  const lot = opt('--lot');
+  if (lot === 'controle' && (argv.includes('--erreurs') || argv.includes('--json'))) {
+    console.error('Lot de contrôle : chiffres seuls, pas de détail des erreurs (anti sur-adaptation).');
+    process.exit(2);
+  }
+  const r = measureReal({ lot });
+  if (lot === 'controle') { r.top = []; r.topEngine = []; }
   if (argv.includes('--json')) { console.log(JSON.stringify({ by: r.by, top: r.top, topEngine: r.topEngine, cases: r.cases.map(c => ({ ...c, text: undefined })) }, null, 1)); process.exit(0); }
   console.log(table(r, argv.includes('--markdown')));
   if (argv.includes('--erreurs')) {
