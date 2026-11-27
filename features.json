@@ -324,6 +324,13 @@
    "desc": "Importer un programme : photo, scan d'une feuille (Apple Vision) et dictée hors ligne (modules natifs)"
   },
   {
+   "id": "programme.import-aide-ia",
+   "actions": [
+    "pimp-ai"
+   ],
+   "desc": "Importer un programme : « Lire avec l'aide de l'IA » quand le moteur hésite (fonction serveur plan-import-ai, Anthropic), photo envoyée seulement avec un accord à chaque fois"
+  },
+  {
    "id": "reglages.corrections-retenues",
    "actions": [
     "go-plan-aliases",

@@ -128,6 +128,23 @@ Finalité : **Fonctionnalité de l'app** (App Functionality), sauf mention contr
 | Diagnostics › **Autres données de diagnostic** (Other Diagnostic Data) | Fonctionnalité de l'app | Version du contenu de l'app et date du premier lancement de cette version, envoyées avec le profil « pour savoir côté serveur qui a quelle version » | `js/data/sync.js:29-30`, `:33`, `:124-130` |
 | Autres données › **Autres types de données** (Other Data Types) | Fonctionnalité de l'app | Numéro de carte professionnelle et diplôme de la demande coach | `supabase/migrations/20261030000000_payant_tarifs.sql:241-245`, `privacy.html:86` |
 
+**Import aidé par l'IA (build `import-ia`, docs/IMPORT_IA.md) : données envoyées à un tiers (Anthropic).**
+Au sens d'Apple, une donnée transmise à un prestataire qui la traite pour nous est **collectée** par l'app (le
+prestataire n'est pas un « tiers » au sens du suivi, mais la donnée sort de l'appareil et Anthropic la garde jusqu'à
+30 jours : plus longtemps que le temps de la requête). Rien de nouveau à **cocher** si les types ci-dessus restent
+cochés, mais leur justification change ; à revoir dans ASC à la soumission de la build :
+
+| Type | Ce qui change | Justification |
+|---|---|---|
+| Contenu utilisateur › **Autre contenu de l'utilisateur** | Lignes du programme importé (texte), envoyées à Anthropic après accord à chaque fois ; finalité : Fonctionnalité de l'app | `js/features/plan-import-ai-ui.js` (`pimpAskAi`), `js/data/plan-ai.js` (`planAiLinesBody`, `planAiPlanBody`), `supabase/functions/plan-import-ai/plan-ai-policy.js` (`validateInput` : aucune autre clé acceptée), `privacy.html#import-ia` |
+| Contenu utilisateur › **Photos ou vidéos** | Photo d'un programme, seulement si l'utilisateur choisit « Envoyer la photo pour une meilleure lecture » et confirme un second accord ; réduite à 1600 px ; jamais gardée sur notre serveur ; Anthropic l'efface sous 30 jours | `js/features/plan-import-ai-ui.js` (`PAI_PHOTO_CONSENT`, `pimpAiShrink`), `tests/deno/plan_import_ai.test.ts` (« photo envoyée seulement avec accord, puis jamais gardée ») |
+| Identifiants › **Identifiant de l'utilisateur** | Gardé avec chaque lecture 70 jours au plus (quota de 20 par jour), jamais envoyé à Anthropic | `supabase/migrations/20261130010000_import_ia.sql` (`private.plan_ai_calls`) |
+
+Lié à l'identité : **Oui** (rattaché au compte, comme le reste) ; suivi : **Non**. Sous-traitant à citer dans la note
+d'examen (fait : docs/REVUE_APPLE.md, section 2, « AI help ») et dans `privacy.html` (fait, FR et EN, sources
+citées : politique de conservation d'Anthropic du 01/07/2026, conditions commerciales et accord de traitement des
+données d'Anthropic, clauses contractuelles types).
+
 **Non déclarés (et pourquoi)**
 
 | Type | Raison | Justification |

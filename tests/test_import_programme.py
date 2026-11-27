@@ -9,6 +9,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fixtures import *  # noqa
 from fake_plan_reader import FAKE_PLAN_READER
+from fake_account import FAKE_ACCOUNT
 
 LOT = 'import_programme'
 R = Results(LOT)
@@ -319,4 +320,130 @@ def t_limites_reglages(bench):
         ctx.__exit__(None, None, None)
 
 
-run_main(R, [t_import_texte], once=[t_corriger_enregistrer, t_pdf, t_photo_dictee, t_limites_reglages])
+# ── Aide de l'IA (docs/IMPORT_IA.md) : fausse fonction plan-import-ai, jamais d'appel à Anthropic ──
+DOUBT = """Lundi - Push
+Développé couché 4x8
+Zorglub 3x12
+Squat 5x5"""
+FAKE_AI = """window.__aiCalls = [];
+window.__aiMode = 'ok';
+window.__fakePlanAi = async (body, fail) => {
+  window.__aiCalls.push(JSON.parse(JSON.stringify(body)));
+  await new Promise(r => setTimeout(r, 400));
+  if (window.__aiMode === 'quota') return fail(429, { error: 'quota_user' });
+  if (window.__aiMode === 'budget') return fail(503, { error: 'quota_global' });
+  return { data: { ok: true, mode: 'lines', results: body.targets.map((t, i) => /Zorglub/.test(t.text)
+    ? { i, name: 'Curl barre', presc: { sets: 3, repMin: 12, repMax: 12 }, confidence: 'sure', level: 'sure', why: [] }
+    : { i, name: null, presc: {}, confidence: 'unreadable', level: 'unknown', why: ['illisible'] }),
+    usage: { calls: [], cached: 0, escalated: 0, usd: 0 } }, error: null };
+};"""
+
+
+def open_signed(bench, theme, signed=True):
+    ctx = bench.page('webkit', 'iPhone 13', theme)
+    page = ctx.__enter__()
+    page.add_init_script('window.__fakeOpts = %s;' % json.dumps({'oldAccounts': True}))
+    page.add_init_script(FAKE_ACCOUNT)
+    page.add_init_script(FAKE_AI)
+    page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
+    seed(page, theme, None, extra={'ppl_welcome_seen': '1'})
+    settle(page)
+    skip_questions(page)
+    if signed:
+        page.evaluate("async () => { await accountSignInWith('apple', async () => 'add'); }")
+        settle(page)
+    open_paste(page)
+    return ctx, page
+
+
+def toast_text(page):
+    page.wait_for_selector('.toast', timeout=5000)
+    return page.locator('.toast').last.inner_text()
+
+
+def t_aide_ia(bench):
+    """Le moteur hésite : bouton plein « Lire avec l'aide de l'IA » ; accord explicite (Anthropic nommé) ; seules les
+    lignes douteuses partent, sans nom ; chargement, puis l'écran Vérifier corrigé ; quota et plafond : message clair,
+    le résultat du moteur reste ; plan sûr : simple lien neutre ; sans compte : connexion demandée. Clair et sombre."""
+    for theme in ('light', 'dark'):
+        ctx, page = open_signed(bench, theme)
+        try:
+            read_plan(page, DOUBT)
+            ai = page.locator('[data-action="pimp-ai"].btn--primary')
+            R.check(ai.count() == 1, f'{theme} moteur hésitant : bouton plein proposé')
+            R.check(page.locator('[data-action="pimp-save"].btn--secondary').count() == 1, f'{theme} un seul bouton plein : Enregistrer passe en gris')
+            check_layout(page, theme, 'aide de l\'IA proposée')
+            shot(page, LOT, f'ia-proposee-iPhone_13-{theme}')
+            ai.click()
+            page.wait_for_selector('.ios-dialog')
+            sheet = page.locator('.ios-dialog').inner_text()
+            R.check('Anthropic' in sheet and 'sans ton nom' in sheet, f'{theme} accord explicite, destinataire nommé : « {sheet[:160]} »')
+            R.check(page.evaluate('window.__aiCalls.length') == 0, f'{theme} rien d\'envoyé avant l\'accord')
+            shot(page, LOT, f'ia-accord-iPhone_13-{theme}')
+            page.locator('.ios-dialog button', has_text='Envoyer').first.click()
+            page.wait_for_selector('.pimp-ai [role="status"]')
+            R.check('Lecture avec l' in page.locator('.pimp-ai').inner_text(), f'{theme} état de chargement')
+            page.wait_for_selector('.pimp-ai-done', timeout=8000)
+            settle(page)
+            calls = page.evaluate('window.__aiCalls')
+            R.check(len(calls) == 1 and calls[0]['mode'] == 'lines', f'{theme} un seul envoi, mode lignes : {[c.get("mode") for c in calls]}')
+            texts = [t['text'] for t in calls[0]['targets']] if calls else []
+            R.check(texts and all('Développé couché' not in t and 'Squat' not in t for t in texts), f'{theme} seules les lignes douteuses : {texts}')
+            R.check(set(calls[0].keys()) == {'mode', 'targets'} and all(set(t.keys()) == {'text', 'prev', 'next', 'session'} for t in calls[0]['targets']), f'{theme} rien d\'autre que le texte du plan')
+            row = page.locator('.pimp-row', has_text='Zorglub')
+            R.check(row.locator('.cell__title').inner_text() == 'Curl barre' and 'Lu avec l' in row.inner_text(), f'{theme} ligne corrigée : {row.inner_text()[:80]}')
+            R.check(page.locator('[data-action="pimp-ai"]').count() == 0, f'{theme} aide déjà utilisée : plus proposée')
+            check_layout(page, theme, 'relu par l\'IA')
+            shot(page, LOT, f'ia-relu-iPhone_13-{theme}')
+            # Correction de l'IA gardée par le coach : apprise par le moteur
+            page.click('[data-action="pimp-save"]')
+            settle(page)
+            d = json.loads(ls(page, 'ppl_v2'))
+            R.check(d.get('planAliases', {}).get('zorglub') == 'Curl barre' or 'Curl barre' in d.get('planAliases', {}).values(), f'{theme} correction de l\'IA apprise : {d.get("planAliases")}')
+            R.check(not page.errors, f'{theme} aide de l\'IA : aucune erreur JS {page.errors}')
+        finally:
+            ctx.__exit__(None, None, None)
+    # Quota du jour, plafond du mois : message clair, le résultat du moteur reste
+    ctx, page = open_signed(bench, 'light')
+    try:
+        for mode, words in (('quota', '20 lectures'), ('budget', 'en pause')):
+            page.evaluate(f"window.__aiMode = '{mode}'")
+            read_plan(page, DOUBT)
+            before = page.locator('.pimp-row .cell__title').all_inner_texts()
+            page.click('[data-action="pimp-ai"]')
+            page.wait_for_selector('.ios-dialog')
+            page.locator('.ios-dialog button', has_text='Envoyer').first.click()
+            msg = toast_text(page)
+            R.check(words in msg and 'moteur reste' in msg, f'{mode} : message clair « {msg} »')
+            settle(page)
+            R.check(page.locator('.pimp-row .cell__title').all_inner_texts() == before, f'{mode} : résultat du moteur gardé')
+            R.check(page.locator('[data-action="pimp-ai"]').count() == 1, f'{mode} : l\'aide reste proposée')
+            shot(page, LOT, f'ia-{mode}-iPhone_13-light')
+            wait_toast_gone(page)
+            page.click('[data-action="pimp-edit-text"]')
+            page.wait_for_selector('#pimpText')
+        # Plan sûr : lien neutre en bas, jamais orange
+        read_plan(page, 'Lundi\nDéveloppé couché 4x8\nSquat 5x5\nTractions 4x8\nRowing barre 4x10')
+        link = page.locator('.pimp-ai-link')
+        R.check(link.count() == 1 and page.locator('[data-action="pimp-ai"].btn--primary').count() == 0, 'plan sûr : simple lien, pas de bouton plein')
+        color = page.evaluate("getComputedStyle(document.querySelector('.pimp-ai-link')).color")
+        tint = page.evaluate("getComputedStyle(document.querySelector('[data-action=\"pimp-save\"]')).backgroundColor")
+        R.check(color != tint, f'lien neutre ({color}), pas la teinte orange ({tint})')
+        shot(page, LOT, 'ia-lien-neutre-iPhone_13-light')
+        R.check(not page.errors, f'quota et lien : aucune erreur JS {page.errors}')
+    finally:
+        ctx.__exit__(None, None, None)
+    # Sans compte : connexion demandée, rien d'envoyé
+    ctx, page = open_signed(bench, 'dark', signed=False)
+    try:
+        read_plan(page, DOUBT)
+        page.click('[data-action="pimp-ai"]')
+        page.wait_for_selector('.ios-dialog')
+        R.check('Connecte-toi' in page.locator('.ios-dialog').inner_text(), 'sans compte : connexion demandée')
+        R.check(page.evaluate('window.__aiCalls.length') == 0, 'sans compte : rien d\'envoyé')
+        R.check(not page.errors, f'sans compte : aucune erreur JS {page.errors}')
+    finally:
+        ctx.__exit__(None, None, None)
+
+
+run_main(R, [t_import_texte], once=[t_corriger_enregistrer, t_pdf, t_photo_dictee, t_limites_reglages, t_aide_ia])

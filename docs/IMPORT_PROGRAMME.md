@@ -200,6 +200,12 @@ tout le monde :
   À l'approbation, ajouter `programme.import-texte-pdf`, `programme.import-photo-dictee` et
   `reglages.corrections-retenues` à `store/derniere-build.json`.
 
+## Renfort de l'IA (Claude, payant, sur le serveur)
+
+Décision de Maxence (27/11/2026) : le moteur ci-dessus lit toujours d'abord, gratuitement, sur le téléphone ; Claude
+ne vient qu'en renfort quand il hésite, ou si le coach le demande, après un accord à chaque envoi. Tout est dans
+**docs/IMPORT_IA.md** (fonction `plan-import-ai`, quotas, cache, confidentialité, mesure sur le corpus réel).
+
 ## Vague 3 : un petit modèle dans le navigateur du coach (option)
 
 Sur l'appli web du coach, sur ordinateur : WebLLM (MLC, Apache 2.0) sur WebGPU, **seulement quand le moteur n'est pas

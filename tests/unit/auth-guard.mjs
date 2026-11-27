@@ -67,7 +67,28 @@ export default function ({ test, assert, sameJSON, ROOT }) {
     // doit jamais être rattaché à un compte) : elle ne lit aucun jeton, et ne touche la base qu'après la
     // validation du corps (liste blanche) et la limite de fréquence par appareil.
     const ANONYMOUS = ['error-report'];
+    // Cœur séparé (plan-import-ai, docs/IMPORT_IA.md) : le handler est construit par core.ts (makeHandler), testé sans
+    // réseau avec de faux appelants ; index.ts lui donne le VRAI caller de _shared/http.ts. Les deux moitiés sont
+    // vérifiées : la garde 401 en premier dans core.ts, et le branchement du vrai caller dans index.ts.
+    const INJECTED = {
+      'plan-import-ai': {
+        wire: 'caller: async (req) => { const who = await caller(req); return who ? { id: who.user.id } : null; },',
+        guard: /const who = await deps\.caller\(req\);\s*\n\s*if \(!who\) return json\(\{ error: 'auth' \}, 401\);/,
+      },
+    };
     for (const f of open) {
+      const inj = INJECTED[f];
+      if (inj) {
+        const src = read(`supabase/functions/${f}/index.ts`);
+        assert.ok(src.includes(inj.wire) && /^import \{[^}]*\bcaller\b[^}]*\} from '\.\.\/_shared\/http\.ts';$/m.test(src), `${f} : le vrai caller n'est pas branché`);
+        assert.ok(src.trimEnd().endsWith("\nif (!Deno.env.get('MDLF_EDGE_TESTS')) Deno.serve(handler);"), `${f} : Deno.serve(handler) absent ou pas en dernier`);
+        const core = read(`supabase/functions/${f}/core.ts`);
+        const h = core.slice(core.indexOf('return async function handler(req: Request): Promise<Response> {'));
+        const at = h.search(inj.guard);
+        assert.ok(h.length > 20 && at > 0, `${f} : pas de refus 401 par caller() dans core.ts`);
+        assert.ok(!WORK.test(h.slice(0, at)) && !/req\.text\(|validateInput\(/.test(h.slice(0, at)), `${f} : du travail avant la garde`);
+        continue;
+      }
       if (ANONYMOUS.includes(f)) {
         const src = read(`supabase/functions/${f}/index.ts`);
         const handler = src.slice(src.indexOf('export async function handler(req: Request): Promise<Response> {'));
