@@ -4,7 +4,6 @@ const ASSETS = [
   '/css/base.css', '/css/training.css', '/css/views.css', '/css/components.css',
   '/css/navigation.css', '/css/home.css', '/css/session.css', '/css/screens.css', '/css/muscles.css', '/css/atlas-zoom.css', '/css/progress-atlas.css', '/css/atlas-info.css', '/css/share.css', '/fonts/anton.woff2', '/css/recap.css', '/css/strength-levels.css', '/css/account.css',
   '/css/social.css', '/css/coach.css', '/css/coach-plan.css', '/css/checkin.css', '/css/paywall.css', '/css/strava.css', '/css/nutrition.css', '/css/water.css', '/css/defis.css', '/css/theme-sobre.css', '/css/theme-sobre-seance.css', '/css/theme-sobre-progres.css', '/css/theme-sobre-nutrition.css', '/css/theme-sobre-coach.css', '/css/coach-desk.css', '/css/theme-sobre-reglages.css', '/css/liens.css', '/css/programme.css', '/css/tour.css', '/css/tablet.css',
-  '/css/social.css', '/css/coach.css', '/css/coach-plan.css', '/css/checkin.css', '/css/paywall.css', '/css/strava.css', '/css/nutrition.css', '/css/water.css', '/css/defis.css', '/css/theme-sobre.css', '/css/theme-sobre-seance.css', '/css/theme-sobre-progres.css', '/css/theme-sobre-nutrition.css', '/css/theme-sobre-coach.css', '/css/coach-desk.css', '/css/theme-sobre-reglages.css', '/css/programme.css', '/css/tour.css', '/css/tablet.css',
   '/js/data/error-report.js', '/js/app/error-capture.js',
   '/js/platform/native.js',
   '/js/core/util.js', '/js/core/dialogs.js', '/js/core/haptics-audio.js',
