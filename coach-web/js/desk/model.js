@@ -314,6 +314,26 @@ function deskMeasureSummary(measures) {
   });
 }
 
+// Géométrie d'une courbe datée dans un SVG de w × h (axes compris) : pts [{ date, v }] triés, au moins 2 ; axe arrondi
+// au pas `step` (au moins deux pas de haut, jamais sous `min` ; even : graduation du milieu sur un pas rond aussi). → { w, h, right, points: [{ x, y }], ticks: [{ y, v }], labels }
+function deskLineGeom(pts, { w, h, step, min = -Infinity, even = false }) {
+  const left = 4, right = w - 34, top = 8, bottom = h - 22;
+  const vs = pts.map(p => p.v);
+  let lo = Math.floor(Math.min(...vs) / step) * step, hi = Math.ceil(Math.max(...vs) / step) * step;
+  if (hi - lo < 2 * step) { lo = Math.max(min, lo - step); hi = Math.max(hi + step, lo + 2 * step); }
+  if (even && Math.round((hi - lo) / step) % 2) hi += step;
+  const t0 = pts[0].date, t1 = Math.max(pts[pts.length - 1].date, t0 + 1);
+  const X = t => left + (t - t0) / (t1 - t0) * (right - left), Y = v => bottom - (v - lo) / (hi - lo) * (bottom - top);
+  const r1 = v => Math.round(v * 10) / 10;
+  const tick = (hi - lo) / 2;
+  const mid = t0 + (t1 - t0) / 2;
+  return { w, h, right,
+    points: pts.map(p => ({ x: r1(X(p.date)), y: r1(Y(p.v)) })),
+    ticks: [0, 1, 2].map(i => ({ y: r1(Y(lo + i * tick)), v: lo + i * tick })),
+    labels: [{ x: r1(X(t0)), text: fmtDate(t0, 'short'), anchor: 'start' }, { x: r1(X(mid)), text: fmtDate(mid, 'short'), anchor: 'middle' },
+      { x: r1(X(t1)), text: fmtDate(t1, 'short'), anchor: 'end' }] };
+}
+
 // Courbe du poids sur `days` jours : géométrie d'un SVG de w × h (axes compris), null sans 2 pesées.
 // { points: [{ x, y, kg, date }], ticks: [{ y, kg }], labels: [{ x, text, anchor }], first, last, delta, n, desc }
 function deskWeightChart(weights, now, { days = DESK_CHART_DAYS, w = 300, h = 120 } = {}) {
@@ -321,22 +341,24 @@ function deskWeightChart(weights, now, { days = DESK_CHART_DAYS, w = 300, h = 12
   const from = deskDayStart(now, -days + 1);
   const pts = weights.weights.filter(x => x.date >= from && x.date <= now + 86_400_000).slice().sort((a, b) => a.date - b.date);
   if (pts.length < 2) return null;
-  const left = 4, right = w - 34, top = 8, bottom = h - 22;
-  const kgs = pts.map(p => p.kg);
-  let lo = Math.floor(Math.min(...kgs) * 2) / 2, hi = Math.ceil(Math.max(...kgs) * 2) / 2;
-  if (hi - lo < 1) { lo -= 0.5; hi += 0.5; }
-  const t0 = pts[0].date, t1 = Math.max(pts[pts.length - 1].date, t0 + 1);
-  const X = t => left + (t - t0) / (t1 - t0) * (right - left), Y = kg => bottom - (kg - lo) / (hi - lo) * (bottom - top);
-  const r1 = v => Math.round(v * 10) / 10;
-  const step = (hi - lo) / 2;
-  const ticks = [0, 1, 2].map(i => ({ y: r1(Y(lo + i * step)), kg: lo + i * step }));
-  const mid = t0 + (t1 - t0) / 2;
-  const labels = [{ x: r1(X(t0)), text: fmtDate(t0, 'short'), anchor: 'start' }, { x: r1(X(mid)), text: fmtDate(mid, 'short'), anchor: 'middle' },
-    { x: r1(X(t1)), text: fmtDate(t1, 'short'), anchor: 'end' }];
+  const g = deskLineGeom(pts.map(p => ({ date: p.date, v: p.kg })), { w, h, step: 0.5 });
   const first = pts[0], last = pts[pts.length - 1];
-  return { w, h, right, points: pts.map(p => ({ x: r1(X(p.date)), y: r1(Y(p.kg)), kg: p.kg, date: p.date })), ticks, labels,
+  return { ...g, points: g.points.map((q, i) => ({ ...q, kg: pts[i].kg, date: pts[i].date })), ticks: g.ticks.map(t => ({ y: t.y, kg: t.v })),
     first, last, n: pts.length, delta: Math.round((last.kg - first.kg) * 10) / 10,
     desc: `Poids du ${fmtDate(first.date, 'short')} au ${fmtDate(last.date, 'short')} : de ${fmtNum(first.kg, 1)} à ${fmtNum(last.kg, 1)} kg, ${plural(pts.length, 'pesée', 'pesées')}` };
+}
+
+// Courbe de charge d'un exercice : une série de exerciseLoadSeries (js/data/coach-ex-progress.js, la même que la fiche
+// de l'app iPhone : série de travail la plus lourde de chaque séance, 12 semaines). null sous 2 séances.
+// { points: [{ x, y, kg, reps, date }], ticks: [{ y, kg }], labels, first, last, change (exerciseLoadChange), n, desc }
+function deskLoadChart(series, { w = 300, h = 120 } = {}) {
+  const pts = series?.points || [];
+  if (pts.length < 2) return null;
+  const g = deskLineGeom(pts.map(p => ({ date: p.date, v: p.kg })), { w, h, step: 2.5, min: 0, even: true });
+  const first = pts[0], last = pts[pts.length - 1];
+  return { ...g, points: g.points.map((q, i) => ({ ...q, ...pts[i] })), ticks: g.ticks.map(t => ({ y: t.y, kg: t.v })),
+    first, last, n: pts.length, change: exerciseLoadChange(series),
+    desc: `${series.name}, série la plus lourde de chaque séance, du ${fmtDate(first.date, 'short')} au ${fmtDate(last.date, 'short')} : de ${fmtNum(first.kg, 1)} à ${fmtNum(last.kg, 1)} kg, ${plural(pts.length, 'séance', 'séances')}` };
 }
 
 // Chiffres en tête de la fiche : poids moyen des 7 derniers jours et écart avec les 7 d'avant, séances de la semaine en

@@ -3,7 +3,8 @@
 //
 //  Un tableau semaine par semaine avec ce que l'élève partage déjà avec son coach : poids (pesées partagées),
 //  séances faites, volume, records, diète et eau (suivi de la diète partagé), mensurations partagées. Les défis ne
-//  sont pas partagés avec le coach (docs/DEFIS.md) : le pied du tableau le dit. Courbe du poids sur 90 jours.
+//  sont pas partagés avec le coach (docs/DEFIS.md) : le pied du tableau le dit. Courbe du poids sur 90 jours, puis
+//  « Charges par exercice » (js/desk/loads.js, la même courbe que l'app iPhone).
 //  Colonnes en plus (vague 2) : les suivis échelle, nombre ou automatiques du bilan le plus récent de l'élève, avec
 //  la valeur du bilan dont la période tombe dans la semaine (deskCkWeekColumns, deskCkWeekValues).
 //  Pas, sommeil et cardio (vague 3) : trois colonnes seulement si l'élève les partage (health.shared), moyennes de la
@@ -104,6 +105,7 @@ function deskStudentHtml(d, ui, tab = 'weeks') {
     <div class="gfoot">Tout se remplit seul avec ce que ${esc(r.name)} partage : pesées, séances, repas cochés, eau, mensurations${hCols.length ? ', pas, sommeil et cardio' : ''}. Poids : moyenne des pesées de la semaine et écart avec la semaine pesée d'avant. Diète : jours suivis sur les jours notés.${hCols.length ? ' Pas, sommeil et cardio : moyenne des jours relevés par son iPhone dans la semaine.' : ''}${deskHealthStale(d.health, d.now) ? ` <span class="h-stale">Pas, sommeil et cardio : dernier jour reçu le ${esc(fmtDate(deskHealthStale(d.health, d.now), 'short'))}.</span>` : ''} Défis : pas encore partagés avec le coach.${d.health && d.health.shared === false ? ` <span class="h-off">${esc(r.name)} ne partage pas ses pas, son sommeil ni son cardio (réglage dans l'app iPhone : Partager avec mon coach).</span>` : ''}${ckCols.length ? ' Dernières colonnes : réponses à ses bilans, semaine où commence la période du bilan.' : ''}</div>`;
   const panel = `<div class="side-panel">
     <section class="gblock" aria-labelledby="h-chart"><h2 class="gh" id="h-chart">Poids au quotidien <span class="r muted">90 jours</span></h2>${deskChartHtml(d.chart, d.weights)}</section>
+    ${deskLoadsHtml(r, d.loads)}
     <section class="gblock" aria-labelledby="h-meas"><h2 class="gh" id="h-meas">Mensurations</h2>${d.measures?.shared && deskMeasureSummary(d.measures).length
       ? `<div class="group">${deskMeasureSummary(d.measures).map(m => `<div class="row"><div class="grow">${esc(m.label)}</div><div class="v num"><span class="strong">${esc(fmtNum(m.cm, 1))} cm</span>${m.delta !== null ? ` <span class="muted">${esc(deskSigned(m.delta))}</span>` : ''}</div></div>`).join('')}</div><div class="gfoot">Dernière mesure et écart depuis la première partagée.</div>`
       : `<div class="group"><div class="row"><div class="grow muted">${d.measures?.shared ? 'Aucune mesure partagée pour l\'instant.' : 'Mensurations non partagées.'}</div></div></div>`}</section>

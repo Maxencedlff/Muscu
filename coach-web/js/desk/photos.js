@@ -59,7 +59,7 @@ function deskPhBodyHtml(uid, cols, nTotal) {
       : `<div class="ph-cell none" role="status"><span class="faint">Déchiffrement…</span></div>`;
   };
   return `<div class="ph-grid c${cols.length}" role="table" aria-label="Photos, ${esc(cols.map(c => c.title).join(' face à '))}">
-      <div class="ph-h" role="row"><span role="columnheader" class="sr">Pose</span>${cols.map(c => `<span role="columnheader">${esc(c.title)}</span>`).join('')}</div>
+      <div class="ph-h" role="row"><span role="columnheader"><span class="sr">Pose</span></span>${cols.map(c => `<span role="columnheader">${esc(c.title)}</span>`).join('')}</div>
       ${poses.map(k => `<div class="ph-r" role="row"><span role="rowheader" class="ph-pose">${esc(photoPoseLabel(k))}</span>${cols.map(c => `<span role="cell">${cell(c, k)}</span>`).join('')}</div>`).join('')}
     </div>`;
 }

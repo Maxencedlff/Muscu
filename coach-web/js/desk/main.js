@@ -237,6 +237,8 @@ async function deskOpenStudent(id, { force = false } = {}) {
   const weeks = deskWeeks({ ...r.data, phases, now, count: DESK_WEEKS_MAX });
   view.student = { id, at: Date.now(), now, weeks, weights: r.data.weights, measures: r.data.measures, diet: r.data.diet, health: r.data.health ?? null, sessions: r.data.sessions,
     chart: deskWeightChart(r.data.weights, now),
+    // Charges par exercice : la logique de la fiche de l'app (js/data/coach-ex-progress.js), sur les mêmes séances
+    loads: exerciseLoadSeries(r.data.sessions, now),
     // Bilans de l'élève (null : serveur sans les bilans ou lecture refusée ; ckKind dit pourquoi)
     checkins: ck.ok ? ck.data : prev?.checkins || null, ckKind: ck.ok || prev?.checkins ? null : ck.kind };
   deskRender();

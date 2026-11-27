@@ -74,7 +74,8 @@ def matrix_case(browser, url, engine, w, h, touch, theme):
         page.wait_for_selector('table.wk tbody tr')
         check(page.locator('table.wk tbody tr').count() == 8, f'{tag} : 8 semaines')
         check(page.locator('table.wk tbody tr.cur').inner_text().startswith('S48'), f'{tag} : semaine en cours')
-        check(page.locator('.chart svg polyline').count() == 1, f'{tag} : courbe du poids')
+        check(page.locator('.chart:not(.ldc) svg polyline').count() == 1, f'{tag} : courbe du poids')
+        check(page.locator('.ldc svg polyline').count() == 1 and page.locator('.ld-row').count() == 4, f'{tag} : charges par exercice')
         check(page.locator('[role=tab]').count() == 5 and page.locator('[role=tab][aria-disabled=true]').count() == 0, f'{tag} : les cinq onglets de la fiche (vague 4)')
         no_hscroll(page, f'{tag} fiche')
         small = small_targets(page)
@@ -172,6 +173,79 @@ def journeys(browser, url, engine):
     page.wait_for_selector('text=Réservé aux coachs')
     check(page.locator('.lst').count() == 0, 'compte non coach : aucune liste')
     ctx.close()
+
+
+def loads_journey(browser, url, engine):
+    """Charges par exercice (fiche Semaines) : même logique que l'app, couleur du texte, bulle au survol, au clavier et au
+    toucher, choix d'un exercice, tableau pour les lecteurs d'écran, CSP."""
+    for theme in ('dark', 'light'):
+        tag = f'{engine} charges {theme}'
+        ctx, page = open_desk(browser, url, width=1440, theme=theme)
+        try:
+            page.locator('.lst a.row', has_text='lea').first.click()
+            page.wait_for_selector('.ldc svg circle')
+            rows = page.locator('.ld-row')
+            names = [rows.nth(i).locator('.blk').first.inner_text() for i in range(rows.count())]
+            check(sorted(names) == sorted(['Squat', 'Développé couché', 'Rowing barre', 'Hip thrust']), f'{tag} : exercices {names}')
+            check(rows.first.get_attribute('aria-pressed') == 'true', f'{tag} : premier exercice choisi')
+            # Mêmes points que la logique de l'app sur les séances lues (aucune copie de la règle)
+            want = page.evaluate("exerciseLoadSeries(view.student.sessions, view.student.now)[0].points.length")
+            n = page.locator('.ldc svg circle').count()
+            check(n == want and n >= 10, f'{tag} : {n} points (app : {want})')
+            col = page.evaluate("[getComputedStyle(document.querySelector('.ldc .ln')).stroke, getComputedStyle(document.body).color]")
+            check(col[0] == col[1], f'{tag} : courbe dans la couleur du texte {col}')
+            check(page.locator('.ldb .sr table tbody tr').count() == n, f'{tag} : tableau des séances')
+            label = page.locator('.ldc svg').get_attribute('aria-label')
+            check(label.startswith(names[0] + ', série la plus lourde'), f'{tag} : texte alternatif {label!r}')
+            # Survol : bulle sur le point le plus proche, dans le cadre
+            box = page.locator('.ldc circle.last').bounding_box()
+            page.mouse.move(box['x'] + box['width'] / 2, box['y'] + box['height'] / 2)
+            tip = page.locator('.ld-tip')
+            check(tip.is_visible() and '×' in tip.inner_text() and 'kg' in tip.inner_text(), f'{tag} : bulle au survol {tip.inner_text()!r}')
+            fb, tb = page.locator('.ldc').bounding_box(), tip.bounding_box()
+            check(tb['x'] >= fb['x'] - 1 and tb['x'] + tb['width'] <= fb['x'] + fb['width'] + 1 and tb['y'] >= fb['y'] - 1 and tb['y'] + tb['height'] <= fb['y'] + fb['height'] + 1, f'{tag} : bulle dans le cadre {tb} {fb}')
+            check(page.locator('.ldc circle.on').count() == 1 and page.locator('.ldc circle.on.last').count() == 1, f'{tag} : point survolé')
+            page.mouse.move(5, 5)
+            check(not tip.is_visible(), f'{tag} : bulle cachée en sortant')
+            # Clavier : la courbe prend le focus, Origine et flèches, annonce
+            page.locator('.ldc svg').focus()
+            page.keyboard.press('Home')
+            first = page.evaluate("fmtDate(deskLd.shown.points[0].date, 'short')")
+            check(tip.is_visible() and tip.inner_text().startswith(first), f'{tag} : Origine {tip.inner_text()!r}')
+            page.keyboard.press('ArrowRight')
+            check(page.locator('.ldc circle.on').get_attribute('data-i') == '1', f'{tag} : flèche droite')
+            check(page.locator('#live').inner_text().strip() == tip.inner_text().strip(), f'{tag} : annonce au clavier')
+            page.keyboard.press('Escape')
+            check(not tip.is_visible(), f'{tag} : Échap')
+            # Autre exercice : courbe et tableau changent, focus gardé sur le bouton
+            target = page.locator('.ld-row', has_text='Hip thrust')
+            tid = target.get_attribute('id')
+            target.click()
+            page.wait_for_selector(f'#{tid}[aria-pressed="true"]')
+            check(page.evaluate('document.activeElement.id') == tid, f'{tag} : focus gardé')
+            check('Hip thrust' in page.locator('.ldb .sr table caption').inner_text() and page.locator('.ldc svg').get_attribute('aria-label').startswith('Hip thrust'), f'{tag} : courbe de l\'exercice choisi')
+            no_hscroll(page, tag)
+            check(not page.evaluate('window.__csp || []'), f'{tag} : CSP {page.evaluate("window.__csp")}')
+            check(not page.errors, f'{tag} : erreurs {page.errors}')
+        except Exception:
+            os.makedirs(FAILS, exist_ok=True)
+            page.screenshot(path=os.path.join(FAILS, tag.replace(' ', '_') + '.png'), full_page=True)
+            raise
+        finally:
+            ctx.close()
+    # Toucher (tablette en portrait) : la bulle s'ouvre au toucher, jamais au pointerdown
+    ctx, page = open_desk(browser, url, width=820, height=1180, touch=True)
+    try:
+        page.locator('.lst a.row', has_text='lea').first.tap()
+        page.wait_for_selector('.ldc svg circle')
+        page.locator('.ldc svg').scroll_into_view_if_needed()
+        box = page.locator('.ldc circle.last').bounding_box()
+        page.touchscreen.tap(box['x'] + box['width'] / 2, box['y'] + box['height'] / 2)
+        check(page.locator('.ld-tip').is_visible() and page.locator('.ldc circle.on.last').count() == 1, f'{engine} charges toucher : bulle')
+        no_hscroll(page, f'{engine} charges toucher')
+        check(not page.errors, f'{engine} charges toucher : erreurs {page.errors}')
+    finally:
+        ctx.close()
 
 
 def give_coach_apple(page):
@@ -283,9 +357,10 @@ def main():
                         done += 1
                         print(f'  ok    {engine} {w}px {theme}', flush=True)
                 journeys(browser, url, engine)
+                loads_journey(browser, url, engine)
                 apple_journeys(browser, url, engine)
                 built_page(browser, url)
-                print(f'  ok    {engine} : clavier, segments, invitation, un appel, repli, refus, déconnexion, Apple', flush=True)
+                print(f'  ok    {engine} : clavier, segments, invitation, charges par exercice, un appel, repli, refus, déconnexion, Apple', flush=True)
             finally:
                 browser.close()
     print(f'\nAppli web du coach : {done} combinaisons et {len(ENGINES)} parcours OK')
