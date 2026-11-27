@@ -20,13 +20,19 @@ const PROVIDER_NAMES = { apple: 'Apple', google: 'Google', email: 'un e-mail' };
 const METHOD_PHRASE = { apple: 'Apple', google: 'Google', email: 'un code par e‑mail' };
 
 // « e‑mail » : trait d'union insécable (U+2011), jamais coupé en fin de ligne sur un petit écran
-// Boutons de connexion, du plus au moins recommandé (Bienvenue et Compte). Google masqué tant que
+// Boutons de connexion, du plus au moins recommandé (Bienvenue et Compte), dans l'ordre du système
+// (PT.signInProviders : Apple d'abord sur iPhone, pas d'Apple sur Android). Google masqué tant que
 // son client n'est pas configuré dans l'app (account.google).
+const SIGN_IN_BUTTONS = {
+  apple: () => `
+    <button class="auth-btn auth-btn--apple" data-action="auth-provider" data-provider="apple">${APPLE_LOGO}<span>Continuer avec Apple</span></button>`,
+  google: () => (account.google ? `
+    <button class="auth-btn auth-btn--google" data-action="auth-provider" data-provider="google">${GOOGLE_LOGO}<span>Continuer avec Google</span></button>` : ''),
+  email: () => `
+    <button class="auth-btn auth-btn--mail" data-action="auth-email">${MAIL_ICON}<span>Continuer avec un e‑mail</span></button>`,
+};
 function signInButtonsHtml() {
-  return `
-    <button class="auth-btn auth-btn--apple" data-action="auth-provider" data-provider="apple">${APPLE_LOGO}<span>Continuer avec Apple</span></button>
-    ${account.google ? `<button class="auth-btn auth-btn--google" data-action="auth-provider" data-provider="google">${GOOGLE_LOGO}<span>Continuer avec Google</span></button>` : ''}
-    <button class="auth-btn auth-btn--mail" data-action="auth-email">${MAIL_ICON}<span>Continuer avec un e‑mail</span></button>`;
+  return PT.signInProviders.map(p => SIGN_IN_BUTTONS[p]()).join('');
 }
 
 // Pastille d'avatar : l'emoji choisi, sinon l'initiale du pseudo sur un disque gris (comme Contacts),
@@ -141,7 +147,7 @@ function renderAccount() {
           ${info ? '' : '<p class="account-hero__sub">Déjà un compte ? Utilise le même moyen qu\'avant.</p>'}
         </div>
         <div class="auth-buttons">${signInButtonsHtml()}</div>
-        <p class="account-foot">Avec Apple, tu peux masquer ton e‑mail. Poids du corps et données Santé restent sur ${thePhone()}. <button class="link-inline" data-action="account-privacy">Confidentialité</button></p>
+        <p class="account-foot">${PT.accountFoot()} <button class="link-inline" data-action="account-privacy">Confidentialité</button></p>
       </div>
     </div>`;
   }
@@ -431,7 +437,7 @@ async function identityRecentDialog(retryAt) {
     actions: [{ label: 'OK', style: 'preferred' }] });
 }
 
-const APPLE_MANUAL_REVOKE = 'Pour retirer aussi l\'accès côté Apple : Réglages de l\'iPhone › ton nom › Connexion et sécurité › Se connecter avec Apple › MDLF Training › Arrêter d\'utiliser.';
+const APPLE_MANUAL_REVOKE = PT.appleManualRevoke;
 
 // Supprime le compte après la confirmation d'identité, puis propose de garder les données locales
 async function deleteAccountFlow() {
@@ -583,14 +589,15 @@ registerActions({
     // on mène à la gestion chez Apple (exigence d'Apple pour la suppression de compte :
     // https://developer.apple.com/support/offering-account-deletion-in-your-app/)
     if (typeof accessStatus === 'function' && accessStatus() === 'active') {
+      // Android avant Google Play (Native.store.available faux) : pas de bouton vers une boutique qui ne vend rien ici
       const choice = await dialog({ type: 'sheet', title: 'Supprimer ton compte ?',
-        message: `Supprimer le compte n'arrête pas l'abonnement : Apple continuera de le facturer. Résilie-le d'abord dans « Gérer chez Apple ». ${message}`,
+        message: `${PT.payDeleteActive} ${message}`,
         actions: [
-          { label: 'Gérer chez Apple', value: 'manage', style: 'preferred' },
+          ...(!Native.store.soon ? [{ label: PT.payManage, value: 'manage', style: 'preferred' }] : []),
           { label: 'Supprimer mon compte', value: 'delete', style: 'destructive' },
           { label: 'Annuler', style: 'cancel' },
         ] });
-      if (choice === 'manage') { window.open(PAY_MANAGE_URL, '_blank'); return; }
+      if (choice === 'manage') { window.open(payManageUrl(), '_blank'); return; }
       if (choice !== 'delete') return;
     } else if (!(await confirmSheet('Supprimer ton compte ?', message, 'Supprimer mon compte'))) return;
     await deleteAccountFlow();

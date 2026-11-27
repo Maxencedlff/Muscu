@@ -30,7 +30,8 @@ function registerServiceWorker() {
 // Le code natif ne change que par une build : quand une build plus récente que celle installée est
 // disponible, une bannière (publiée par mise à jour à chaud, donc lue par l'ancienne build) envoie
 // vers TestFlight. LATEST_NATIVE_BUILD n'est relevé qu'une fois la build installable.
-const LATEST_NATIVE_BUILD = 24;            // lien TestFlight : TESTFLIGHT_URL (js/data/min-build.js)
+// Android : 0, jamais de bannière (pas de TestFlight ; ses numéros de build ne sont pas ceux d'iOS)
+const LATEST_NATIVE_BUILD = PT.latestNativeBuild;   // lien TestFlight : TESTFLIGHT_URL (js/data/min-build.js)
 const NATIVE_BANNER_KEY   = 'ppl_native_update_dismissed';   // build pour laquelle « Plus tard » a été touché
 
 // Calque plein écran ouvert (Bienvenue, compte, questions du premier lancement : css/account.css) ; le bandeau, collé en
@@ -81,8 +82,8 @@ async function checkMinBuild() {
   if (!minBuildBlocks(build, r.min)) { shown?.remove(); return false; }
   if (shown) return true;
   if (activeSession) return false;
-  const url = minBuildUpdateUrl(await accessStoreEnvironment());
-  const store = url.includes('testflight') ? 'TestFlight' : 'l\'App Store';
+  const url = PT.minBuildStore?.url || minBuildUpdateUrl(await accessStoreEnvironment());
+  const store = PT.minBuildStore?.label || (url.includes('testflight') ? 'TestFlight' : 'l\'App Store');
   const el = document.createElement('div');
   el.className = 'min-build';
   el.setAttribute('role', 'dialog');
@@ -92,7 +93,7 @@ async function checkMinBuild() {
   el.innerHTML = `<div class="min-build__box">
       <img class="min-build__icon" src="apple-touch-icon.png" alt="" width="96" height="96">
       <h1 class="min-build__title" id="minBuildTitle" tabindex="-1">Mets à jour l'app</h1>
-      <p class="min-build__text" id="minBuildText">Une nouvelle version de MDLF Training est nécessaire pour continuer. Tes séances restent enregistrées sur cet iPhone.</p>
+      <p class="min-build__text" id="minBuildText">${PT.minBuildText}</p>
     </div>
     <div class="min-build__foot">
       <button class="btn btn--primary min-build__btn" type="button">Ouvrir ${store}</button>

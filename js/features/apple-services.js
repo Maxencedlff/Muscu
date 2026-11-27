@@ -13,18 +13,18 @@ let weightCache = { at: 0, samples: [], failed: false };   // failed : dernière
 const healthEnabled = () => Native.isNative && data.healthOn === true;
 
 // Textes qui dépendent du système : Apple Santé sur iOS, Health Connect sur Android (Native.health.name)
-const HEALTH_TEXT = Native.platform === 'android' ? {
+const HEALTH_TEXT = byPlatform({ android: {
   unavailable: 'Installe ou mets à jour Health Connect depuis le Play Store, puis réessaie',
   refused: 'Autorise MDLF Training dans Health Connect › Autorisations des applications, puis réessaie.',
   noWeight: 'Ajoute ton poids dans Health Connect. Si tu en as déjà : Health Connect › Autorisations des applications › MDLF Training › autorise Poids.',
   // Le module Android ne lit pas le sommeil (Native.health.sleep y rend une liste vide)
   reads: 'Enregistre tes séances, lit ton poids, tes courses et sorties vélo',
-} : {
+}, ios: {
   unavailable: 'Santé n\'est pas disponible sur cet appareil',
   refused: 'Autorise MDLF Training dans Réglages › Santé › Accès aux données et appareils, puis réessaie.',
   noWeight: 'Ajoute ton poids dans Santé. Si tu en as déjà : Réglages de l\'iPhone › Santé › Accès aux données et appareils › MDLF Training › autorise Poids.',
   reads: 'Enregistre tes séances, lit ton poids, ton sommeil, tes courses et sorties vélo',
-};
+} });
 const musicEnabled  = () => Native.music.available && data.musicOn === true;   // Apple Music : iOS seulement
 
 // ── Santé : entraînement de fin de séance ───────────────────

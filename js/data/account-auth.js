@@ -294,8 +294,8 @@ const AUTH_ERROR_TEXT = {
   code: 'Code incorrect ou expiré.',
   rate: 'Trop de demandes : attends une minute avant de redemander un code.',
   email: 'Cette adresse e-mail n\'est pas valable.',
-  not_authorized: 'L\'envoi des codes par e-mail n\'est pas encore ouvert. Utilise Apple.',
-  identity_exists: 'Ce moyen de connexion a son propre compte MDLF, peut-être avec des séances. Pour le retrouver, déconnecte-toi puis connecte-toi avec ce moyen. Les séances restent sur cet iPhone.',
+  not_authorized: `L'envoi des codes par e-mail n'est pas encore ouvert. ${PT.emailClosedHint}`,
+  identity_exists: `Ce moyen de connexion a son propre compte MDLF, peut-être avec des séances. Pour le retrouver, déconnecte-toi puis connecte-toi avec ce moyen. ${PT.sessionsStayHere}`,
   last_identity: 'Garde au moins un moyen de connexion.',
   linking_disabled: 'Ajout d\'un moyen de connexion indisponible pour l\'instant.',
   disabled: 'Ce moyen de connexion n\'est pas encore ouvert.',
@@ -319,6 +319,6 @@ const IDENTITY_SIGNIN = { apple: 'avec Apple', google: 'avec Google', email: 'av
 function identityExistsTitle(provider) { return IDENTITY_TITLE[provider] || 'Déjà relié à un autre compte'; }
 function identityExistsText(provider) {
   if (!IDENTITY_OWNER[provider]) return AUTH_ERROR_TEXT.identity_exists;
-  return `${IDENTITY_OWNER[provider]} a son propre compte MDLF, peut-être avec des séances. Pour le retrouver, déconnecte-toi puis connecte-toi ${IDENTITY_SIGNIN[provider]}. Les séances restent sur cet iPhone.`;
+  return `${IDENTITY_OWNER[provider]} a son propre compte MDLF, peut-être avec des séances. Pour le retrouver, déconnecte-toi puis connecte-toi ${IDENTITY_SIGNIN[provider]}. ${PT.sessionsStayHere}`;
 }
 

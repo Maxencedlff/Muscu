@@ -42,7 +42,8 @@ function minBuildUpdateUrl(env) {
 async function minBuildFetch() {
   if (typeof sb === 'undefined' || !sb) return { ok: false };
   try {
-    const { data: row, error } = await sb.from('app_config').select('value').eq('key', 'min_build').maybeSingle();
+    // Une ligne par système (PT.minBuildKey) : les numéros de build d'Android ne sont pas ceux d'iOS
+    const { data: row, error } = await sb.from('app_config').select('value').eq('key', PT.minBuildKey).maybeSingle();
     if (error) return { ok: false };
     return { ok: true, min: minBuildValue(row?.value) };
   } catch { return { ok: false }; }

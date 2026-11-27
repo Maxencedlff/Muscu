@@ -26,6 +26,10 @@ const Native = (() => {
   // (« DATA »), seul inclus dans la sauvegarde Google (android/app/src/main/res/xml/data_extraction_rules.xml).
   // « DOCUMENTS » y serait le dossier Documents partagé du téléphone, illisible après une réinstallation.
   const BACKUP_DIR = isAndroid ? 'DATA' : 'DOCUMENTS';
+  // Abonnements Google Play : le module Android existe (StorePlugin.kt), mais le serveur ne vérifie pas encore
+  // ses achats (verify-purchase-android, docs/ANDROID.md, 5). Tant que c'est faux, rien ne s'achète sur Android :
+  // l'écran d'abonnement le dit (Native.store.soon), sans aucun texte d'Apple. À passer à true avec le serveur.
+  const ANDROID_BILLING_READY = false;
 
   const Haptics            = plugin('Haptics');
   const LocalNotifications = plugin('LocalNotifications');
@@ -150,6 +154,10 @@ const Native = (() => {
 
   const REST_NOTIF_ID = 1;           // une seule notification de repos à la fois
   const BACKUP_FILE   = 'ppl_v2.json';
+  // Android : copie pour la sauvegarde Google, SANS poids, mensurations, repas ni sexe (cloudCopy), comme la copie
+  // iCloud. Seul fichier de la sauvegarde dans le nuage (res/xml/data_extraction_rules.xml) ; ppl_v2.json, complet,
+  // ne passe que d'un téléphone à l'autre (transfert direct) et reste la copie de sécurité locale.
+  const GOOGLE_BACKUP_FILE = 'ppl_v2_cloud.json';
   const CLOUD_WAIT_MS = 2500;        // premier lancement : attente de la copie iCloud (écran de démarrage)
   const CLOUD_READY   = 'ppl_cloud_ready'; // '1' : la copie iCloud peut être écrite (gardé d'un lancement à l'autre)
   const CLOUD_SENT    = 'ppl_cloud_sent';  // empreinte du dernier JSON accepté par iCloud
@@ -321,11 +329,14 @@ const Native = (() => {
     //  - la copie iCloud de l'app (MdlfCloudBackup), qui survit à la suppression de l'app et revient
     //    sur un nouvel iPhone, SANS poids, mensurations, repas ni sexe (cloudCopy, règle 5.1.3(ii)).
     //    Une donnée sans séance n'y est écrite qu'une fois iCloud consulté.
+    // Android : ppl_v2.json complet dans le dossier privé de l'app (transfert direct vers un nouveau téléphone),
+    // et ppl_v2_cloud.json, filtré comme la copie iCloud, seul envoyé à la sauvegarde Google.
     backup(json) {
       if (!isNative || !backupEnabled) return;
       clearTimeout(backupTimer);
       backupTimer = setTimeout(() => {
         quiet(Filesystem.writeFile({ path: BACKUP_FILE, data: json, directory: BACKUP_DIR, encoding: 'utf8' }));
+        if (isAndroid) quiet(Filesystem.writeFile({ path: GOOGLE_BACKUP_FILE, data: cloudCopy(json), directory: BACKUP_DIR, encoding: 'utf8' }));
         pushCloud(json);
       }, 800);
     },
@@ -624,9 +635,11 @@ const Native = (() => {
     // fait que transmettre au serveur la transaction signée par Apple (JWS), vérifiée par la fonction
     // Edge verify-purchase. available : faux dans le navigateur et dans une coquille plus ancienne que
     // le module (une mise à jour à chaud peut arriver avant la nouvelle build) : aucun achat proposé,
-    // l'écran invite alors à utiliser l'app iPhone.
+    // l'écran invite alors à utiliser l'app iPhone. Faux aussi sur Android tant que ANDROID_BILLING_READY l'est.
     store: {
-      available: isNative && !!cap.isPluginAvailable?.('MdlfStore'),
+      available: isNative && !!cap.isPluginAvailable?.('MdlfStore') && (!isAndroid || ANDROID_BILLING_READY),
+      // Achats prévus sur ce système mais pas encore ouverts (Android avant Google Play Billing côté serveur)
+      soon: isAndroid && !ANDROID_BILLING_READY,
       // { products: [{ id, displayName, description, displayPrice, price (nombre), currency,
       // period, introEligible }], missing: [identifiants inconnus d'Apple], canMakePayments }.
       // Le prix AFFICHABLE est `displayPrice` (déjà formaté par Apple dans la monnaie de la
@@ -885,12 +898,16 @@ const Native = (() => {
       return true;
     },
 
+    // Copie complète, sinon (Android restauré par la sauvegarde Google) la copie filtrée
     async readBackup() {
       if (!isNative) return null;
-      try {
-        const r = await Filesystem.readFile({ path: BACKUP_FILE, directory: BACKUP_DIR, encoding: 'utf8' });
-        return typeof r.data === 'string' && r.data.length > 2 ? r.data : null;
-      } catch { return null; }
+      const read = async path => {
+        try {
+          const r = await Filesystem.readFile({ path, directory: BACKUP_DIR, encoding: 'utf8' });
+          return typeof r.data === 'string' && r.data.length > 2 ? r.data : null;
+        } catch { return null; }
+      };
+      return (await read(BACKUP_FILE)) || (isAndroid ? await read(GOOGLE_BACKUP_FILE) : null);
     },
   };
 })();
@@ -908,6 +925,9 @@ function isIPad(ua = typeof navigator === 'undefined' ? '' : navigator.userAgent
   if (/iPhone|iPod/.test(ua)) return false;
   return /iPad/.test(ua) || (/Macintosh/.test(ua) && touchPoints > 1);
 }
+// Seule règle « quel système » des textes (panel Android du 26/11) : la variante Android dans l'app Android, sinon
+// celle d'iOS (app iOS et navigateur, textes inchangés). Les variantes sont dans js/data/platform-texts.js.
+function byPlatform(variants) { return Native.platform === 'android' ? variants.android : variants.ios; }
 function phoneName() {
   if (Native.platform === 'ios') return isIPad() ? 'iPad' : 'iPhone';
   if (Native.platform === 'android') return 'téléphone';
@@ -915,8 +935,6 @@ function phoneName() {
 }
 // Avec l'élision : « cet iPhone » / « cet iPad » / « ce téléphone », « l'iPhone » / « le téléphone »,
 // « de l'iPhone » / « du téléphone », « nouvel iPhone » / « nouveau téléphone »
-// Boutique où se gèrent les abonnements : « dans Google Play » sur Android, « chez Apple » ailleurs (juges du 26/11)
-function storeWhere() { return Native.platform === 'android' ? 'dans Google Play' : 'chez Apple'; }
 function thisPhone() { return phoneName() === 'téléphone' ? 'ce téléphone' : `cet ${phoneName()}`; }
 function ThisPhone() { const t = thisPhone(); return t[0].toUpperCase() + t.slice(1); }
 function ThePhone() { const t = thePhone(); return t[0].toUpperCase() + t.slice(1); }

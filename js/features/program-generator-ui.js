@@ -121,7 +121,7 @@ const GEN_SCREENS = {
         ${cell('set-body-weight', 'bathroom.scale', 'Poids', p.kg ? `${fmtW(p.kg)} ${unitLbl()}` : '')}
         ${cell('set-strength-sex', 'sex', 'Sexe', sex)}
       </div>
-      <div class="group-foot">Facultatif, repris des Réglages et gardé sur cet iPhone. L'âge réduit le volume après 60 ans.
+      <div class="group-foot">${PT.generatorFoot}
         Taille et poids choisissent les tractions, assistées ou non. Le sexe ne change rien.</div>
       ${genNextBtn('toi', 'Commencer')}`,
     { lead: `${GEN_QUESTIONS} questions, puis un programme que tu peux modifier.` });

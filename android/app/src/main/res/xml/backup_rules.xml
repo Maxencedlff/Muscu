@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Sauvegarde Google jusqu'à Android 11 : même règle que data_extraction_rules.xml -->
+<!-- Sauvegarde Google jusqu'à Android 11 (une seule règle pour le nuage et le transfert) : la copie filtrée
+     seulement, sans les données de santé (voir data_extraction_rules.xml). -->
 <full-backup-content>
-    <include domain="file" path="ppl_v2.json" />
+    <include domain="file" path="ppl_v2_cloud.json" />
 </full-backup-content>

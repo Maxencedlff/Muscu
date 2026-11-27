@@ -1,6 +1,6 @@
 # MDLF Training sur Android
 
-État au 31 octobre 2026 : **préparation**. Le projet Android existe (Capacitor 8, même contenu web que
+État au 26 novembre 2026 : **préparation**. Le projet Android existe (Capacitor 8, même contenu web que
 l'iPhone), avec ses modules natifs, son icône et son thème noir pur. **Rien n'est publié**, aucun
 compte Google n'est créé, et **le code Kotlin n'a jamais été compilé** (pas de SDK Android sur la
 machine de développement : le workflow `android.yml` le compilera au premier envoi de la branche).
@@ -23,7 +23,10 @@ donc les mises à jour à chaud continuent d'arriver sur les iPhone sans nouvell
 | Politique de confidentialité pour Health Connect | `PermissionsRationaleActivity.kt`, manifeste | Montre `privacy.html` embarquée (exigée par Health Connect) |
 | Icône adaptative + monochrome (Android 13), icône des notifications, écran de démarrage noir pur | `scripts/brand-icons.py --android` | Générées depuis `js/data/app-icons.js`, comme iOS |
 | Images de la fiche Play (icône 512, image 1024 × 500) | `android/store/` | Non embarquées dans l'app |
-| Sauvegarde Google limitée à `ppl_v2.json` | `res/xml/data_extraction_rules.xml`, `backup_rules.xml` | Remplace la copie iCloud |
+| Sauvegarde Google limitée à `ppl_v2_cloud.json`, copie **sans données de santé** (voir 1.1) | `res/xml/data_extraction_rules.xml`, `backup_rules.xml` | Remplace la copie iCloud, mêmes données |
+| Textes propres à Android (Google Play, « téléphone », sauvegarde Google), panel du 26/11 | `js/data/platform-texts.js`, `byPlatform` (`js/platform/native.js`) | Voir 1.2 ; iOS : textes inchangés (test) |
+| Achats coupés sur Android tant que le serveur ne vérifie pas Google Play | `ANDROID_BILLING_READY` (`js/platform/native.js`), `Native.store.soon` | Voir 1.2 |
+| Version minimale et bannière TestFlight propres à iOS | `PT.minBuildKey` (`min_build_android`), `PT.latestNativeBuild` | Sans cela, la build 1 d'Android était « trop ancienne » face au minimum d'iOS |
 | Portrait seulement, comme sur iPhone | manifeste | |
 | Pont natif conscient de la plateforme | `js/platform/native.js` | `Native.platform` : `'ios'`, `'android'`, `'web'` |
 | Réglages › « Santé » (Health Connect) sans Apple Music sur Android | `js/features/apple-services.js` | iOS : textes inchangés |
@@ -39,10 +42,56 @@ donc les mises à jour à chaud continuent d'arriver sur les iPhone sans nouvell
 | `MdlfLiveActivity` (ActivityKit) | **Notification continue** | Android n'a pas de Live Activity (voir 3.2) |
 | `MdlfStore` (StoreKit 2, branche payant) | **Google Play Billing 9** | Le serveur décide, comme sur iOS (voir 3.3) |
 | `MdlfSound` (AVAudioEngine) | Aucun : Web Audio | Android ne coupe pas le son des médias en mode silencieux : la raison d'être du module iOS n'existe pas. `Native.sound.available` est faux, les bips restent en Web Audio |
-| `MdlfCloudBackup` (iCloud) | Aucun : sauvegarde Google | `ppl_v2.json` écrit dans le dossier privé de l'app (`DATA`), seul fichier sauvegardé par Google et restauré à la réinstallation ; `Native.boot` le remet en place |
+| `MdlfCloudBackup` (iCloud) | Aucun : sauvegarde Google | `ppl_v2.json` (complet) et `ppl_v2_cloud.json` (sans données de santé) dans le dossier privé de l'app (`DATA`) ; seul le second part dans la sauvegarde Google (voir 1.1) ; `Native.boot` remet en place le premier, sinon le second |
 | `MdlfMusic` (Apple Music) | Aucun | Pas d'équivalent ouvert sur Android (Spotify a fermé son kit). Cellule masquée |
 | `MdlfAppIcon` (icônes alternatives) | Aucun | Possible avec des `activity-alias`, mais l'app redémarre et l'icône disparaît un instant de l'écran d'accueil : pas digne de l'iPhone. La rubrique se masque seule (`supported: false`) |
 | `MdlfAccount` (Apple, Google, Trousseau) | **À faire** | Rubrique Compte masquée sur Android tant qu'il n'existe pas (voir 4) |
+
+### 1.1 Sauvegarde Google : choix du 26/11 (données de santé exclues)
+
+Le panel du 26/11 a relevé que la sauvegarde Google emportait `ppl_v2.json`, donc le poids, les mensurations, les repas
+cochés, l'eau et le sexe, sans que `privacy.html` le dise. **Choix : exclure ces données de la sauvegarde Google**, plutôt
+que de le déclarer :
+
+- c'est exactement la règle de l'iPhone : la copie iCloud de l'app n'a jamais ces données (règle 5.1.3(ii), `cloudCopy`) ;
+  une seule promesse pour les deux systèmes, « ces données de santé ne quittent jamais le téléphone par l'app » ;
+- la fiche Sécurité des données (Data safety) et `privacy.html` restent simples et vraies : aucune donnée de santé saisie
+  à la main ne part vers un service en ligne, ni chez nous ni chez Google ;
+- la perte est faible : séances, programmes et réglages reviennent quand même ; le reste revient par un transfert direct
+  d'un téléphone à l'autre (câble ou sans fil, sans serveur) ou par un export, comme sur iPhone.
+
+Mise en œuvre : `Native.backup` écrit `ppl_v2.json` complet (copie de sécurité locale, transfert direct seulement :
+`<device-transfer>`) et `ppl_v2_cloud.json` filtré par `cloudCopy` (seul fichier de `<cloud-backup>` ; Android 11 et
+avant : seul fichier de `backup_rules.xml`, qui ne distingue pas nuage et transfert). `privacy.html` FR et EN le disent
+(`#sauvegarde-android`, `#android-backup`). Data safety : « données de santé et de forme » collectées = **non** (elles
+restent sur l'appareil) ; la sauvegarde Android du système n'est pas une collecte par l'app.
+
+### 1.2 Textes et achat sur Android (panel du 26/11)
+
+- **Une seule règle** : `byPlatform({ ios, android })` (`js/platform/native.js`) ; le navigateur prend la variante iOS
+  (textes d'avant). Les variantes sont toutes dans `js/data/platform-texts.js` (`PT.<clé>`), mêmes clés des deux côtés ;
+  `tests/unit/platform-texts.mjs` fige les textes iOS (`textes-ios.json`, relevé sur le code d'avant) et refuse toute
+  mention d'Apple, d'iPhone, d'iCloud ou de Face ID côté Android, sauf la phrase vraie « abonnement pris sur iPhone ».
+- **Achat** : `StorePlugin.kt` existe, mais `verify-purchase-android` non (5). `ANDROID_BILLING_READY = false` coupe
+  `Native.store.available` sur Android et allume `Native.store.soon` : l'écran d'abonnement dit « L'abonnement n'est pas
+  encore proposé sur Android. Il arrivera avec Google Play. », sans formule, sans « Restaurer », sans code de boutique ;
+  un abonné iPhone garde son accès en se connectant au même compte. Les textes Google Play (débit sur le compte Google
+  Play, résiliation dans Play Store › Paiements et abonnements, lien profond
+  `play.google.com/store/account/subscriptions?sku=…&package=com.mdlf.training`, « J'ai un code Google Play ») sont
+  prêts et s'affichent dès que le drapeau passe à `true`.
+- **Compte** (quand `MdlfAccount` Kotlin existera) : Google d'abord, pas de « Continuer avec Apple », « nouveau
+  téléphone », « données Health Connect ».
+- **Coffre à photos** : pas de module Android ; la cellule dit « bientôt sur Android », jamais Face ID ni trousseau iCloud.
+- **Bouton retour** : l'historique de la vue web (comportement par défaut de Capacitor, aucun écouteur `backButton`)
+  ferme d'abord la feuille ou le dialogue ouvert, puis revient à l'écran précédent ; vérifié par
+  `tests/test_android_textes.py` (Chromium, Pixel 7).
+- **Marges des barres système** : Android 15+ impose le plein écran ; Capacitor 8 (SystemBars, `insetsHandling: 'css'`
+  par défaut) et `viewport-fit=cover` donnent les bonnes valeurs à `env(safe-area-inset-*)` avec une WebView Chromium
+  140 ou plus (mise à jour par le Play Store depuis septembre 2025). Une WebView plus ancienne rendrait 0 : à vérifier
+  sur un vrai téléphone (5 de la section 4) ; repli possible en lisant `var(--safe-area-inset-*)` injectées par Capacitor.
+- **Polices** : `system-ui` donne Roboto (ou la police de la marque) sur Android ; rien à changer.
+- **Cibles tactiles et Material** : l'app garde son dessin (choix « Apple » de la marque) ; cibles de 44 px au moins
+  (test), Material en demande 48 dp : à revoir après les essais sur téléphone si les testeurs le relèvent.
 
 Modules Capacitor officiels déjà compatibles Android sans rien faire : haptique, notifications locales,
 écran allumé, barre d'état, écran de démarrage, fichiers, partage, app, mises à jour à chaud (Capgo).
@@ -159,8 +208,9 @@ repos jamais affichée). Les modules lisent donc les nombres par `epochMillis(�
 3. **Retour arrière** : le bouton retour d'Android passe par l'historique de la vue web (comportement
    par défaut de Capacitor), que le routeur de l'app utilise déjà (écrans et feuilles). À vérifier sur
    un vrai téléphone : feuilles, dialogues, séance en cours, écran de démarrage.
-4. **Textes iOS restants** à adapter quand Android approche : « iPhone » dans quelques aides et dans la
-   politique de confidentialité, « Réglages de l'iPhone », bouton Apple de l'écran Bienvenue.
+4. **Textes iOS restants** : faits le 26/11 pour l'abonnement, le compte, Bienvenue, le coffre, l'eau, la diète, les
+   Réglages (1.2). Reste le **Guide de l'app** (`js/data/guide.js`, écrit pour iOS : Apple Santé, copie iCloud, « Gérer
+   chez Apple ») : masquer ses sujets `iphone: true` sur Android ou en écrire la version Android.
 5. **Essais sur téléphones** : un Pixel (Android 15/16) et un Samsung (One UI, Health Connect intégré),
    clair et sombre, barre de navigation à gestes et à 3 boutons (marges `env(safe-area-inset-*)` fournies
    par le module SystemBars de Capacitor 8).
@@ -177,6 +227,10 @@ repos jamais affichée). Les modules lisent donc les nombres par `epochMillis(�
   remboursements, suspension, comme les notifications serveur d'Apple.
 - Migration + retour arrière + tests SQL (autre compte, anonyme), selon les règles du dépôt.
 - `privacy.html` FR/EN : ajouter le jeton d'achat Google quand il partira au serveur.
+- Côté app : `accessSendEntitlements` / `accessVerifyPurchase` (`js/data/access.js`) n'envoient qu'un JWS d'Apple ;
+  ajouter l'envoi du `purchaseToken` vers `verify-purchase-android`, puis passer `ANDROID_BILLING_READY` à `true`
+  (`js/platform/native.js`) : les textes Google Play (`js/data/platform-texts.js`) s'affichent alors d'eux-mêmes.
+- `app_config.min_build_android` : version minimale propre à Android (absente = jamais bloqué).
 
 ## 6. Plan de publication (Google Play)
 

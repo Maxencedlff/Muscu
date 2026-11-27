@@ -365,7 +365,7 @@ function ckPhotoHtml(req, it) {
     <div class="ck-foot"><p class="ck-help">${txt}</p></div></div></div>`;
   if (ckForm.skipped.has(it.key)) return `${head}<div class="group ck-group"><div class="ck-item" data-key="${esc(it.key)}">${ckSkippedHtml(it)}</div></div>`;
   if (cphAgeBlocked()) return note('Les photos de bilan sont réservées aux 18 ans et plus : passe cette partie.');
-  if (!vaultAvailable()) return note('Les photos de bilan s\'envoient depuis l\'app iPhone, avec ton coffre à photos.');
+  if (!vaultAvailable()) return note(PT.checkinPhotosUnavailable);
   if (!cph.state) return note(cph.error === 'offline' ? 'Pas d\'Internet : les photos s\'afficheront avec du réseau.' : 'Chargement…');
   if (cphDisabled()) return note('L\'envoi de photos de bilan est suspendu en ce moment.');
   if (!cph.state.ready) return note(`${who} n'a pas encore activé la réception des photos.`);
