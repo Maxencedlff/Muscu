@@ -77,11 +77,11 @@ function planTableHeader(line) {
   if (!known.some(c => ['name', 'sets', 'reps', 'setsReps', 'week1'].includes(c.kind))) return null;
   if (!cols.some(c => c.kind === 'name')) {
     const first = cols.findIndex(c => !c.kind);
-    if (first >= 0) cols[first].kind = 'name'; else if (cols[0].kind !== 'sets') cols.unshift({ kind: 'name', at: 0 });
+    if (first >= 0) cols[first].kind = 'name'; else if (cols[0].kind !== 'sets') { cols.unshift({ kind: 'name', at: 0 }); var addedName = true; }
   }
   // Pas une colonne qui prescrit (« Jours | Groupes musculaires ») : un planning de la semaine, pas des exercices
   const schedule = !cols.some(c => PARSE_TABLE_DOSE.includes(c.kind) || c.kind === 'week1');
-  return { cols, sep, schedule, dosed: !schedule };
+  return { cols, sep, schedule, dosed: !schedule, addedName: !!addedName };
 }
 // Nom coupé sur deux rangées (« Développé incliné » puis « haltères  3  10 ») : la suite commence par une minuscule ; une
 // rangée suivante qui commence par une majuscule, c'est un autre exercice (fiche de salle : catalogue sans prescription
@@ -120,7 +120,10 @@ function planRowCells(line, head) {
       put(head.cols[best].kind || 'notes', c.text);
     });
   } else {
-    cells.forEach((c, i) => put(head.cols[i]?.kind || 'notes', c.text));
+    // En-tête sans colonne de nom (« Répétitions | Charges ») : une rangée de même largeur que lui n'a pas de nom (carte :
+    // le nom est sur la ligne au-dessus de l'en-tête)
+    const cols = head.addedName && cells.length < head.cols.length && /^\d/.test(cells[0]?.text || '') ? head.cols.slice(1) : head.cols;
+    cells.forEach((c, i) => put(cols[i]?.kind || 'notes', c.text));
   }
   // Semaines en colonnes (« Semaine 1 … Semaine 4 ») : la première fait la prescription, les autres sont ignorées
   if (out.week1) { out.setsReps = out.setsReps || out.week1; delete out.week1; }
@@ -185,8 +188,10 @@ function planRowText(row) {
   if (row.rest) {
     // Case de repos : seulement sa durée (« 15 sec max » donne 15 s ; « max » n'est pas une rep)
     const r0 = String(row.rest).trim(), tm = planPlain(r0).match(new RegExp(PARSE_TIME_SRC));
-    const r = tm && tm[0].trim() !== r0 ? r0.slice(tm.index, tm.index + tm[0].length).trim() : r0;
-    bits.push(bare(r) ? `repos ${planDec(r) <= 10 ? `${r.replace(',', '.')} min` : `${r} s`}` : /repos|rest|r[ée]cup/i.test(r) ? r : `repos ${r}`);
+    let r = tm && tm[0].trim() !== r0 ? r0.slice(tm.index, tm.index + tm[0].length).trim() : r0;
+    // Consigne écrite dans la case (« On passe d'un bras à l'autre sans pause ») : sans repos si elle le dit, sinon une note
+    if (!tm) { if (/\b(?:sans|pas\s+de|aucune?)\s+(?:pause|repos|r[ée]cup)/i.test(r0)) r = 'pas de repos'; else if (!/^\d/.test(r0)) { row.notes = row.notes ? `${row.notes} ${r0}` : r0; r = ''; } }
+    if (r) bits.push(bare(r) ? `repos ${planDec(r) <= 10 ? `${r.replace(',', '.')} min` : `${r} s`}` : /repos|rest|r[ée]cup/i.test(r) ? r : `repos ${r}`);
   }
   if (row.load) bits.push(bare(row.load) ? `${row.load} kg` : row.load);
   if (row.tempo) bits.push(`tempo ${row.tempo}`);

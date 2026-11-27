@@ -25,6 +25,7 @@ const PARSE_SPLIT_WORDS = new Set(('push|pull|leg|legs|jambes|jambe|haut|bas|cor
 const PARSE_HEAD_RE = new RegExp(`^(?:(?:${PARSE_DAYS})\\b|(?:seance|session|workout|entrainement|training)\\b|(?:jour|day|j|bloc)\\s*(?:n°|no|#)?\\s*[a-z0-9]{1,3}\\b|(?:premiere|deuxieme|troisieme|quatrieme|cinquieme|sixieme|1re|2e|3e|4e|5e|6e|1ere|2eme|3eme|4eme|5eme)\\s+seance\\b|seance\\s+(?:suivante|du|de|des|d')\\b)`);
 const PARSE_REST_DAY_RE = new RegExp(`^(?:(?:${PARSE_DAYS}|jour\\s*\\d+|day\\s*\\d+|j\\s*\\d+)\\s*[:\\-]?\\s*)?(?:repos|off|rest|recuperation|recup|repos complet|repos actif|jour de repos|rest day|day off)(?:\\s+(?:complet|actif|total))?\\s*[.!]*$`);
 const PARSE_SKIP_SECTION_RE = /^(?:echauffement|echauffements|warm\s*-?\s*up|retour au calme|cool\s*-?\s*down|etirements?|stretching|mobilite|notes?|conseils?|remarques?|important|nutrition|alimentation)\b/;
+const PARSE_WARMUP_ANY = /\b(?:echauffements?|warm\s*-?\s*ups?|retour au calme|cool\s*-?\s*down|etirements?|stretching)\b/;
 // Mots qui recoupent une dictée (pas de retour à la ligne) : un nouvel exercice ou une nouvelle séance commence
 const PARSE_DICT_BREAK = /\s+(?=(?:ensuite|puis|apres ca|apres|et pour finir|pour finir|on termine|on enchaine|on finit|enfin|exercice suivant|dernier exercice|et on finit|on passe a)\b)/gi;
 const PARSE_DICT_SESSION = new RegExp(`\\s+(?=(?:(?:premiere|deuxieme|troisieme|quatrieme|cinquieme|1re|2e|3e|4e)\\s+seance|seances?\\s+(?:suivantes?|[a-z0-9]{1,3}\\b|push|pull|jambes|legs|haut|bas)|jour\\s+\\d|(?:${PARSE_DAYS})\\b))`, 'gi');
@@ -51,7 +52,7 @@ function planHeaderOf(line, read) {
   if (planHasWork(read.presc)) return null;
   const words = b.split(/[\s/+&,()-]+/).filter(Boolean);
   const label = planLabel(line);
-  if (PARSE_HEAD_RE.test(b) && words.length <= 9) return { label };
+  if (PARSE_HEAD_RE.test(b) && words.length <= 9) return { label, strong: true };
   if (words.length <= 6 && words.every(w => PARSE_SPLIT_WORDS.has(w))) return { label };
   // « PUSH », « JAMBES / FESSIERS » en capitales, ou une ligne courte finie par « : » qui n'est pas un exercice
   const letters = planTidy(line).replace(/[^A-Za-zÀ-ÿ]/g, '');
@@ -72,6 +73,15 @@ function planLabel(line) {
 
 // Morceau de dictée qui ne dit qu'une correction (« attends non », « euh pardon », « non plutôt »)
 const PARSE_CORRECTION = /^(?:(?:attends?|non|pardon|plutot|en fait|enfin|je veux dire|correction|oups|ah)\s*)+$/;
+function planNextIsTableHead(src, i) {
+  for (let j = i + 1; j < src.length && j <= i + 2; j++) if (src[j].trim()) return !!planTableHeader(src[j]);
+  return false;
+}
+function planRowNotDosed(row) {
+  if (!row || row.single) return false;
+  const vals = ['sets', 'reps', 'setsReps'].map(k => row[k]).filter(Boolean);
+  return vals.length > 0 && vals.every(v => !/\d|max|amrap|echec|échec/i.test(v)) && vals.some(v => /[a-zà-ÿ]{3}/i.test(v));
+}
 // Mot d'un en-tête de séance, au singulier ou au pluriel (« séances », « abdo »), écrit comme il est entendu par la
 // dictée (« d'eau » pour dos, « poule » pour pull : même prononciation, planPhon)
 let PARSE_SPLIT_PHON = null;
@@ -273,8 +283,18 @@ function planParse(text, { learned = null } = {}) {
     if (planNoiseLine(line)) { lineRec(line, 'note'); continue; }   // barre d'état, pied de page d'une capture
     // Tableau : en-tête, puis rangées jusqu'à la prochaine ligne vide ou sans colonnes
     const head = planTableHeader(line);
-    if (head) { table = { ...head, id: ++seq }; lineRec(line, 'table-head'); continue; }
+    if (head) {
+      table = { ...head, id: ++seq };
+      if (pendingNote?.at === i - 1) pendingNote.at = i;   // carte : le nom, l'en-tête des cases, puis les valeurs
+      lineRec(line, 'table-head');
+      continue;
+    }
     let text = line, fromTable = false, tableGroup = null, tableRest = false;
+    // Rangée dont les cases de séries et de reps ont des mots, sans chiffre ni « max » : le tableau est fini (fiche en cartes)
+    if (table && !table.schedule) {
+      const row0 = planRowCells(line, table);
+      if (planRowNotDosed(row0) || (row0?.single && planNextIsTableHead(src, i))) table = null;
+    }
     if (table) {
       const row = planRowCells(line, table);
       const keys = row ? Object.keys(row).filter(k => row[k] && k !== 'single' && k !== 'num') : [];
@@ -322,6 +342,8 @@ function planParse(text, { learned = null } = {}) {
         const cells = line.split('\t');
         if (cells.length === 2 && cells[0].trim() && planSplitOnly(planBare(cells[1])) && planMatchExercise(line, learned).score < 0.85
           && planMatchExercise(cells[0], learned).score >= 0.85) text = cells[0];
+        // Fiche en cartes : « CUISSES/FESSIERS	FENTES », l'étiquette du groupe musculaire puis le nom de l'exercice
+        else if (cells.length === 2 && /[a-zà-ÿ]{3}/i.test(cells[1]) && planSplitOnly(planBare(cells[0])) && !planHasWork(planReadLine(cells[1]).presc)) text = cells[1];
       }
     }
     const read = planReadLine(text);
@@ -348,7 +370,9 @@ function planParse(text, { learned = null } = {}) {
       lineRec(line, 'note');
       continue;
     }
-    const hd = fromTable ? null : planHeaderOf(text, read);
+    let hd = fromTable ? null : planHeaderOf(text, read);
+    // Nom en capitales posé sur l'en-tête de ses cases (« RELEVÉS DE BASSIN » puis « SÉRIES | RÉPÉTITIONS ») : un exercice
+    if (hd && !hd.rest && !hd.strong && !planSplitOnly(planBare(text)) && planNextIsTableHead(src, i)) hd = null;
     if (hd) {
       pendingName = null; ssOpen = null; block = null;
       if (hd.rest) { lineRec(line, 'rest-day'); session = null; skipSection = false; continue; }
@@ -358,7 +382,7 @@ function planParse(text, { learned = null } = {}) {
       // « Lundi : DC 4x8, squat 5x5 » : en-tête puis exercices sur la même ligne
       // Sous-titre d'une séance déjà nommée (« JOUR 1 » puis « PECTORAUX », « BICEPS ») : une partie de la séance, pas une
       // nouvelle séance ; sans en-tête fort au-dessus, ces sous-titres restent des séances (« PECTORAUX : », « DOS : »)
-      const strong = PARSE_HEAD_RE.test(b);
+      const strong = !!hd.strong;
       if (!strong && session?.strong && planSplitOnly(b)) { lineRec(line, 'note'); continue; }
       if (session && !session.items.length && !session.label) { session.label = hd.label; session.strong = strong; }
       else { session = { label: hd.label, src: line, items: [], strong }; draft.sessions.push(session); }
@@ -388,6 +412,8 @@ function planParse(text, { learned = null } = {}) {
         continue;
       }
     }
+    // « Début de la séance >> 10 minutes d'échauffement cardio » : une consigne d'échauffement, pas un exercice
+    if (!fromTable && PARSE_WARMUP_ANY.test(planBare(text)) && read.presc.sets === undefined && planMatchExercise(read.name, learned).score < 0.85) { lineRec(line, 'note'); continue; }
     if (PARSE_SKIP_SECTION_RE.test(planBare(text)) && !planWorkComplete(read.presc)) { lineRec(line, 'note'); if (/:\s*$/.test(text) || planBare(text).split(' ').length <= 2) skipSection = true; continue; }
     if (skipSection) { lineRec(line, 'note'); continue; }
     const pieces = fromTable ? [{ text, join: false }] : planSplitLine(text);
@@ -454,7 +480,7 @@ function planParse(text, { learned = null } = {}) {
       if (joinNext && prev && prev !== item) item.joinPrev = true;
       joinNext = false;
       if (ssOpen && ssOpen.left > 0) { item.ssKey = ssOpen.key; ssOpen.left--; if (!ssOpen.left) ssOpen = null; }
-      pendingName = work ? null : item;
+      pendingName = planHasWork(r.presc) ? null : item;   // un poste de circuit attend encore ses reps (fiche en cartes)
       lineRec(line, 'exercise', item);
     }
   }
