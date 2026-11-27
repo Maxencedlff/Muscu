@@ -257,6 +257,10 @@ def web_journey(browser, url, engine):
             imgs = page.evaluate("[...document.querySelectorAll('.ph-sec img')].map(i => [i.src.slice(0, 5), i.naturalWidth > 0, i.alt])")
             check(all(s == 'blob:' and ok for s, ok, _ in imgs), f'{tag} : images déchiffrées en blob: {imgs}')
             check(page.locator('.ph-h [role=columnheader]').count() == 3, f'{tag} : deux bilans côte à côte')
+            # Alignement (27/11/2026) : chaque titre de bilan au-dessus de sa colonne de photos, pas dans celle des poses
+            geo = page.evaluate("""() => { const L = el => Math.round(el.getBoundingClientRect().left);
+              return [[...document.querySelectorAll('.ph-h [role=columnheader]')].map(L), [...document.querySelector('.ph-r').children].map(L)]; }""")
+            check(geo[0] == geo[1], f'{tag} : titres alignés sur les colonnes {geo}')
             shot(page, f'4-photos-{engine}-{w}-{theme}')
             # IndexedDB : une seule entrée, la clé d'enveloppe non extractible, ni clé du coach ni secret du QR
             dump = idb_dump(page)

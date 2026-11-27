@@ -205,6 +205,14 @@ table.wk .wn { font-weight: 600; }
 .chart .ln { fill: none; stroke: var(--label); stroke-width: 1.6; stroke-linejoin: round; }
 .chart .pt { fill: var(--label); }
 .chart .pt.last { fill: var(--accent); }
+.ldc { position: relative; }   /* Charges par exercice (js/desk/loads.js) : couleur du texte, bulle au survol ou au toucher */
+.ldc svg { cursor: crosshair; touch-action: pan-y; }
+.ldc .pt.on { stroke: var(--label); stroke-opacity: .3; stroke-width: 6; }
+.ld-guide { stroke: var(--label3); stroke-width: .8; stroke-dasharray: 2 2; }
+.ld-tip { position: absolute; transform: translate(-50%, -100%); background: var(--label); color: var(--bg); font-size: 12.5px; font-weight: 600; padding: 5px 9px; border-radius: 8px; white-space: nowrap; pointer-events: none; }
+.ld-tip.below { transform: translate(-50%, 0); }
+.ld-sub { padding-bottom: 8px; }
+.ld-row { text-align: left; } .ld-row.on { font-weight: 600; } .ld-row .t2 { font-weight: 400; }
 
 /* ── Connexion ── */
 .login { min-height: 100vh; display: grid; place-items: center; padding: 32px 16px; outline: none; }

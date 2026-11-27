@@ -336,6 +336,30 @@ export default function ({ test, assert, ROOT }) {
     assert.match(c.desc, /^Poids du \d+ oct\. au 23 nov\. : de 63,2 à 61,8 kg, 3 pesées$/);
   });
 
+  test('coach web : charges par exercice, la logique de l\'app (exerciseLoadSeries), axe et description', () => {
+    assert.equal(run('typeof exerciseLoadSeries'), 'function', 'js/data/coach-ex-progress.js chargé tel quel');
+    const row = (k, kg, reps = 8) => ({ doneAt: T(k), s: { exercises: [{ name: 'Squat', measure: 'reps', sets: [{ weight: '40', reps: '10', warmup: true }, { weight: String(kg), reps: String(reps) }, { weight: String(kg - 5), reps: '10' }] },
+      { name: 'Pompes', measure: 'reps', sets: [{ weight: '', reps: '20' }] }] } });
+    const series = run(`exerciseLoadSeries(${J([row(1, 82.5, 6), row(8, 80), row(15, 77.5), row(120, 60)])}, ${NOW})`);
+    assert.equal(series.length, 1, 'sans charge (poids du corps) : pas de courbe');
+    assert.equal(series[0].points.length, 3, 'au-delà de 12 semaines : écartée');
+    const c = run(`deskLoadChart(${J(series[0])})`);
+    assert.equal(c.n, 3);
+    assert.equal(J(c.points.map(p => [p.kg, p.reps])), J([[77.5, 8], [80, 8], [82.5, 6]]), 'série la plus lourde, échauffement exclu');
+    assert.ok(c.points.every(p => p.x >= 4 && p.x <= c.right && p.y >= 8 && p.y <= c.h - 22));
+    assert.ok(c.ticks.every(t => t.kg % 2.5 === 0) && c.ticks[1].kg - c.ticks[0].kg === c.ticks[2].kg - c.ticks[1].kg && c.ticks[0].kg <= 77.5 && c.ticks[2].kg >= 82.5, `axe au pas de 2,5 kg ${J(c.ticks)}`);
+    assert.equal(J(c.change), J({ kg: 5, weeks: 2 }));
+    assert.match(c.desc, /^Squat, série la plus lourde de chaque séance, du \d+ nov\. au 23 nov\. : de 77,5 à 82,5 kg, 3 séances$/);
+    assert.equal(run(`deskLoadChart(${J({ ...series[0], points: series[0].points.slice(0, 1) })})`), null, 'une séance : pas de courbe');
+    const flat = run(`deskLoadChart(${J({ name: 'X', points: [{ date: T(9), kg: 2, reps: 8 }, { date: T(2), kg: 2, reps: 9 }] })})`);
+    assert.ok(flat.ticks[0].kg >= 0 && flat.ticks[2].kg - flat.ticks[0].kg >= 5, 'charge stable et légère : axe jamais sous 0');
+    const bad = '<img src=x onerror=alert(1)>';
+    const html = run(`deskLoadsHtml({ id: 'u"x', name: ${J(bad)} }, [${J({ ...series[0], key: bad, name: bad })}])`);
+    assert.ok(!html.includes('<img') && html.includes('&lt;img'), 'nom d\'exercice et pseudo échappés');
+    assert.ok(!/\sstyle=/.test(html), 'aucun attribut style (CSP)');
+    assert.match(html, /<div class="sr"><table>[\s\S]*<tbody>(<tr>[\s\S]*?<\/tr>){3}<\/tbody>/, 'tableau des séances pour les lecteurs d\'écran');
+  });
+
   // Faux client Supabase : réponses par fonction, appels notés
   const fakeSb = (answers) => run(`(() => { const calls = []; desk.user = { id: 'coach' };
     sb = { rpc: async (fn, args) => { calls.push([fn, args || null]); const a = (${answers})[fn]; return typeof a === 'function' ? a(args) : a || { data: null, error: { code: 'PGRST202', message: 'Could not find the function' } }; } };

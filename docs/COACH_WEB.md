@@ -25,6 +25,7 @@ coach-web/js/desk/google.js Se connecter avec Google (flux OAuth de Supabase ave
 coach-web/js/desk/qr.js, photo-device.js, photos.js   vague 5 : photos de bilan sur ordinateur (docs/PHOTOS_WEB.md)
 coach-web/js/desk/shell.js  cadre : barre latérale, barre d'onglets en bas, icônes, annonces
 coach-web/js/desk/dashboard.js, student.js   les deux écrans (gabarits HTML, tout texte reçu passe par esc())
+coach-web/js/desk/loads.js  bloc « Charges par exercice » de la fiche Semaines (courbe, bulle, liste des exercices)
 coach-web/js/desk/checkins-model.js  vague 2 : logique pure des bilans (éditeur, comparaison, colonnes, signal)
 coach-web/js/desk/templates.js       vague 2 : écran « Mes bilans » (#/bilans), éditeur, glisser-déposer
 coach-web/js/desk/review.js          vague 2 : onglet Bilans de la fiche, liste « Bilans reçus » (#/bilans-recus)
@@ -453,6 +454,19 @@ Le stress, le ressenti… viennent des bilans configurables (vague 2) ; les pas,
 données Santé (vague 3, ci-dessous).
 Courbe du poids sur 90 jours (SVG décrit pour les lecteurs d'écran), mensurations avec leur écart. Les onglets
 Bilans, Programme, Nutrition et Messages sont présents, désactivés et annoncés « bientôt ».
+
+**Charges par exercice** (27/11/2026, demande de Maxence ; `js/desk/loads.js`) : bloc du panneau de droite, sous le poids.
+Même courbe que la ligne « Charges par exercice » de la fiche élève de l'app iPhone : `exerciseLoadSeries` et
+`exerciseLoadChange` de `js/data/coach-ex-progress.js`, chargé tel quel (série de travail la plus lourde de chaque
+séance, sans l'échauffement, 12 semaines, exercices les plus faits d'abord), sur les séances que la fiche lit déjà
+(`coach_student_weeks`, aucun appel en plus). Géométrie : `deskLoadChart` (model.js, axe au pas de 2,5 kg), qui partage
+`deskLineGeom` avec la courbe du poids. Courbe dans la couleur du texte (l'orange reste aux boutons). Bulle « date ·
+charge × reps » au survol de la souris, au toucher (au clic, rien au pointerdown) et aux flèches du clavier (la courbe
+prend le focus ; Origine, Fin, Échap) ; texte alternatif de la courbe et tableau caché à l'œil (une ligne par séance)
+pour les lecteurs d'écran. Liste des exercices en boutons `aria-pressed` (6 d'abord, « Voir les N exercices »). Bulle
+placée par `el.style` (CSSOM) : la CSP n'autorise aucun attribut `style`. Tests : `tests/unit/coach-web.mjs`
+(`deskLoadChart`), `tests/test_coach_web.py` (`loads_journey` : courbe, bulle au survol et au clavier, choix d'un exercice,
+CSP, dans les trois moteurs).
 
 ## Serveur : `coach_student_weeks` (migration appliquée)
 
