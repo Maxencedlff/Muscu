@@ -188,10 +188,14 @@ def t_liens(bench, eng, dev, theme):
     with bench.page(eng, dev, theme) as page:
         t = tag(dev, theme)
         seed(page, theme, ppl_v2_today_json())
-        st = lambda: page.evaluate("""() => { const l = document.querySelector('.hero [data-action="edit-next-session"], .hero .hero__edit, .home-list__btn, .targets__edit');
-            const b = document.querySelector('.hero__btn'), lab = getComputedStyle(document.body).color;
+        # Bouton plein : « Démarrer » de l'accueil ; lien : « Créer un programme » (Ajouter un programme), pris dans la page
+        # de l'accueil restée dans la pile (même feuille de style)
+        st = lambda: page.evaluate("""() => { const l = document.querySelector('.prog-add .cell--action'), b = document.querySelector('.hero__btn') || window.__heroBtn;
+            const lab = getComputedStyle(document.body).color;
             return { link: l && getComputedStyle(l).color, weight: l && +getComputedStyle(l).fontWeight, label: lab, btn: b && getComputedStyle(b).backgroundColor,
                      btnText: b && getComputedStyle(b).color }; }""")
+        page.evaluate("window.__heroBtn = document.querySelector('.hero__btn').cloneNode(true); document.body.appendChild(window.__heroBtn); window.__heroBtn.style.position = 'fixed'; window.__heroBtn.style.top = '-200px'")
+        go(page, 'prog-add')
         s0 = st()
         want = 'rgb(202, 77, 16)' if theme == 'dark' else 'rgb(184, 70, 15)'
         R.check(s0['btn'] == want and s0['btnText'] == 'rgb(255, 255, 255)', f'{t} bouton plein orange, texte blanc {s0}')
@@ -202,7 +206,7 @@ def t_liens(bench, eng, dev, theme):
         shot(page, LOT, f'design_{t}')
         sw.click(); settle(page)
         R.check(page.evaluate("document.body.classList.contains('links-color') && data.design.links === true"), f'{t} Liens en couleur : allumé et enregistré')
-        go(page, 'dashboard')
+        go(page, 'prog-add')
         s1 = st()
         R.check(s1['link'] not in (s1['label'],) and s1['btn'] == want, f'{t} Liens en couleur : lien dans l\'accent {s1}')
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
