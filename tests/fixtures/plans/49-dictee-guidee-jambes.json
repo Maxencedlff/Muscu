@@ -1,0 +1,59 @@
+{
+  "id": "49-dictee-guidee-jambes",
+  "category": "dictee",
+  "description": "Mode guidé jambes : alternance exercice / prescription, « par jambe », gainage « 3 fois une minute » (60 s), tout en minuscules.",
+  "text": "squat\ncinq séries de cinq repos trois minutes\nfentes bulgares\n3 séries de 10 par jambe\nsoulevé de terre roumain\n4 fois 8\nleg curl\n3 fois 12\nmollets debout\nquatre séries de 20\ngainage\n3 fois une minute",
+  "expected": {
+    "title": null,
+    "sessions": [
+      {
+        "label": null,
+        "exercises": [
+          {
+            "line": "squat",
+            "name": "Squat barre",
+            "sets": 5,
+            "repMin": 5,
+            "repMax": 5,
+            "rest": 180
+          },
+          {
+            "line": "fentes bulgares",
+            "name": "Fentes bulgares",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "uni": true
+          },
+          {
+            "line": "soulevé de terre roumain",
+            "name": "Soulevé de terre roumain",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8
+          },
+          {
+            "line": "leg curl",
+            "name": "Leg curl machine",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "mollets debout",
+            "name": "Mollets debout",
+            "sets": 4,
+            "repMin": 20,
+            "repMax": 20
+          },
+          {
+            "line": "gainage",
+            "name": "Gainage (planche)",
+            "sets": 3,
+            "seconds": 60
+          }
+        ]
+      }
+    ]
+  }
+}

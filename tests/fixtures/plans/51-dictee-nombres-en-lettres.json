@@ -1,0 +1,80 @@
+{
+  "id": "51-dictee-nombres-en-lettres",
+  "category": "dictee",
+  "description": "Dictée où iOS a tout écrit en lettres (« trois séries de huit à dix », « deux minutes »), jours dictés comme titres de séance, drop set et « maximum ».",
+  "text": "lundi pectoraux développé couché barre trois séries de huit à dix repos deux minutes développé incliné haltères trois séries de dix à douze pec deck trois séries de quinze avec la dernière en drop set pompes deux séries maximum mardi dos tractions quatre séries de six rowing haltère trois séries de dix par bras tirage horizontal trois séries de douze pull over à la poulie trois séries de quinze",
+  "expected": {
+    "title": null,
+    "sessions": [
+      {
+        "label": "lundi pectoraux",
+        "exercises": [
+          {
+            "line": "développé couché barre trois séries",
+            "name": "Développé couché barre",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 10,
+            "rest": 120
+          },
+          {
+            "line": "développé incliné haltères trois séries",
+            "name": "Développé incliné haltères",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 12
+          },
+          {
+            "line": "pec deck trois séries de quinze",
+            "name": "Pec deck",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "tech": "drop",
+            "techWhere": "last"
+          },
+          {
+            "line": "pompes deux séries maximum",
+            "name": "Pompes",
+            "sets": 2,
+            "amrap": true
+          }
+        ]
+      },
+      {
+        "label": "mardi dos",
+        "exercises": [
+          {
+            "line": "tractions quatre séries de six",
+            "name": "Tractions pronation",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 6
+          },
+          {
+            "line": "rowing haltère trois séries de dix par bras",
+            "name": "Rowing haltère unilatéral",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "uni": true
+          },
+          {
+            "line": "tirage horizontal trois séries",
+            "name": "Tirage horizontal câble",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "pull over à la poulie",
+            "name": "Pull-over poulie",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          }
+        ]
+      }
+    ]
+  }
+}

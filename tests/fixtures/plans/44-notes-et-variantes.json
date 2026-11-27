@@ -1,0 +1,115 @@
+{
+  "id": "44-notes-et-variantes",
+  "category": "libre",
+  "description": "Plan de coach avec notes techniques entre parenthèses (dont « pause 1 s », « pause 2 s » à ne pas lire comme durées), un bi-set sur une ligne avec « / », et une variante de remplacement sans prescription à ignorer.",
+  "text": "Bloc hypertrophie – 6 semaines (by Coach Léa)\n\n>> HAUT A\n- Développé couché haltères 4 x 10 (prise neutre en fin de série si fatigue)\n- Tirage vertical prise large 4 x 10 (penser à descendre les épaules)\n- Développé militaire smith 3 x 10\n- Rowing poulie basse 3 x 12 (pause 1 s contre le ventre)\n- Élévations latérales poulie 3 x 15 par bras\n- Curl incliné 3 x 10 / Extension triceps poulie basse 3 x 10 en bi-set\n\n>> BAS A\n- Hack squat 4 x 8-10 (amplitude complète !!)\n  si la machine est prise : presse à cuisses\n- Soulevé de terre roumain 3 x 8\n- Leg curl machine 4 x 10-12\n- Extension quadriceps 3 x 12-15\n- Mollets debout 4 x 10 (pause 2 s en bas)\n- Crunch poulie 3 x 12",
+  "expected": {
+    "title": "Bloc hypertrophie – 6 semaines",
+    "sessions": [
+      {
+        "label": "HAUT A",
+        "exercises": [
+          {
+            "line": "- Développé couché haltères 4 x 10",
+            "name": "Développé couché haltères",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "- Tirage vertical prise large 4 x 10",
+            "name": "Tirage vertical prise large",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "- Développé militaire smith 3 x 10",
+            "name": "Développé militaire smith",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "- Rowing poulie basse 3 x 12",
+            "name": "Tirage horizontal câble",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "- Élévations latérales poulie 3 x 15",
+            "name": "Élévations latérales poulie",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "uni": true
+          },
+          {
+            "line": "- Curl incliné 3 x 10",
+            "name": "Curl incliné",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "ss": "A"
+          },
+          {
+            "line": "Extension triceps poulie basse 3 x 10",
+            "name": "Extension triceps poulie basse",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "ss": "A"
+          }
+        ]
+      },
+      {
+        "label": "BAS A",
+        "exercises": [
+          {
+            "line": "- Hack squat 4 x 8-10",
+            "name": "Hack squat",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 10
+          },
+          {
+            "line": "- Soulevé de terre roumain 3 x 8",
+            "name": "Soulevé de terre roumain",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 8
+          },
+          {
+            "line": "- Leg curl machine 4 x 10-12",
+            "name": "Leg curl machine",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 12
+          },
+          {
+            "line": "- Extension quadriceps 3 x 12-15",
+            "name": "Extension quadriceps",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 15
+          },
+          {
+            "line": "- Mollets debout 4 x 10",
+            "name": "Mollets debout",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "- Crunch poulie 3 x 12",
+            "name": "Crunch poulie",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          }
+        ]
+      }
+    ]
+  }
+}

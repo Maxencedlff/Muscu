@@ -1,0 +1,126 @@
+{
+  "id": "22-tableau-series-x-reps-fusionnees",
+  "category": "tableau",
+  "description": "Tableau à « | » sans bord gauche avec une colonne fusionnée « Séries x Reps » (4x8, 3xmax, 3x10/jambe) et l'unilatéral dans la colonne Notes.",
+  "text": "Upper / Lower – tableau\n\nHAUT DU CORPS\nExercice | Séries x Reps | Repos | Notes\nDéveloppé couché barre | 4x8 | 2 min |\nTractions pronation | 4x6-8 | 2 min | prise large\nDéveloppé militaire haltères | 3x10 | 90 s |\nRowing haltère unilatéral | 3x12 | 90 s | par bras\nÉcarté poulie vis-à-vis | 3x15 | 60 s |\nCurl marteau | 3x12 | 60 s |\nDips | 3xmax | 90 s | lestés si possible\n\nBAS DU CORPS\nExercice | Séries x Reps | Repos | Notes\nSquat barre | 5x5 | 3 min | descendre sous la parallèle\nSoulevé de terre roumain | 4x8 | 2 min |\nFentes marchées haltères | 3x10/jambe | 90 s |\nLeg curl machine | 3x12 | 60 s |\nMollets debout | 4x15 | 60 s |\nRelevés de jambes | 3x15 | 60 s |",
+  "expected": {
+    "title": "Upper / Lower – tableau",
+    "sessions": [
+      {
+        "label": "HAUT DU CORPS",
+        "exercises": [
+          {
+            "line": "Développé couché barre | 4x8",
+            "name": "Développé couché barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 120
+          },
+          {
+            "line": "Tractions pronation | 4x6-8",
+            "name": "Tractions pronation",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 8,
+            "rest": 120
+          },
+          {
+            "line": "Développé militaire haltères | 3x10",
+            "name": "Développé militaire haltères",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 90
+          },
+          {
+            "line": "Rowing haltère unilatéral | 3x12",
+            "name": "Rowing haltère unilatéral",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 90,
+            "uni": true
+          },
+          {
+            "line": "Écarté poulie vis-à-vis | 3x15",
+            "name": "Écarté poulie vis-à-vis",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          },
+          {
+            "line": "Curl marteau | 3x12",
+            "name": "Curl marteau",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 60
+          },
+          {
+            "line": "Dips | 3xmax",
+            "name": "Dips",
+            "sets": 3,
+            "amrap": true,
+            "rest": 90
+          }
+        ]
+      },
+      {
+        "label": "BAS DU CORPS",
+        "exercises": [
+          {
+            "line": "Squat barre | 5x5",
+            "name": "Squat barre",
+            "sets": 5,
+            "repMin": 5,
+            "repMax": 5,
+            "rest": 180
+          },
+          {
+            "line": "Soulevé de terre roumain | 4x8",
+            "name": "Soulevé de terre roumain",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 120
+          },
+          {
+            "line": "Fentes marchées haltères | 3x10/jambe",
+            "name": "Fentes marchées haltères",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 90,
+            "uni": true
+          },
+          {
+            "line": "Leg curl machine | 3x12",
+            "name": "Leg curl machine",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 60
+          },
+          {
+            "line": "Mollets debout | 4x15",
+            "name": "Mollets debout",
+            "sets": 4,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          },
+          {
+            "line": "Relevés de jambes | 3x15",
+            "name": "Relevés de jambes",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "id": "39-separateurs-melanges",
+  "category": "libre",
+  "description": "Une seule séance avec tous les séparateurs possibles (4*8, 4X10, 3×12, « 10 reps x 3 séries » inversé, « 3 sets de 15 », « 4 séries x 10 reps ») et repos 2', 1'30, 90''.",
+  "text": "Séance Dos (jeudi)\nTraction pronation 4*8 récup 2'\nRowing barre 4X10 1'30 de récup\nTirage horizontal poulie basse 10 reps x 3 séries, récup 90''\nPull over poulie 3 sets de 15\nRowing haltère 3×12 chaque bras, 1'30 de récup\nShrugs 4 x 12\nLombaires 3x20\nCurl barre EZ 4 séries x 10 reps\nCurl incliné 3x10-12\nCurl poulie 2 x 15 + 1 drop set",
+  "expected": {
+    "title": null,
+    "sessions": [
+      {
+        "label": "Séance Dos (jeudi)",
+        "exercises": [
+          {
+            "line": "Traction pronation 4*8",
+            "name": "Tractions pronation",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 120
+          },
+          {
+            "line": "Rowing barre 4X10",
+            "name": "Rowing barre",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 90
+          },
+          {
+            "line": "Tirage horizontal poulie basse",
+            "name": "Tirage horizontal câble",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 90
+          },
+          {
+            "line": "Pull over poulie",
+            "name": "Pull-over poulie",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "Rowing haltère 3×12",
+            "name": "Rowing haltère unilatéral",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 90,
+            "uni": true
+          },
+          {
+            "line": "Shrugs 4 x 12",
+            "name": "Haussements d'épaules haltères",
+            "sets": 4,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "Lombaires 3x20",
+            "name": "Extension lombaires",
+            "sets": 3,
+            "repMin": 20,
+            "repMax": 20
+          },
+          {
+            "line": "Curl barre EZ",
+            "name": "Curl biceps barre",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "Curl incliné 3x10-12",
+            "name": "Curl incliné",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 12
+          },
+          {
+            "line": "Curl poulie 2 x 15",
+            "name": "Curl poulie",
+            "sets": 2,
+            "repMin": 15,
+            "repMax": 15,
+            "tech": "drop",
+            "techWhere": "last"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,184 @@
+{
+  "id": "14-rpe-rir-tempo",
+  "category": "propre",
+  "description": "Bloc avec RPE (dont « 8,5 »), RIR (dont 0), tempos à tirets et compacts (« 3010 », « 30X0 » à rendre « 3-0-1-0 », « 3-0-X-0 ») et un top set + back-off.",
+  "text": "Bloc force-hypertrophie – RPE / RIR et tempo\nTempo = excentrique - pause en bas - concentrique - pause en haut. X = explosif.\n\nJour 1 – Squat / Bench\nSquat barre : top set 1 x 3 @ RPE 8, puis back-off 3 x 5 à -10 %\nDéveloppé couché barre : 4 x 6 @ RPE 8, tempo 3-1-1-0, repos 3 min\nSoulevé de terre roumain : 3 x 8, RIR 2, tempo 3010, repos 2 min\nDéveloppé couché prise serrée : 3 x 8, RIR 2, repos 2 min\nRowing haltère unilatéral : 3 x 10-12, RIR 1, repos 90 s\nLeg curl machine : 3 x 12, RIR 1, tempo 2-0-1-2\n\nJour 2 – Deadlift / OHP\nSoulevé de terre : 3 x 3 @ RPE 8,5, repos 4 min\nDéveloppé militaire barre : 4 x 5 @ RPE 8, repos 3 min\nTractions pronation : 4 x 6-8, RIR 2, tempo 2-0-1-1\nFentes bulgares : 3 x 10 par jambe, RIR 2\nÉlévations latérales : 3 x 15, RIR 0\nCurl biceps haltères : 3 x 12, RIR 1, tempo 3-0-1-0\n\nJour 3 – Volume\nSquat avant : 3 x 8 @ RPE 7, tempo 30X0, repos 3 min\nDéveloppé incliné haltères : 3 x 10, RIR 2, repos 2 min\nTirage horizontal câble : 3 x 12, RIR 2, tempo 2-1-1-1\nHip thrust : 3 x 10 @ RPE 8, repos 2 min\nExtension triceps poulie haute : 3 x 15, RIR 1\nFace pull : 3 x 20, RIR 3",
+  "expected": {
+    "title": "Bloc force-hypertrophie – RPE / RIR et tempo",
+    "sessions": [
+      {
+        "label": "Jour 1 – Squat / Bench",
+        "exercises": [
+          {
+            "line": "Squat barre : top set 1 x 3",
+            "name": "Squat barre",
+            "tech": "topback"
+          },
+          {
+            "line": "Développé couché barre : 4 x 6",
+            "name": "Développé couché barre",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 6,
+            "rest": 180,
+            "rpe": 8,
+            "tempo": "3-1-1-0"
+          },
+          {
+            "line": "Soulevé de terre roumain : 3 x 8",
+            "name": "Soulevé de terre roumain",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 120,
+            "rir": 2,
+            "tempo": "3-0-1-0"
+          },
+          {
+            "line": "Développé couché prise serrée : 3 x 8",
+            "name": "Développé couché prise serrée",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 120,
+            "rir": 2
+          },
+          {
+            "line": "Rowing haltère unilatéral : 3 x 10-12",
+            "name": "Rowing haltère unilatéral",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 12,
+            "rest": 90,
+            "rir": 1
+          },
+          {
+            "line": "Leg curl machine : 3 x 12",
+            "name": "Leg curl machine",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rir": 1,
+            "tempo": "2-0-1-2"
+          }
+        ]
+      },
+      {
+        "label": "Jour 2 – Deadlift / OHP",
+        "exercises": [
+          {
+            "line": "Soulevé de terre : 3 x 3",
+            "name": "Soulevé de terre",
+            "sets": 3,
+            "repMin": 3,
+            "repMax": 3,
+            "rest": 240,
+            "rpe": 8.5
+          },
+          {
+            "line": "Développé militaire barre : 4 x 5",
+            "name": "Développé militaire barre",
+            "sets": 4,
+            "repMin": 5,
+            "repMax": 5,
+            "rest": 180,
+            "rpe": 8
+          },
+          {
+            "line": "Tractions pronation : 4 x 6-8",
+            "name": "Tractions pronation",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 8,
+            "rir": 2,
+            "tempo": "2-0-1-1"
+          },
+          {
+            "line": "Fentes bulgares : 3 x 10",
+            "name": "Fentes bulgares",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rir": 2,
+            "uni": true
+          },
+          {
+            "line": "Élévations latérales : 3 x 15",
+            "name": "Élévations latérales",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rir": 0
+          },
+          {
+            "line": "Curl biceps haltères : 3 x 12",
+            "name": "Curl biceps haltères",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rir": 1,
+            "tempo": "3-0-1-0"
+          }
+        ]
+      },
+      {
+        "label": "Jour 3 – Volume",
+        "exercises": [
+          {
+            "line": "Squat avant : 3 x 8",
+            "name": "Squat avant",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 180,
+            "rpe": 7,
+            "tempo": "3-0-X-0"
+          },
+          {
+            "line": "Développé incliné haltères : 3 x 10",
+            "name": "Développé incliné haltères",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 120,
+            "rir": 2
+          },
+          {
+            "line": "Tirage horizontal câble : 3 x 12",
+            "name": "Tirage horizontal câble",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rir": 2,
+            "tempo": "2-1-1-1"
+          },
+          {
+            "line": "Hip thrust : 3 x 10",
+            "name": "Hip thrust",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 120,
+            "rpe": 8
+          },
+          {
+            "line": "Extension triceps poulie haute : 3 x 15",
+            "name": "Extension triceps poulie haute",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rir": 1
+          },
+          {
+            "line": "Face pull : 3 x 20",
+            "name": "Face pull",
+            "sets": 3,
+            "repMin": 20,
+            "repMax": 20,
+            "rir": 3
+          }
+        ]
+      }
+    ]
+  }
+}

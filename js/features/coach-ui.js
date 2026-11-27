@@ -987,6 +987,7 @@ function renderCoachStudent(uid) {
         ${coachPlanGroupHtml(uid)}
         <div class="group">
           <button class="cell cell--action" data-action="coach-send" data-uid="${esc(uid)}">${icon('paperplane', 20)}<span>Envoyer un programme</span></button>
+          <button class="cell cell--action" data-action="plan-import" data-uid="${esc(uid)}">${icon('square.and.arrow.down', 20)}<span>Importer un programme</span></button>
         </div>
         ${sent}
         ${coachCheckinSendHtml(uid)}

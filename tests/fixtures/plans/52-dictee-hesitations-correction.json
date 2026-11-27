@@ -1,0 +1,59 @@
+{
+  "id": "52-dictee-hesitations-correction",
+  "category": "dictee",
+  "description": "Dictée naturelle avec « euh », « bon alors », « voilà » et une auto-correction « 4 séries de 12 euh non pardon 4 séries de 10 » : c'est la seconde valeur qui compte.",
+  "text": "bon alors séance jambes euh on commence par la presse à cuisses 4 séries de 12 euh non pardon 4 séries de 10 repos 2 minutes ensuite extension quadriceps 3 fois 15 après le soulevé de terre roumain 3 séries de 8 avec la barre puis hip thrust 4 fois 10 ensuite squat goblet 3 fois 12 et à la fin mollets 4 séries de 15 voilà",
+  "expected": {
+    "title": null,
+    "sessions": [
+      {
+        "label": "jambes",
+        "exercises": [
+          {
+            "line": "la presse à cuisses 4 séries de 12",
+            "name": "Presse à cuisses",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 120
+          },
+          {
+            "line": "extension quadriceps 3 fois 15",
+            "name": "Extension quadriceps",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "le soulevé de terre roumain 3 séries de 8",
+            "name": "Soulevé de terre roumain",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 8
+          },
+          {
+            "line": "hip thrust 4 fois 10",
+            "name": "Hip thrust",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "squat goblet 3 fois 12",
+            "name": "Squat gobelet",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "mollets 4 séries de 15",
+            "name": "Mollets debout",
+            "sets": 4,
+            "repMin": 15,
+            "repMax": 15
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,138 @@
+{
+  "id": "32-fautes-orthographe",
+  "category": "libre",
+  "description": "Plan tapé avec beaucoup de fautes (« dévelopé couchée », « squatt », « tractions pronnation », « elevation latéral », « curl marto », « press a cuisse ») et « serie » sans s.",
+  "text": "programme de musculation 3 jours\n\njour 1\ndévelopé couchée 4 serie de 10\ndévelopé incliner haltere 3 serie de 12\nelevation latéral 4 serie de 15\nextention triceps a la poulie 3 serie de 12\npompe 3 serie au max\n\njour 2\nsquatt 4 serie de 8\npress a cuisse 3 serie de 12\nleg curl 3 serie de 12\nfente bulgare 3 serie de 10 par jambe\nmolet debout 4 serie de 20\n\njour 3\ntractions pronnation 4 serie de 6\nrowing bare 4 serie de 10\ntirage vertical 3 serie de 12\ncurl biceps haltere 3 serie de 12\ncurl marto 3 serie de 12\nabdo crunch 3 serie de 25",
+  "expected": {
+    "title": "programme de musculation 3 jours",
+    "sessions": [
+      {
+        "label": "jour 1",
+        "exercises": [
+          {
+            "line": "dévelopé couchée 4 serie de 10",
+            "name": "Développé couché barre",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "dévelopé incliner haltere",
+            "name": "Développé incliné haltères",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "elevation latéral",
+            "name": "Élévations latérales",
+            "sets": 4,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "extention triceps a la poulie",
+            "name": "Extension triceps poulie haute",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "pompe 3 serie au max",
+            "name": "Pompes",
+            "sets": 3,
+            "amrap": true
+          }
+        ]
+      },
+      {
+        "label": "jour 2",
+        "exercises": [
+          {
+            "line": "squatt 4 serie de 8",
+            "name": "Squat barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8
+          },
+          {
+            "line": "press a cuisse",
+            "name": "Presse à cuisses",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "leg curl 3 serie de 12",
+            "name": "Leg curl machine",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "fente bulgare",
+            "name": "Fentes bulgares",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "uni": true
+          },
+          {
+            "line": "molet debout",
+            "name": "Mollets debout",
+            "sets": 4,
+            "repMin": 20,
+            "repMax": 20
+          }
+        ]
+      },
+      {
+        "label": "jour 3",
+        "exercises": [
+          {
+            "line": "tractions pronnation",
+            "name": "Tractions pronation",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 6
+          },
+          {
+            "line": "rowing bare",
+            "name": "Rowing barre",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "tirage vertical 3 serie de 12",
+            "name": "Tirage vertical prise large",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "curl biceps haltere",
+            "name": "Curl biceps haltères",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "curl marto",
+            "name": "Curl marteau",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "abdo crunch",
+            "name": "Crunch",
+            "sets": 3,
+            "repMin": 25,
+            "repMax": 25
+          }
+        ]
+      }
+    ]
+  }
+}

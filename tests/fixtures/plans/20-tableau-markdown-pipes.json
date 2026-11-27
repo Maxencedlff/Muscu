@@ -1,0 +1,157 @@
+{
+  "id": "20-tableau-markdown-pipes",
+  "category": "tableau",
+  "description": "Tableaux Markdown (« | » et ligne |---|) sous des titres ###, colonnes Tempo et Notes, cellules « — », techniques écrites dans les notes.",
+  "text": "# Programme PPL – hypertrophie\n\n### Lundi – Push\n| Exercice | Séries | Reps | Repos | Tempo | Notes |\n|---|---|---|---|---|---|\n| Développé couché barre | 4 | 6-8 | 2'30 | 3-1-1 | |\n| Développé incliné haltères | 3 | 8-10 | 2' | 3-0-1 | |\n| Élévations latérales | 4 | 12-15 | 1' | 2-0-1 | dernière série en drop set |\n| Pec deck | 3 | 15 | 1' | — | |\n| Extension triceps corde nuque | 3 | 12 | 1' | — | |\n\n### Mercredi – Pull\n| Exercice | Séries | Reps | Repos | Tempo | Notes |\n|---|---|---|---|---|---|\n| Tractions pronation | 4 | max | 2' | — | lester si plus de 12 reps |\n| Rowing barre T | 4 | 8-10 | 2' | 2-0-1 | |\n| Tirage horizontal câble | 3 | 12 | 1'30 | — | |\n| Face pull | 3 | 15-20 | 1' | — | |\n| Curl incliné | 3 | 10-12 | 1' | — | rest-pause sur la dernière |\n\n### Vendredi – Legs\n| Exercice | Séries | Reps | Repos | Tempo | Notes |\n|---|---|---|---|---|---|\n| Squat barre | 4 | 5 | 3' | 3-1-1 | |\n| Hack squat | 3 | 10 | 2' | — | |\n| Soulevé de terre roumain | 3 | 8 | 2' | 3-0-1 | |\n| Extension quadriceps | 3 | 15 | 1' | — | drop set |\n| Mollets debout | 4 | 12 | 1' | — | |",
+  "expected": {
+    "title": "Programme PPL – hypertrophie",
+    "sessions": [
+      {
+        "label": "Lundi – Push",
+        "exercises": [
+          {
+            "line": "| Développé couché barre |",
+            "name": "Développé couché barre",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 8,
+            "rest": 150,
+            "tempo": "3-1-1"
+          },
+          {
+            "line": "| Développé incliné haltères |",
+            "name": "Développé incliné haltères",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 10,
+            "rest": 120,
+            "tempo": "3-0-1"
+          },
+          {
+            "line": "| Élévations latérales |",
+            "name": "Élévations latérales",
+            "sets": 4,
+            "repMin": 12,
+            "repMax": 15,
+            "rest": 60,
+            "tempo": "2-0-1",
+            "tech": "drop",
+            "techWhere": "last"
+          },
+          {
+            "line": "| Pec deck |",
+            "name": "Pec deck",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          },
+          {
+            "line": "| Extension triceps corde nuque |",
+            "name": "Extension triceps corde nuque",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 60
+          }
+        ]
+      },
+      {
+        "label": "Mercredi – Pull",
+        "exercises": [
+          {
+            "line": "| Tractions pronation |",
+            "name": "Tractions pronation",
+            "sets": 4,
+            "amrap": true,
+            "rest": 120
+          },
+          {
+            "line": "| Rowing barre T |",
+            "name": "Rowing barre T",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 10,
+            "rest": 120,
+            "tempo": "2-0-1"
+          },
+          {
+            "line": "| Tirage horizontal câble |",
+            "name": "Tirage horizontal câble",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 90
+          },
+          {
+            "line": "| Face pull |",
+            "name": "Face pull",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 20,
+            "rest": 60
+          },
+          {
+            "line": "| Curl incliné |",
+            "name": "Curl incliné",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 12,
+            "rest": 60,
+            "tech": "rp",
+            "techWhere": "last"
+          }
+        ]
+      },
+      {
+        "label": "Vendredi – Legs",
+        "exercises": [
+          {
+            "line": "| Squat barre |",
+            "name": "Squat barre",
+            "sets": 4,
+            "repMin": 5,
+            "repMax": 5,
+            "rest": 180,
+            "tempo": "3-1-1"
+          },
+          {
+            "line": "| Hack squat |",
+            "name": "Hack squat",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 120
+          },
+          {
+            "line": "| Soulevé de terre roumain |",
+            "name": "Soulevé de terre roumain",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 120,
+            "tempo": "3-0-1"
+          },
+          {
+            "line": "| Extension quadriceps |",
+            "name": "Extension quadriceps",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60,
+            "tech": "drop",
+            "techWhere": "last"
+          },
+          {
+            "line": "| Mollets debout |",
+            "name": "Mollets debout",
+            "sets": 4,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 60
+          }
+        ]
+      }
+    ]
+  }
+}

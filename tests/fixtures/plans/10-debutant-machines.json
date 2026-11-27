@@ -1,0 +1,149 @@
+{
+  "id": "10-debutant-machines",
+  "category": "propre",
+  "description": "Débutant tout en machines, repos donné une fois en tête « sauf indication » (non attaché) ; échauffement elliptique accepté ou ignoré, étirements ignorés.",
+  "text": "Programme débutant – 100 % machines\n2 séances par semaine, repos 1 min 30 entre les séries sauf indication.\n\nSéance 1\nÉchauffement : 10 min de vélo elliptique\nDéveloppé couché machine : 3 x 12\nTirage vertical prise large : 3 x 12\nPresse à cuisses : 3 x 15\nDéveloppé épaules machine : 3 x 12\nRowing machine : 3 x 12\nLeg curl machine : 3 x 12\nExtension quadriceps : 3 x 15\nCrunch machine : 3 x 15\nÉtirements 5 min\n\nSéance 2\nPec deck : 3 x 15\nTirage horizontal câble : 3 x 12\nHack squat : 3 x 12, repos 2 min\nÉlévations latérales machine : 3 x 15\nPec deck inversé : 3 x 15\nAbducteurs machine : 3 x 20, repos 1 min\nAdducteurs machine : 3 x 20, repos 1 min\nTractions assistées (machine) : 3 x 8\nDips assistés (machine) : 3 x 8",
+  "expected": {
+    "title": "Programme débutant – 100 % machines",
+    "sessions": [
+      {
+        "label": "Séance 1",
+        "exercises": [
+          {
+            "line": "Échauffement : 10 min de vélo elliptique",
+            "name": "Vélo elliptique",
+            "seconds": 600,
+            "optional": true
+          },
+          {
+            "line": "Développé couché machine : 3 x 12",
+            "name": "Développé couché machine",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "Tirage vertical prise large : 3 x 12",
+            "name": "Tirage vertical prise large",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "Presse à cuisses : 3 x 15",
+            "name": "Presse à cuisses",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "Développé épaules machine : 3 x 12",
+            "name": "Développé épaules machine",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "Rowing machine : 3 x 12",
+            "name": "Rowing machine",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "Leg curl machine : 3 x 12",
+            "name": "Leg curl machine",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "Extension quadriceps : 3 x 15",
+            "name": "Extension quadriceps",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "Crunch machine : 3 x 15",
+            "name": "Crunch machine",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          }
+        ]
+      },
+      {
+        "label": "Séance 2",
+        "exercises": [
+          {
+            "line": "Pec deck : 3 x 15",
+            "name": "Pec deck",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "Tirage horizontal câble : 3 x 12",
+            "name": "Tirage horizontal câble",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "Hack squat : 3 x 12",
+            "name": "Hack squat",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 120
+          },
+          {
+            "line": "Élévations latérales machine : 3 x 15",
+            "name": "Élévations latérales machine",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "Pec deck inversé : 3 x 15",
+            "name": "Pec deck inversé",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "Abducteurs machine : 3 x 20",
+            "name": "Abducteurs machine",
+            "sets": 3,
+            "repMin": 20,
+            "repMax": 20,
+            "rest": 60
+          },
+          {
+            "line": "Adducteurs machine : 3 x 20",
+            "name": "Adducteurs machine",
+            "sets": 3,
+            "repMin": 20,
+            "repMax": 20,
+            "rest": 60
+          },
+          {
+            "line": "Tractions assistées (machine) : 3 x 8",
+            "name": "Tractions assistées (machine)",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 8
+          },
+          {
+            "line": "Dips assistés (machine) : 3 x 8",
+            "name": "Dips assistés (machine)",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 8
+          }
+        ]
+      }
+    ]
+  }
+}

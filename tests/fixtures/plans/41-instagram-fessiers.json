@@ -1,0 +1,134 @@
+{
+  "id": "41-instagram-fessiers",
+  "category": "libre",
+  "description": "Programme fessiers recopié d'Instagram, mélange franglais (Day 1, Glutes), alias (RDL haltères, presse pieds écartés, abduction), « 3 sec de contraction » à ne pas lire comme durée.",
+  "text": "MON PROGRAMME BOOTY 🍑 (3x/semaine)\n\nDay 1 – Glutes & ischios\nHip thrust : 4 séries de 12 (3 sec de contraction en haut)\nRDL haltères : 3x12\nKickback poulie : 3x15/jambe\nAbduction machine : 4x20\nLeg curl allongé : 3x12\n\nDay 2 – Quadri & fessiers\nSquat smith : 4x10\nFentes bulgares : 3x10 de chaque côté\nPresse pieds écartés : 3x15\nLeg extension : 3x15 (dernière en drop set)\n\nDay 3 – Haut du corps + abdos\nTirage poitrine : 3x12\nDéveloppé haltères assis : 3x12\nRowing machine : 3x12\nÉlévations latérales : 3x15\nCrunch : 3x20\nPlanche : 3x40 sec",
+  "expected": {
+    "title": "MON PROGRAMME BOOTY",
+    "sessions": [
+      {
+        "label": "Day 1 – Glutes & ischios",
+        "exercises": [
+          {
+            "line": "Hip thrust : 4 séries de 12",
+            "name": "Hip thrust",
+            "sets": 4,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "RDL haltères : 3x12",
+            "name": "Soulevé de terre roumain haltères",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "Kickback poulie : 3x15/jambe",
+            "name": "Kickback fessier poulie",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "uni": true
+          },
+          {
+            "line": "Abduction machine : 4x20",
+            "name": "Abducteurs machine",
+            "sets": 4,
+            "repMin": 20,
+            "repMax": 20
+          },
+          {
+            "line": "Leg curl allongé : 3x12",
+            "name": "Leg curl machine",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          }
+        ]
+      },
+      {
+        "label": "Day 2 – Quadri & fessiers",
+        "exercises": [
+          {
+            "line": "Squat smith : 4x10",
+            "name": "Squat smith",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "Fentes bulgares : 3x10",
+            "name": "Fentes bulgares",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "uni": true
+          },
+          {
+            "line": "Presse pieds écartés : 3x15",
+            "name": "Presse à cuisses sumo",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "Leg extension : 3x15",
+            "name": "Extension quadriceps",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "tech": "drop",
+            "techWhere": "last"
+          }
+        ]
+      },
+      {
+        "label": "Day 3 – Haut du corps + abdos",
+        "exercises": [
+          {
+            "line": "Tirage poitrine : 3x12",
+            "name": "Tirage vertical prise large",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "Développé haltères assis : 3x12",
+            "name": "Développé militaire haltères",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "Rowing machine : 3x12",
+            "name": "Rowing machine",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "Élévations latérales : 3x15",
+            "name": "Élévations latérales",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "Crunch : 3x20",
+            "name": "Crunch",
+            "sets": 3,
+            "repMin": 20,
+            "repMax": 20
+          },
+          {
+            "line": "Planche : 3x40 sec",
+            "name": "Gainage (planche)",
+            "sets": 3,
+            "seconds": 40
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,132 @@
+{
+  "id": "38-echauffement-a-ignorer",
+  "category": "libre",
+  "description": "Programme de force en % où chaque séance contient des lignes « Échauffement : 2 séries légères » (à ignorer, pas des exercices), une variante « Squat pause » rattachée au squat, gainage « 45\" ».",
+  "text": "Programme force – 3 jours\n\nLundi – Squat\nÉchauffement : 2 séries légères\nSquat barre 5x3 à 80 % – repos 4 min\nSquat pause 3x5 à 65 %\nPresse à cuisses 3x10\nLeg curl 3x10\nÉchauffement : vélo 5 min puis 2 séries légères de chaque\n\nMercredi – Bench\nÉchauffement : 2 séries à vide\nDéveloppé couché 5x3 à 80 % – repos 3 min\nDéveloppé couché prise serrée 3x6 à 70 %\nRowing barre 4x8\nDips lestés 3x8\nFace pull 3x15\n\nVendredi – Deadlift\nÉchauffement : 3 séries progressives\nSoulevé de terre 4x2 à 85 % – repos 4 min\nRack pull 3x4 à 90 %\nTractions 4x6\nHip thrust 3x10\nGainage 3x45\"",
+  "expected": {
+    "title": "Programme force – 3 jours",
+    "sessions": [
+      {
+        "label": "Lundi – Squat",
+        "exercises": [
+          {
+            "line": "Squat barre 5x3",
+            "name": "Squat barre",
+            "sets": 5,
+            "repMin": 3,
+            "repMax": 3,
+            "rest": 240,
+            "pct": 80
+          },
+          {
+            "line": "Squat pause 3x5",
+            "name": "Squat barre",
+            "sets": 3,
+            "repMin": 5,
+            "repMax": 5,
+            "pct": 65
+          },
+          {
+            "line": "Presse à cuisses 3x10",
+            "name": "Presse à cuisses",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "Leg curl 3x10",
+            "name": "Leg curl machine",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10
+          }
+        ]
+      },
+      {
+        "label": "Mercredi – Bench",
+        "exercises": [
+          {
+            "line": "Développé couché 5x3",
+            "name": "Développé couché barre",
+            "sets": 5,
+            "repMin": 3,
+            "repMax": 3,
+            "rest": 180,
+            "pct": 80
+          },
+          {
+            "line": "Développé couché prise serrée 3x6",
+            "name": "Développé couché prise serrée",
+            "sets": 3,
+            "repMin": 6,
+            "repMax": 6,
+            "pct": 70
+          },
+          {
+            "line": "Rowing barre 4x8",
+            "name": "Rowing barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8
+          },
+          {
+            "line": "Dips lestés 3x8",
+            "name": "Dips",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 8
+          },
+          {
+            "line": "Face pull 3x15",
+            "name": "Face pull",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          }
+        ]
+      },
+      {
+        "label": "Vendredi – Deadlift",
+        "exercises": [
+          {
+            "line": "Soulevé de terre 4x2",
+            "name": "Soulevé de terre",
+            "sets": 4,
+            "repMin": 2,
+            "repMax": 2,
+            "rest": 240,
+            "pct": 85
+          },
+          {
+            "line": "Rack pull 3x4",
+            "name": "Rack pull",
+            "sets": 3,
+            "repMin": 4,
+            "repMax": 4,
+            "pct": 90
+          },
+          {
+            "line": "Tractions 4x6",
+            "name": "Tractions pronation",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 6
+          },
+          {
+            "line": "Hip thrust 3x10",
+            "name": "Hip thrust",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "Gainage 3x45",
+            "name": "Gainage (planche)",
+            "sets": 3,
+            "seconds": 45
+          }
+        ]
+      }
+    ]
+  }
+}

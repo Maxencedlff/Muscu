@@ -1,0 +1,136 @@
+{
+  "id": "28-tableau-pipes-toutes-colonnes",
+  "category": "tableau",
+  "description": "Tableau « | » complet (Exercice, Séries, Reps, Repos, Charge, Tempo, Notes) où les titres de séance sont des lignes du tableau, « PDC » = pas de charge, et un superset signalé dans la colonne Notes.",
+  "text": "| Jour 1 : Haut |  |  |  |  |  |  |\n| Exercice | Séries | Reps | Repos | Charge | Tempo | Notes |\n| Développé couché barre | 4 | 6 | 2 min 30 | 85 kg | 3-1-1 |  |\n| Développé incliné haltères | 3 | 10 | 2 min | 30 kg | 3-0-1 |  |\n| Tractions pronation | 4 | 8 | 2 min | PDC |  |  |\n| Rowing haltère unilatéral | 3 | 10 | 1 min 30 | 34 kg |  | par bras |\n| Curl biceps barre | 3 | 10 | 0 | 30 kg |  | superset avec la ligne suivante |\n| Barre au front | 3 | 10 | 1 min 30 | 30 kg |  |  |\n| Jour 2 : Bas |  |  |  |  |  |  |\n| Exercice | Séries | Reps | Repos | Charge | Tempo | Notes |\n| Squat barre | 4 | 6 | 3 min | 110 kg | 3-1-1 |  |\n| Soulevé de terre roumain | 3 | 8 | 2 min | 90 kg | 3-0-1 |  |\n| Presse à cuisses | 3 | 12 | 2 min | 200 kg |  |  |\n| Leg curl machine | 3 | 12 | 1 min | 45 kg |  | drop set sur la dernière |\n| Mollets debout | 4 | 15 | 1 min | 60 kg | 2-1-1 |  |\n| Gainage (planche) | 3 | 60 s | 1 min |  |  |  |",
+  "expected": {
+    "title": null,
+    "sessions": [
+      {
+        "label": "Jour 1 : Haut",
+        "exercises": [
+          {
+            "line": "| Développé couché barre |",
+            "name": "Développé couché barre",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 6,
+            "rest": 150,
+            "load": 85,
+            "tempo": "3-1-1"
+          },
+          {
+            "line": "| Développé incliné haltères |",
+            "name": "Développé incliné haltères",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 120,
+            "load": 30,
+            "tempo": "3-0-1"
+          },
+          {
+            "line": "| Tractions pronation |",
+            "name": "Tractions pronation",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 120
+          },
+          {
+            "line": "| Rowing haltère unilatéral |",
+            "name": "Rowing haltère unilatéral",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 90,
+            "load": 34,
+            "uni": true
+          },
+          {
+            "line": "| Curl biceps barre |",
+            "name": "Curl biceps barre",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 0,
+            "load": 30,
+            "ss": "A"
+          },
+          {
+            "line": "| Barre au front |",
+            "name": "Barre au front",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 90,
+            "load": 30,
+            "ss": "A"
+          }
+        ]
+      },
+      {
+        "label": "Jour 2 : Bas",
+        "exercises": [
+          {
+            "line": "| Squat barre |",
+            "name": "Squat barre",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 6,
+            "rest": 180,
+            "load": 110,
+            "tempo": "3-1-1"
+          },
+          {
+            "line": "| Soulevé de terre roumain |",
+            "name": "Soulevé de terre roumain",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 120,
+            "load": 90,
+            "tempo": "3-0-1"
+          },
+          {
+            "line": "| Presse à cuisses |",
+            "name": "Presse à cuisses",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 120,
+            "load": 200
+          },
+          {
+            "line": "| Leg curl machine |",
+            "name": "Leg curl machine",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 60,
+            "load": 45,
+            "tech": "drop",
+            "techWhere": "last"
+          },
+          {
+            "line": "| Mollets debout |",
+            "name": "Mollets debout",
+            "sets": 4,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60,
+            "load": 60,
+            "tempo": "2-1-1"
+          },
+          {
+            "line": "| Gainage (planche) |",
+            "name": "Gainage (planche)",
+            "sets": 3,
+            "seconds": 60,
+            "rest": 60
+          }
+        ]
+      }
+    ]
+  }
+}

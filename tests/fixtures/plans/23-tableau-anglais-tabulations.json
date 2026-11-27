@@ -1,0 +1,119 @@
+{
+  "id": "23-tableau-anglais-tabulations",
+  "category": "tableau",
+  "description": "Google Sheets en anglais (Exercise Sets Reps Rest Notes) à tabulations, repos au format « 2:00 » / « 90s », AMRAP, « each leg » et drop set dans les notes.",
+  "text": "Upper Lower Split\nDay 1 - Upper\nExercise\tSets\tReps\tRest\tNotes\nBarbell Bench Press\t4\t6-8\t2:00\t\nPull-Ups\t4\tAMRAP\t2:00\t\nSeated Dumbbell Press\t3\t10\t1:30\t\nCable Row\t3\t12\t90s\t\nLateral Raise\t3\t15\t60s\t\nRope Pushdown\t3\t12\t60s\tdrop set on last set\n\nDay 2 - Lower\nExercise\tSets\tReps\tRest\tNotes\nBack Squat\t4\t5\t3:00\t\nRomanian Deadlift\t3\t8\t2:00\t\nBulgarian Split Squat\t3\t10\t1:30\teach leg\nLeg Extension\t3\t15\t60s\t\nHamstring Curl\t3\t12\t60s\t\nStanding Calf Raise\t4\t12\t60s\t",
+  "expected": {
+    "title": "Upper Lower Split",
+    "sessions": [
+      {
+        "label": "Day 1 - Upper",
+        "exercises": [
+          {
+            "line": "Barbell Bench Press",
+            "name": "Développé couché barre",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 8,
+            "rest": 120
+          },
+          {
+            "line": "Pull-Ups",
+            "name": "Tractions pronation",
+            "sets": 4,
+            "amrap": true,
+            "rest": 120
+          },
+          {
+            "line": "Seated Dumbbell Press",
+            "name": "Développé militaire haltères",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 90
+          },
+          {
+            "line": "Cable Row",
+            "name": "Tirage horizontal câble",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 90
+          },
+          {
+            "line": "Lateral Raise",
+            "name": "Élévations latérales",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          },
+          {
+            "line": "Rope Pushdown",
+            "name": "Extension triceps poulie haute",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 60,
+            "tech": "drop",
+            "techWhere": "last"
+          }
+        ]
+      },
+      {
+        "label": "Day 2 - Lower",
+        "exercises": [
+          {
+            "line": "Back Squat",
+            "name": "Squat barre",
+            "sets": 4,
+            "repMin": 5,
+            "repMax": 5,
+            "rest": 180
+          },
+          {
+            "line": "Romanian Deadlift",
+            "name": "Soulevé de terre roumain",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 120
+          },
+          {
+            "line": "Bulgarian Split Squat",
+            "name": "Fentes bulgares",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 90,
+            "uni": true
+          },
+          {
+            "line": "Leg Extension",
+            "name": "Extension quadriceps",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          },
+          {
+            "line": "Hamstring Curl",
+            "name": "Leg curl machine",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 60
+          },
+          {
+            "line": "Standing Calf Raise",
+            "name": "Mollets debout",
+            "sets": 4,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 60
+          }
+        ]
+      }
+    ]
+  }
+}

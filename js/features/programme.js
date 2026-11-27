@@ -277,9 +277,9 @@ function renderProgAdd() {
             ${icon('chevron.right', 16)}
           </button>
           <button class="cell cell--action" data-action="new-programme">${icon('plus', 20)}<span>Créer un programme</span></button>
-          <button class="cell cell--action prog-add__import" data-action="import-other-app">${icon('square.and.arrow.down', 20)}<span>Importer depuis Hevy ou Strong</span></button>
+          <button class="cell cell--action prog-add__import" data-action="plan-import">${icon('square.and.arrow.down', 20)}<span>Importer un programme</span></button>
         </div>
-        <div class="group-foot">« Créer un programme » part de zéro ou d'un programme existant. L'import reprend tes séances et en fait un programme.</div>
+        <div class="group-foot">« Créer un programme » part de zéro ou d'un programme existant. « Importer » lit un programme que tu as déjà : un texte, un PDF, ou tes séances de Hevy ou Strong.</div>
         <div class="group-title">Tous les programmes</div>
         <div class="group">${catalogueProgrammeIds().map(row).join('')}</div>
       </div>

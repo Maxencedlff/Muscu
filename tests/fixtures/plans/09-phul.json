@@ -1,0 +1,207 @@
+{
+  "id": "09-phul",
+  "category": "propre",
+  "description": "PHUL 4 jours, une consigne de repos générale en tête (« 3 à 5 min sur les mouvements de force ») qui ne doit être attachée à aucun exercice.",
+  "text": "PHUL – Power Hypertrophy Upper Lower\n\nRepos : 3 à 5 min sur les mouvements de force, 1 à 2 min sur le reste.\n\nLundi – Haut force\nDéveloppé couché barre 4x3-5\nDéveloppé incliné haltères 4x6-10\nRowing barre 4x3-5\nTirage vertical prise large 4x6-10\nDéveloppé militaire barre 3x5-8\nCurl biceps barre 3x6-10\nBarre au front 3x6-10\n\nMardi – Bas force\nSquat barre 4x3-5\nSoulevé de terre 3x3-5\nPresse à cuisses 4x10-15\nLeg curl machine 4x6-10\nMollets debout 4x6-10\n\nJeudi – Haut hypertrophie\nDéveloppé incliné barre 4x8-12\nÉcarté haltères plat 3x8-12\nTirage horizontal câble 4x8-12\nRowing haltère unilatéral 3x8-12\nÉlévations latérales 3x8-12\nCurl incliné 3x8-12\nExtension triceps poulie haute 3x8-12\n\nVendredi – Bas hypertrophie\nSquat avant 4x8-12\nFentes bulgares 3x8-12 par jambe\nExtension quadriceps 3x10-15\nLeg curl machine 3x10-15\nMollets assis 4x8-12\nMollets debout 3x8-12",
+  "expected": {
+    "title": "PHUL – Power Hypertrophy Upper Lower",
+    "sessions": [
+      {
+        "label": "Lundi – Haut force",
+        "exercises": [
+          {
+            "line": "Développé couché barre 4x3-5",
+            "name": "Développé couché barre",
+            "sets": 4,
+            "repMin": 3,
+            "repMax": 5
+          },
+          {
+            "line": "Développé incliné haltères 4x6-10",
+            "name": "Développé incliné haltères",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 10
+          },
+          {
+            "line": "Rowing barre 4x3-5",
+            "name": "Rowing barre",
+            "sets": 4,
+            "repMin": 3,
+            "repMax": 5
+          },
+          {
+            "line": "Tirage vertical prise large 4x6-10",
+            "name": "Tirage vertical prise large",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 10
+          },
+          {
+            "line": "Développé militaire barre 3x5-8",
+            "name": "Développé militaire barre",
+            "sets": 3,
+            "repMin": 5,
+            "repMax": 8
+          },
+          {
+            "line": "Curl biceps barre 3x6-10",
+            "name": "Curl biceps barre",
+            "sets": 3,
+            "repMin": 6,
+            "repMax": 10
+          },
+          {
+            "line": "Barre au front 3x6-10",
+            "name": "Barre au front",
+            "sets": 3,
+            "repMin": 6,
+            "repMax": 10
+          }
+        ]
+      },
+      {
+        "label": "Mardi – Bas force",
+        "exercises": [
+          {
+            "line": "Squat barre 4x3-5",
+            "name": "Squat barre",
+            "sets": 4,
+            "repMin": 3,
+            "repMax": 5
+          },
+          {
+            "line": "Soulevé de terre 3x3-5",
+            "name": "Soulevé de terre",
+            "sets": 3,
+            "repMin": 3,
+            "repMax": 5
+          },
+          {
+            "line": "Presse à cuisses 4x10-15",
+            "name": "Presse à cuisses",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 15
+          },
+          {
+            "line": "Leg curl machine 4x6-10",
+            "name": "Leg curl machine",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 10
+          },
+          {
+            "line": "Mollets debout 4x6-10",
+            "name": "Mollets debout",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 10
+          }
+        ]
+      },
+      {
+        "label": "Jeudi – Haut hypertrophie",
+        "exercises": [
+          {
+            "line": "Développé incliné barre 4x8-12",
+            "name": "Développé incliné barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 12
+          },
+          {
+            "line": "Écarté haltères plat 3x8-12",
+            "name": "Écarté haltères plat",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 12
+          },
+          {
+            "line": "Tirage horizontal câble 4x8-12",
+            "name": "Tirage horizontal câble",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 12
+          },
+          {
+            "line": "Rowing haltère unilatéral 3x8-12",
+            "name": "Rowing haltère unilatéral",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 12
+          },
+          {
+            "line": "Élévations latérales 3x8-12",
+            "name": "Élévations latérales",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 12
+          },
+          {
+            "line": "Curl incliné 3x8-12",
+            "name": "Curl incliné",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 12
+          },
+          {
+            "line": "Extension triceps poulie haute 3x8-12",
+            "name": "Extension triceps poulie haute",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 12
+          }
+        ]
+      },
+      {
+        "label": "Vendredi – Bas hypertrophie",
+        "exercises": [
+          {
+            "line": "Squat avant 4x8-12",
+            "name": "Squat avant",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 12
+          },
+          {
+            "line": "Fentes bulgares 3x8-12",
+            "name": "Fentes bulgares",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 12,
+            "uni": true
+          },
+          {
+            "line": "Extension quadriceps 3x10-15",
+            "name": "Extension quadriceps",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 15
+          },
+          {
+            "line": "Leg curl machine 3x10-15",
+            "name": "Leg curl machine",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 15
+          },
+          {
+            "line": "Mollets assis 4x8-12",
+            "name": "Mollets assis",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 12
+          },
+          {
+            "line": "Mollets debout 3x8-12",
+            "name": "Mollets debout",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 12
+          }
+        ]
+      }
+    ]
+  }
+}

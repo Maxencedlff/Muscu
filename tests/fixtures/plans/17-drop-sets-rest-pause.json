@@ -1,0 +1,128 @@
+{
+  "id": "17-drop-sets-rest-pause",
+  "category": "propre",
+  "description": "Techniques d'intensité : drop set dernière/toutes/sans précision, « dégressif/dégressive », rest-pause dernière/toutes/sans précision, cluster et top set + back-off.",
+  "text": "Techniques d'intensification – 2 séances\n\nPecs / Épaules\nDéveloppé couché barre : 4 x 6-8, repos 2 min 30\nDéveloppé incliné haltères : 3 x 10, dernière série en drop set\nPec deck : 3 x 12, toutes les séries en rest-pause\nÉlévations latérales : 4 x 15, drop set\nDéveloppé épaules machine : 3 x 10, rest-pause sur la dernière série\nExtension triceps poulie haute : 3 x 12, dégressif sur les 2 dernières séries\n\nDos / Bras\nSoulevé de terre : top set de 5 @ RPE 9 puis 2 séries de back-off à -10 %\nTractions pronation : 4 x max, repos 2 min\nRowing barre : 4 x 8 en cluster (4+4, 15 s de pause)\nTirage vertical prise serrée : 3 x 10, dernière en dégressive\nCurl biceps barre : 3 x 10, rest-pause\nCurl marteau : 3 x 12, dégressive\nKickback triceps : 3 x 15, drop set à chaque série",
+  "expected": {
+    "title": "Techniques d'intensification – 2 séances",
+    "sessions": [
+      {
+        "label": "Pecs / Épaules",
+        "exercises": [
+          {
+            "line": "Développé couché barre : 4 x 6-8",
+            "name": "Développé couché barre",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 8,
+            "rest": 150
+          },
+          {
+            "line": "Développé incliné haltères : 3 x 10",
+            "name": "Développé incliné haltères",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "tech": "drop",
+            "techWhere": "last"
+          },
+          {
+            "line": "Pec deck : 3 x 12",
+            "name": "Pec deck",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "tech": "rp",
+            "techWhere": "all"
+          },
+          {
+            "line": "Élévations latérales : 4 x 15",
+            "name": "Élévations latérales",
+            "sets": 4,
+            "repMin": 15,
+            "repMax": 15,
+            "tech": "drop",
+            "techWhere": "last"
+          },
+          {
+            "line": "Développé épaules machine : 3 x 10",
+            "name": "Développé épaules machine",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "tech": "rp",
+            "techWhere": "last"
+          },
+          {
+            "line": "Extension triceps poulie haute : 3 x 12",
+            "name": "Extension triceps poulie haute",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "tech": "drop"
+          }
+        ]
+      },
+      {
+        "label": "Dos / Bras",
+        "exercises": [
+          {
+            "line": "Soulevé de terre : top set de 5",
+            "name": "Soulevé de terre",
+            "tech": "topback"
+          },
+          {
+            "line": "Tractions pronation : 4 x max",
+            "name": "Tractions pronation",
+            "sets": 4,
+            "amrap": true,
+            "rest": 120
+          },
+          {
+            "line": "Rowing barre : 4 x 8 en cluster",
+            "name": "Rowing barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8,
+            "tech": "cluster"
+          },
+          {
+            "line": "Tirage vertical prise serrée : 3 x 10",
+            "name": "Tirage vertical prise serrée",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "tech": "drop",
+            "techWhere": "last"
+          },
+          {
+            "line": "Curl biceps barre : 3 x 10",
+            "name": "Curl biceps barre",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "tech": "rp"
+          },
+          {
+            "line": "Curl marteau : 3 x 12",
+            "name": "Curl marteau",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "tech": "drop",
+            "techWhere": "last"
+          },
+          {
+            "line": "Kickback triceps : 3 x 15",
+            "name": "Kickback triceps",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "tech": "drop",
+            "techWhere": "all"
+          }
+        ]
+      }
+    ]
+  }
+}

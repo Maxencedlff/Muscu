@@ -1,0 +1,123 @@
+{
+  "id": "29-tableau-anglais-espaces",
+  "category": "tableau",
+  "description": "Export PDF d'une appli américaine : en-tête « Exercise Sets Reps Rest » aligné par espaces, abréviation « DB », chin-ups en AMRAP, planche « 45 sec » dans la colonne Reps.",
+  "text": "5x5 BEGINNER PROGRAM\n\nWORKOUT A\nExercise              Sets    Reps      Rest\nBarbell Squat         3       5         3 min\nFlat Bench Press      3       5         3 min\nBent Over Row         3       8         2 min\nIncline DB Press      3       10        90 sec\nLat Pulldown          3       10        90 sec\nPlank                 3       45 sec    60 sec\n\nWORKOUT B\nExercise              Sets    Reps      Rest\nDeadlift              1       5         3 min\nOverhead Press        3       5         3 min\nChin-ups              3       AMRAP     2 min\nLeg Press             3       12        2 min\nHip Thrust            3       10        90 sec\nHammer Curl           3       12        60 sec\nCable Crunch          3       15        60 sec",
+  "expected": {
+    "title": "5x5 BEGINNER PROGRAM",
+    "sessions": [
+      {
+        "label": "WORKOUT A",
+        "exercises": [
+          {
+            "line": "Barbell Squat",
+            "name": "Squat barre",
+            "sets": 3,
+            "repMin": 5,
+            "repMax": 5,
+            "rest": 180
+          },
+          {
+            "line": "Flat Bench Press",
+            "name": "Développé couché barre",
+            "sets": 3,
+            "repMin": 5,
+            "repMax": 5,
+            "rest": 180
+          },
+          {
+            "line": "Bent Over Row",
+            "name": "Rowing barre",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 120
+          },
+          {
+            "line": "Incline DB Press",
+            "name": "Développé incliné haltères",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 90
+          },
+          {
+            "line": "Lat Pulldown",
+            "name": "Tirage vertical prise large",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 90
+          },
+          {
+            "line": "Plank",
+            "name": "Gainage (planche)",
+            "sets": 3,
+            "seconds": 45,
+            "rest": 60
+          }
+        ]
+      },
+      {
+        "label": "WORKOUT B",
+        "exercises": [
+          {
+            "line": "Deadlift",
+            "name": "Soulevé de terre",
+            "sets": 1,
+            "repMin": 5,
+            "repMax": 5,
+            "rest": 180
+          },
+          {
+            "line": "Overhead Press",
+            "name": "Développé militaire barre",
+            "sets": 3,
+            "repMin": 5,
+            "repMax": 5,
+            "rest": 180
+          },
+          {
+            "line": "Chin-ups",
+            "name": "Tractions supination",
+            "sets": 3,
+            "amrap": true,
+            "rest": 120
+          },
+          {
+            "line": "Leg Press",
+            "name": "Presse à cuisses",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 120
+          },
+          {
+            "line": "Hip Thrust",
+            "name": "Hip thrust",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 90
+          },
+          {
+            "line": "Hammer Curl",
+            "name": "Curl marteau",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 60
+          },
+          {
+            "line": "Cable Crunch",
+            "name": "Crunch poulie",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          }
+        ]
+      }
+    ]
+  }
+}

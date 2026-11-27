@@ -1,0 +1,69 @@
+{
+  "id": "46-dictee-full-body-points",
+  "category": "dictee",
+  "description": "Dictée avec quelques points ajoutés par iOS, « 3 fois par semaine » qui n'est pas une prescription, « pareil 3 minutes » (repos repris), « une minute 30 », superset annoncé après coup.",
+  "text": "Alors programme full body 3 fois par semaine. On commence par le squat 5 séries de cinq avec 3 minutes de repos. Ensuite développé coucher 5 fois 5 pareil 3 minutes. Après rowing barre 4 séries de 8. Puis développer militaire 3 fois 10 repos une minute 30. Ensuite curl biceps à la barre 3 fois 12 et extension triceps à la poulie 3 fois 12 en superset. Et pour finir gainage 3 fois 45 secondes.",
+  "expected": {
+    "title": null,
+    "sessions": [
+      {
+        "label": null,
+        "exercises": [
+          {
+            "line": "le squat 5 séries de cinq",
+            "name": "Squat barre",
+            "sets": 5,
+            "repMin": 5,
+            "repMax": 5,
+            "rest": 180
+          },
+          {
+            "line": "développé coucher 5 fois 5",
+            "name": "Développé couché barre",
+            "sets": 5,
+            "repMin": 5,
+            "repMax": 5,
+            "rest": 180
+          },
+          {
+            "line": "rowing barre 4 séries de 8",
+            "name": "Rowing barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8
+          },
+          {
+            "line": "développer militaire 3 fois 10",
+            "name": "Développé militaire barre",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 90
+          },
+          {
+            "line": "curl biceps à la barre 3 fois 12",
+            "name": "Curl biceps barre",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "ss": "A"
+          },
+          {
+            "line": "extension triceps à la poulie 3 fois 12",
+            "name": "Extension triceps poulie haute",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "ss": "A"
+          },
+          {
+            "line": "gainage 3 fois 45 secondes",
+            "name": "Gainage (planche)",
+            "sets": 3,
+            "seconds": 45
+          }
+        ]
+      }
+    ]
+  }
+}

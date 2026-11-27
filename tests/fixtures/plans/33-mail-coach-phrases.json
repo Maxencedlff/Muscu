@@ -1,0 +1,104 @@
+{
+  "id": "33-mail-coach-phrases",
+  "category": "libre",
+  "description": "Mail de coach en phrases complètes : plusieurs exercices par paragraphe, prescription avant ou après le nom, nombres en lettres, superset « enchaînées avec », échauffement et signature à ignorer.",
+  "text": "Bonjour Thomas,\n\nComme convenu, voici ta nouvelle programmation. On part sur deux séances par semaine pour commencer.\n\nSéance 1 (haut du corps)\nCommence par 4 séries de 8 au développé couché, 2 min de repos entre les séries. Ensuite tu enchaînes sur le rowing barre, 4 séries de 10 avec 1 min 30 de récupération. Après ça, 3 séries de 12 au développé militaire avec les haltères. Puis tu fais les élévations latérales : trois séries de quinze. Termine par 3 séries de 12 de curl haltères enchaînées avec 3 séries de 12 d'extension triceps à la poulie haute (superset).\n\nSéance 2 (bas du corps)\nOn démarre avec le squat : 5 séries de 5, repos 3 minutes. Ensuite le soulevé de terre roumain, 3 séries de 8 à 10. Puis la presse à cuisses, 3 séries de 15 avec une dégressive sur la dernière. Tu finis avec 4 séries de 15 de mollets debout et 3 séries de 45 secondes de gainage.\n\nN'oublie pas de bien t'échauffer avant chaque séance (5 min de vélo + séries légères).\n\nSportivement,\nJulien",
+  "expected": {
+    "title": null,
+    "sessions": [
+      {
+        "label": "Séance 1 (haut du corps)",
+        "exercises": [
+          {
+            "line": "Commence par 4 séries de 8 au développé couché",
+            "name": "Développé couché barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 120
+          },
+          {
+            "line": "Ensuite tu enchaînes sur le rowing barre",
+            "name": "Rowing barre",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 90
+          },
+          {
+            "line": "Après ça, 3 séries de 12 au développé militaire",
+            "name": "Développé militaire haltères",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "Puis tu fais les élévations latérales",
+            "name": "Élévations latérales",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "Termine par 3 séries de 12 de curl haltères",
+            "name": "Curl biceps haltères",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "ss": "A"
+          },
+          {
+            "line": "3 séries de 12 d'extension triceps à la poulie haute",
+            "name": "Extension triceps poulie haute",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "ss": "A"
+          }
+        ]
+      },
+      {
+        "label": "Séance 2 (bas du corps)",
+        "exercises": [
+          {
+            "line": "On démarre avec le squat",
+            "name": "Squat barre",
+            "sets": 5,
+            "repMin": 5,
+            "repMax": 5,
+            "rest": 180
+          },
+          {
+            "line": "Ensuite le soulevé de terre roumain",
+            "name": "Soulevé de terre roumain",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 10
+          },
+          {
+            "line": "Puis la presse à cuisses",
+            "name": "Presse à cuisses",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "tech": "drop",
+            "techWhere": "last"
+          },
+          {
+            "line": "4 séries de 15 de mollets debout",
+            "name": "Mollets debout",
+            "sets": 4,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "3 séries de 45 secondes de gainage",
+            "name": "Gainage (planche)",
+            "sets": 3,
+            "seconds": 45
+          }
+        ]
+      }
+    ]
+  }
+}

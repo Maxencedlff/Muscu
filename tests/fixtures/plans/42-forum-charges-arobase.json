@@ -1,0 +1,174 @@
+{
+  "id": "42-forum-charges-arobase",
+  "category": "libre",
+  "description": "Post de forum avec charges « @80kg » collées, lest « @+15kg », « Mercredi off », et une phrase finale contenant « 78kg » qui n'est pas une charge.",
+  "text": "Salut à tous, je poste mon prog actuel pour avoir vos avis :\n\nLundi (Pec/Epaules/Tri)\nDC 4x6-8 @80kg\nDI haltères 3x8-10 @30kg\nDips lestés 3x8 @+15kg\nElévations latérales 4x12 @12kg\nBarre front 3x10 @35kg\n\nMardi (Dos/Bi)\nSDT 3x5 @140kg\nTractions 4xmax\nRowing barre 4x8 @70kg\nTirage nuque 3x10\nCurl barre 3x10 @35kg\n\nMercredi off\n\nJeudi (Jambes)\nSquat 4x6 @110kg\nPresse 3x12 @220kg\nLeg curl 3x12\nMollets presse 4x15\n\nVendredi (Bras/Épaules)\nOHP 4x6 @55kg\nOiseau 3x15\nCurl marteau 3x12\nExtension nuque 3x12\nFace pull 3x15\n\nJe fais 1m80 pour 78kg, 3 ans de pratique. Merci !",
+  "expected": {
+    "title": null,
+    "sessions": [
+      {
+        "label": "Lundi (Pec/Epaules/Tri)",
+        "exercises": [
+          {
+            "line": "DC 4x6-8 @80kg",
+            "name": "Développé couché barre",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 8,
+            "load": 80
+          },
+          {
+            "line": "DI haltères 3x8-10",
+            "name": "Développé incliné haltères",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 10,
+            "load": 30
+          },
+          {
+            "line": "Dips lestés 3x8",
+            "name": "Dips",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 8,
+            "load": 15
+          },
+          {
+            "line": "Elévations latérales 4x12",
+            "name": "Élévations latérales",
+            "sets": 4,
+            "repMin": 12,
+            "repMax": 12,
+            "load": 12
+          },
+          {
+            "line": "Barre front 3x10",
+            "name": "Barre au front",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "load": 35
+          }
+        ]
+      },
+      {
+        "label": "Mardi (Dos/Bi)",
+        "exercises": [
+          {
+            "line": "SDT 3x5",
+            "name": "Soulevé de terre",
+            "sets": 3,
+            "repMin": 5,
+            "repMax": 5,
+            "load": 140
+          },
+          {
+            "line": "Tractions 4xmax",
+            "name": "Tractions pronation",
+            "sets": 4,
+            "amrap": true
+          },
+          {
+            "line": "Rowing barre 4x8",
+            "name": "Rowing barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8,
+            "load": 70
+          },
+          {
+            "line": "Tirage nuque 3x10",
+            "name": "Tirage vertical prise large",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "Curl barre 3x10",
+            "name": "Curl biceps barre",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "load": 35
+          }
+        ]
+      },
+      {
+        "label": "Jeudi (Jambes)",
+        "exercises": [
+          {
+            "line": "Squat 4x6",
+            "name": "Squat barre",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 6,
+            "load": 110
+          },
+          {
+            "line": "Presse 3x12",
+            "name": "Presse à cuisses",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "load": 220
+          },
+          {
+            "line": "Leg curl 3x12",
+            "name": "Leg curl machine",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "Mollets presse 4x15",
+            "name": "Mollets à la presse",
+            "sets": 4,
+            "repMin": 15,
+            "repMax": 15
+          }
+        ]
+      },
+      {
+        "label": "Vendredi (Bras/Épaules)",
+        "exercises": [
+          {
+            "line": "OHP 4x6",
+            "name": "Développé militaire barre",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 6,
+            "load": 55
+          },
+          {
+            "line": "Oiseau 3x15",
+            "name": "Oiseau (élévations arrière)",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "Curl marteau 3x12",
+            "name": "Curl marteau",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "Extension nuque 3x12",
+            "name": "Extension nuque",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "Face pull 3x15",
+            "name": "Face pull",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          }
+        ]
+      }
+    ]
+  }
+}

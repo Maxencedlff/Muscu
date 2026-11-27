@@ -1,0 +1,168 @@
+{
+  "id": "01-ppl-3-jours",
+  "category": "propre",
+  "description": "PPL 3 jours écrit proprement avec les noms exacts de l'appli : format de base « Nom : SxR, repos ».",
+  "text": "Programme PPL 3 jours\n\nJour 1 - Push\nDéveloppé couché barre : 4x8-10, repos 2 min\nDéveloppé incliné haltères : 3x10-12, repos 90 s\nDéveloppé militaire haltères : 3x10, repos 90 s\nÉlévations latérales : 4x12-15, repos 60 s\nExtension triceps poulie haute : 3x12, repos 60 s\nDips : 3x max, repos 90 s\n\nJour 2 - Pull\nTractions pronation : 4x6-8, repos 2 min\nRowing barre : 4x8-10, repos 2 min\nTirage horizontal câble : 3x12, repos 90 s\nFace pull : 3x15, repos 60 s\nCurl biceps barre : 3x10, repos 60 s\nCurl marteau : 3x12, repos 60 s\n\nJour 3 - Legs\nSquat barre : 4x6-8, repos 3 min\nSoulevé de terre roumain : 3x8-10, repos 2 min\nPresse à cuisses : 3x12, repos 2 min\nLeg curl machine : 3x12-15, repos 60 s\nMollets debout : 4x15, repos 60 s\nGainage (planche) : 3x45 s, repos 45 s",
+  "expected": {
+    "title": "Programme PPL 3 jours",
+    "sessions": [
+      {
+        "label": "Jour 1 - Push",
+        "exercises": [
+          {
+            "line": "Développé couché barre : 4x8-10",
+            "name": "Développé couché barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 10,
+            "rest": 120
+          },
+          {
+            "line": "Développé incliné haltères : 3x10-12",
+            "name": "Développé incliné haltères",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 12,
+            "rest": 90
+          },
+          {
+            "line": "Développé militaire haltères : 3x10",
+            "name": "Développé militaire haltères",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 90
+          },
+          {
+            "line": "Élévations latérales : 4x12-15",
+            "name": "Élévations latérales",
+            "sets": 4,
+            "repMin": 12,
+            "repMax": 15,
+            "rest": 60
+          },
+          {
+            "line": "Extension triceps poulie haute : 3x12",
+            "name": "Extension triceps poulie haute",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 60
+          },
+          {
+            "line": "Dips : 3x max",
+            "name": "Dips",
+            "sets": 3,
+            "amrap": true,
+            "rest": 90
+          }
+        ]
+      },
+      {
+        "label": "Jour 2 - Pull",
+        "exercises": [
+          {
+            "line": "Tractions pronation : 4x6-8",
+            "name": "Tractions pronation",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 8,
+            "rest": 120
+          },
+          {
+            "line": "Rowing barre : 4x8-10",
+            "name": "Rowing barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 10,
+            "rest": 120
+          },
+          {
+            "line": "Tirage horizontal câble : 3x12",
+            "name": "Tirage horizontal câble",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 90
+          },
+          {
+            "line": "Face pull : 3x15",
+            "name": "Face pull",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          },
+          {
+            "line": "Curl biceps barre : 3x10",
+            "name": "Curl biceps barre",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 60
+          },
+          {
+            "line": "Curl marteau : 3x12",
+            "name": "Curl marteau",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 60
+          }
+        ]
+      },
+      {
+        "label": "Jour 3 - Legs",
+        "exercises": [
+          {
+            "line": "Squat barre : 4x6-8",
+            "name": "Squat barre",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 8,
+            "rest": 180
+          },
+          {
+            "line": "Soulevé de terre roumain : 3x8-10",
+            "name": "Soulevé de terre roumain",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 10,
+            "rest": 120
+          },
+          {
+            "line": "Presse à cuisses : 3x12",
+            "name": "Presse à cuisses",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 120
+          },
+          {
+            "line": "Leg curl machine : 3x12-15",
+            "name": "Leg curl machine",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 15,
+            "rest": 60
+          },
+          {
+            "line": "Mollets debout : 4x15",
+            "name": "Mollets debout",
+            "sets": 4,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          },
+          {
+            "line": "Gainage (planche) : 3x45 s",
+            "name": "Gainage (planche)",
+            "sets": 3,
+            "seconds": 45,
+            "rest": 45
+          }
+        ]
+      }
+    ]
+  }
+}

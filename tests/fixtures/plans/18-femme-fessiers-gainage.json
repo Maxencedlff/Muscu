@@ -1,0 +1,172 @@
+{
+  "id": "18-femme-fessiers-gainage",
+  "category": "propre",
+  "description": "Programme femme orienté fessiers : unilatéral (« par jambe », « chaque côté », « de chaque côté »), gainages en secondes dont la notation « 30'' ».",
+  "text": "Programme fessiers – 3 séances / semaine (spécial femmes)\n\nSéance 1 – Fessiers / ischios\nHip thrust : 4 x 10, repos 2 min\nSoulevé de terre roumain haltères : 3 x 12, repos 90 s\nFentes bulgares : 3 x 10 par jambe, repos 90 s\nAbducteurs machine : 3 x 20, repos 1 min\nKickback fessier poulie : 3 x 15 chaque jambe, repos 45 s\nGainage (planche) : 3 x 45 s, repos 30 s\n\nSéance 2 – Quadriceps / fessiers\nSquat barre : 4 x 8, repos 2 min 30\nPresse à cuisses sumo : 3 x 12, repos 2 min\nPont fessier unilatéral : 3 x 12 par jambe\nMarche latérale élastique : 3 x 20 pas\nLeg curl machine : 3 x 12\nGainage latéral : 3 x 30'' par côté\n\nSéance 3 – Fessiers / haut du corps léger\nHip thrust machine : 4 x 12, repos 2 min\nMontées sur banc haltères : 3 x 10 par jambe\nGood morning : 3 x 10\nClamshell : 3 x 20 chaque côté\nAdducteurs machine : 3 x 15\nGainage creux : 3 x 20 secondes\nDead bug : 3 x 10 de chaque côté",
+  "expected": {
+    "title": "Programme fessiers – 3 séances / semaine (spécial femmes)",
+    "sessions": [
+      {
+        "label": "Séance 1 – Fessiers / ischios",
+        "exercises": [
+          {
+            "line": "Hip thrust : 4 x 10",
+            "name": "Hip thrust",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 120
+          },
+          {
+            "line": "Soulevé de terre roumain haltères : 3 x 12",
+            "name": "Soulevé de terre roumain haltères",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 90
+          },
+          {
+            "line": "Fentes bulgares : 3 x 10",
+            "name": "Fentes bulgares",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 90,
+            "uni": true
+          },
+          {
+            "line": "Abducteurs machine : 3 x 20",
+            "name": "Abducteurs machine",
+            "sets": 3,
+            "repMin": 20,
+            "repMax": 20,
+            "rest": 60
+          },
+          {
+            "line": "Kickback fessier poulie : 3 x 15",
+            "name": "Kickback fessier poulie",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 45,
+            "uni": true
+          },
+          {
+            "line": "Gainage (planche) : 3 x 45 s",
+            "name": "Gainage (planche)",
+            "sets": 3,
+            "seconds": 45,
+            "rest": 30
+          }
+        ]
+      },
+      {
+        "label": "Séance 2 – Quadriceps / fessiers",
+        "exercises": [
+          {
+            "line": "Squat barre : 4 x 8",
+            "name": "Squat barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 150
+          },
+          {
+            "line": "Presse à cuisses sumo : 3 x 12",
+            "name": "Presse à cuisses sumo",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 120
+          },
+          {
+            "line": "Pont fessier unilatéral : 3 x 12",
+            "name": "Pont fessier unilatéral",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "uni": true
+          },
+          {
+            "line": "Marche latérale élastique : 3 x 20 pas",
+            "name": "Marche latérale élastique",
+            "sets": 3,
+            "repMin": 20,
+            "repMax": 20
+          },
+          {
+            "line": "Leg curl machine : 3 x 12",
+            "name": "Leg curl machine",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "Gainage latéral : 3 x 30''",
+            "name": "Gainage latéral",
+            "sets": 3,
+            "seconds": 30,
+            "uni": true
+          }
+        ]
+      },
+      {
+        "label": "Séance 3 – Fessiers / haut du corps léger",
+        "exercises": [
+          {
+            "line": "Hip thrust machine : 4 x 12",
+            "name": "Hip thrust machine",
+            "sets": 4,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 120
+          },
+          {
+            "line": "Montées sur banc haltères : 3 x 10",
+            "name": "Montées sur banc haltères",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "uni": true
+          },
+          {
+            "line": "Good morning : 3 x 10",
+            "name": "Good morning",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "Clamshell : 3 x 20",
+            "name": "Clamshell",
+            "sets": 3,
+            "repMin": 20,
+            "repMax": 20,
+            "uni": true
+          },
+          {
+            "line": "Adducteurs machine : 3 x 15",
+            "name": "Adducteurs machine",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "Gainage creux : 3 x 20 secondes",
+            "name": "Gainage creux",
+            "sets": 3,
+            "seconds": 20
+          },
+          {
+            "line": "Dead bug : 3 x 10",
+            "name": "Dead bug",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "uni": true
+          }
+        ]
+      }
+    ]
+  }
+}

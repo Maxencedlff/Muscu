@@ -1,0 +1,223 @@
+{
+  "id": "05-upper-lower-4-jours",
+  "category": "propre",
+  "description": "Upper/Lower 4 jours, repos entre parenthèses en notation minute-apostrophe (2'30, 2', 1'30, 1').",
+  "text": "Upper / Lower – 4 jours\n\nUpper 1\nDéveloppé couché barre — 4 x 6-8 (2'30)\nRowing barre — 4 x 6-8 (2'30)\nDéveloppé militaire haltères — 3 x 8-10 (2')\nTirage vertical prise serrée — 3 x 10-12 (1'30)\nCurl biceps haltères — 3 x 10-12 (1')\nExtension triceps poulie haute — 3 x 10-12 (1')\n\nLower 1\nSquat barre — 4 x 5-7 (3')\nSoulevé de terre roumain — 3 x 8-10 (2')\nPresse à cuisses — 3 x 10-12 (2')\nLeg curl machine — 3 x 10-12 (1'30)\nMollets debout — 4 x 10-12 (1')\nRelevés de genoux suspendu — 3 x 12 (1')\n\nUpper 2\nDéveloppé incliné haltères — 4 x 8-10 (2')\nTractions pronation — 4 x 6-10 (2')\nÉcarté poulie vis-à-vis — 3 x 12-15 (1')\nRowing haltère unilatéral — 3 x 10 (1'30)\nÉlévations latérales — 4 x 12-15 (1')\nCurl marteau — 3 x 12 (1')\n\nLower 2\nSoulevé de terre — 3 x 4-6 (3')\nFentes bulgares — 3 x 8-10 (1'30)\nExtension quadriceps — 3 x 12-15 (1')\nHip thrust — 3 x 10 (1'30)\nMollets assis — 4 x 12-15 (1')\nCrunch poulie — 3 x 15 (1')",
+  "expected": {
+    "title": "Upper / Lower – 4 jours",
+    "sessions": [
+      {
+        "label": "Upper 1",
+        "exercises": [
+          {
+            "line": "Développé couché barre — 4 x 6-8",
+            "name": "Développé couché barre",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 8,
+            "rest": 150
+          },
+          {
+            "line": "Rowing barre — 4 x 6-8",
+            "name": "Rowing barre",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 8,
+            "rest": 150
+          },
+          {
+            "line": "Développé militaire haltères — 3 x 8-10",
+            "name": "Développé militaire haltères",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 10,
+            "rest": 120
+          },
+          {
+            "line": "Tirage vertical prise serrée",
+            "name": "Tirage vertical prise serrée",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 12,
+            "rest": 90
+          },
+          {
+            "line": "Curl biceps haltères",
+            "name": "Curl biceps haltères",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 12,
+            "rest": 60
+          },
+          {
+            "line": "Extension triceps poulie haute",
+            "name": "Extension triceps poulie haute",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 12,
+            "rest": 60
+          }
+        ]
+      },
+      {
+        "label": "Lower 1",
+        "exercises": [
+          {
+            "line": "Squat barre — 4 x 5-7",
+            "name": "Squat barre",
+            "sets": 4,
+            "repMin": 5,
+            "repMax": 7,
+            "rest": 180
+          },
+          {
+            "line": "Soulevé de terre roumain",
+            "name": "Soulevé de terre roumain",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 10,
+            "rest": 120
+          },
+          {
+            "line": "Presse à cuisses — 3 x 10-12",
+            "name": "Presse à cuisses",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 12,
+            "rest": 120
+          },
+          {
+            "line": "Leg curl machine — 3 x 10-12",
+            "name": "Leg curl machine",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 12,
+            "rest": 90
+          },
+          {
+            "line": "Mollets debout — 4 x 10-12",
+            "name": "Mollets debout",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 12,
+            "rest": 60
+          },
+          {
+            "line": "Relevés de genoux suspendu",
+            "name": "Relevés de genoux suspendu",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 60
+          }
+        ]
+      },
+      {
+        "label": "Upper 2",
+        "exercises": [
+          {
+            "line": "Développé incliné haltères — 4 x 8-10",
+            "name": "Développé incliné haltères",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 10,
+            "rest": 120
+          },
+          {
+            "line": "Tractions pronation — 4 x 6-10",
+            "name": "Tractions pronation",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 10,
+            "rest": 120
+          },
+          {
+            "line": "Écarté poulie vis-à-vis — 3 x 12-15",
+            "name": "Écarté poulie vis-à-vis",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 15,
+            "rest": 60
+          },
+          {
+            "line": "Rowing haltère unilatéral — 3 x 10",
+            "name": "Rowing haltère unilatéral",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 90
+          },
+          {
+            "line": "Élévations latérales — 4 x 12-15",
+            "name": "Élévations latérales",
+            "sets": 4,
+            "repMin": 12,
+            "repMax": 15,
+            "rest": 60
+          },
+          {
+            "line": "Curl marteau — 3 x 12",
+            "name": "Curl marteau",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 60
+          }
+        ]
+      },
+      {
+        "label": "Lower 2",
+        "exercises": [
+          {
+            "line": "Soulevé de terre — 3 x 4-6",
+            "name": "Soulevé de terre",
+            "sets": 3,
+            "repMin": 4,
+            "repMax": 6,
+            "rest": 180
+          },
+          {
+            "line": "Fentes bulgares — 3 x 8-10",
+            "name": "Fentes bulgares",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 10,
+            "rest": 90
+          },
+          {
+            "line": "Extension quadriceps — 3 x 12-15",
+            "name": "Extension quadriceps",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 15,
+            "rest": 60
+          },
+          {
+            "line": "Hip thrust — 3 x 10",
+            "name": "Hip thrust",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 90
+          },
+          {
+            "line": "Mollets assis — 4 x 12-15",
+            "name": "Mollets assis",
+            "sets": 4,
+            "repMin": 12,
+            "repMax": 15,
+            "rest": 60
+          },
+          {
+            "line": "Crunch poulie — 3 x 15",
+            "name": "Crunch poulie",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          }
+        ]
+      }
+    ]
+  }
+}

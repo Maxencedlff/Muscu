@@ -1,0 +1,221 @@
+{
+  "id": "13-partage-appli",
+  "category": "propre",
+  "description": "Texte de partage de l'appli (« • Nom : 4 × 12, tempo 3-1-1, repos 1 min 30 ») avec drop set en dernière série, rest-pause sur toutes et gainage « 3 × 1 min ».",
+  "text": "🏋️ Mon programme : Prise de masse – 4 jours\nPartagé depuis MDLF Training\n\nSéance 1 – Pectoraux / Triceps\n• Développé couché barre : 4 × 12, tempo 3-1-1, repos 1 min 30\n• Développé incliné haltères : 3 × 10, repos 1 min 30\n• Écarté poulie vis-à-vis : 3 × 15, repos 1 min\n• Dips : 3 × 8-10, repos 2 min\n• Extension triceps poulie haute : 3 × 12, dernière série en drop set, repos 1 min\n• Barre au front : 3 × 10, repos 1 min 30\n\nSéance 2 – Dos / Biceps\n• Tractions pronation : 4 × 6-8, repos 2 min\n• Rowing barre : 4 × 8, tempo 2-0-1, repos 2 min\n• Tirage vertical prise serrée : 3 × 10-12, repos 1 min 30\n• Pull-over poulie : 3 × 15, repos 1 min\n• Curl biceps barre : 3 × 10, repos 1 min\n• Curl marteau : 3 × 12, repos 1 min\n\nSéance 3 – Jambes\n• Squat barre : 4 × 8, tempo 3-1-1, repos 2 min 30\n• Presse à cuisses : 3 × 12, repos 2 min\n• Leg curl machine : 4 × 12, repos 1 min 30\n• Extension quadriceps : 3 × 15, repos 1 min\n• Mollets debout : 4 × 15, repos 1 min\n\nSéance 4 – Épaules / Abdos\n• Développé militaire haltères : 4 × 10, repos 1 min 30\n• Élévations latérales : 4 × 15, toutes en rest-pause, repos 1 min\n• Oiseau (élévations arrière) : 3 × 15, repos 1 min\n• Face pull : 3 × 20, repos 1 min\n• Crunch poulie : 3 × 15, repos 1 min\n• Gainage (planche) : 3 × 1 min, repos 1 min",
+  "expected": {
+    "title": "Prise de masse – 4 jours",
+    "sessions": [
+      {
+        "label": "Séance 1 – Pectoraux / Triceps",
+        "exercises": [
+          {
+            "line": "• Développé couché barre : 4 × 12",
+            "name": "Développé couché barre",
+            "sets": 4,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 90,
+            "tempo": "3-1-1"
+          },
+          {
+            "line": "• Développé incliné haltères : 3 × 10",
+            "name": "Développé incliné haltères",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 90
+          },
+          {
+            "line": "• Écarté poulie vis-à-vis : 3 × 15",
+            "name": "Écarté poulie vis-à-vis",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          },
+          {
+            "line": "• Dips : 3 × 8-10",
+            "name": "Dips",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 10,
+            "rest": 120
+          },
+          {
+            "line": "• Extension triceps poulie haute : 3 × 12",
+            "name": "Extension triceps poulie haute",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 60,
+            "tech": "drop",
+            "techWhere": "last"
+          },
+          {
+            "line": "• Barre au front : 3 × 10",
+            "name": "Barre au front",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 90
+          }
+        ]
+      },
+      {
+        "label": "Séance 2 – Dos / Biceps",
+        "exercises": [
+          {
+            "line": "• Tractions pronation : 4 × 6-8",
+            "name": "Tractions pronation",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 8,
+            "rest": 120
+          },
+          {
+            "line": "• Rowing barre : 4 × 8",
+            "name": "Rowing barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 120,
+            "tempo": "2-0-1"
+          },
+          {
+            "line": "• Tirage vertical prise serrée : 3 × 10-12",
+            "name": "Tirage vertical prise serrée",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 12,
+            "rest": 90
+          },
+          {
+            "line": "• Pull-over poulie : 3 × 15",
+            "name": "Pull-over poulie",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          },
+          {
+            "line": "• Curl biceps barre : 3 × 10",
+            "name": "Curl biceps barre",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 60
+          },
+          {
+            "line": "• Curl marteau : 3 × 12",
+            "name": "Curl marteau",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 60
+          }
+        ]
+      },
+      {
+        "label": "Séance 3 – Jambes",
+        "exercises": [
+          {
+            "line": "• Squat barre : 4 × 8",
+            "name": "Squat barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 150,
+            "tempo": "3-1-1"
+          },
+          {
+            "line": "• Presse à cuisses : 3 × 12",
+            "name": "Presse à cuisses",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 120
+          },
+          {
+            "line": "• Leg curl machine : 4 × 12",
+            "name": "Leg curl machine",
+            "sets": 4,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 90
+          },
+          {
+            "line": "• Extension quadriceps : 3 × 15",
+            "name": "Extension quadriceps",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          },
+          {
+            "line": "• Mollets debout : 4 × 15",
+            "name": "Mollets debout",
+            "sets": 4,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          }
+        ]
+      },
+      {
+        "label": "Séance 4 – Épaules / Abdos",
+        "exercises": [
+          {
+            "line": "• Développé militaire haltères : 4 × 10",
+            "name": "Développé militaire haltères",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 90
+          },
+          {
+            "line": "• Élévations latérales : 4 × 15",
+            "name": "Élévations latérales",
+            "sets": 4,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60,
+            "tech": "rp",
+            "techWhere": "all"
+          },
+          {
+            "line": "• Oiseau (élévations arrière) : 3 × 15",
+            "name": "Oiseau (élévations arrière)",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          },
+          {
+            "line": "• Face pull : 3 × 20",
+            "name": "Face pull",
+            "sets": 3,
+            "repMin": 20,
+            "repMax": 20,
+            "rest": 60
+          },
+          {
+            "line": "• Crunch poulie : 3 × 15",
+            "name": "Crunch poulie",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          },
+          {
+            "line": "• Gainage (planche) : 3 × 1 min",
+            "name": "Gainage (planche)",
+            "sets": 3,
+            "seconds": 60,
+            "rest": 60
+          }
+        ]
+      }
+    ]
+  }
+}

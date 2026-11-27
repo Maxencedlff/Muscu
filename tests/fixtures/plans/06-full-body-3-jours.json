@@ -1,0 +1,162 @@
+{
+  "id": "06-full-body-3-jours",
+  "category": "propre",
+  "description": "Full Body 3 jours rédigé en « 3 séries de 8 à 10 reps – 2 min de repos » (mots au lieu de x, fourchette « à »).",
+  "text": "Full Body 3 jours (lundi / mercredi / vendredi)\n\nSéance A\nSquat barre : 3 séries de 8 à 10 reps – 2 min de repos\nDéveloppé couché barre : 3 séries de 8 à 10 reps – 2 min de repos\nRowing haltère unilatéral : 3 séries de 10 par bras – 90 s de repos\nÉlévations latérales : 3 séries de 15 – 1 min de repos\nGainage (planche) : 3 séries de 40 secondes – 30 s de repos\n\nSéance B\nSoulevé de terre : 3 séries de 5 – 3 min de repos\nDéveloppé militaire barre : 3 séries de 8 – 2 min de repos\nTractions pronation : 3 séries au max – 2 min de repos\nFentes marchées haltères : 3 séries de 12 par jambe – 90 s de repos\nCurl biceps haltères : 2 séries de 12 – 1 min de repos\nExtension triceps poulie haute : 2 séries de 12 – 1 min de repos\n\nSéance C\nPresse à cuisses : 3 séries de 12 – 2 min de repos\nDéveloppé incliné haltères : 3 séries de 10 – 90 s de repos\nTirage vertical prise large : 3 séries de 10 à 12 – 90 s de repos\nHip thrust : 3 séries de 10 – 90 s de repos\nFace pull : 3 séries de 15 – 1 min de repos\nCrunch : 3 séries de 20 – 45 s de repos",
+  "expected": {
+    "title": "Full Body 3 jours (lundi / mercredi / vendredi)",
+    "sessions": [
+      {
+        "label": "Séance A",
+        "exercises": [
+          {
+            "line": "Squat barre : 3 séries de 8 à 10",
+            "name": "Squat barre",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 10,
+            "rest": 120
+          },
+          {
+            "line": "Développé couché barre : 3 séries",
+            "name": "Développé couché barre",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 10,
+            "rest": 120
+          },
+          {
+            "line": "Rowing haltère unilatéral : 3 séries",
+            "name": "Rowing haltère unilatéral",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 90,
+            "uni": true
+          },
+          {
+            "line": "Élévations latérales : 3 séries de 15",
+            "name": "Élévations latérales",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          },
+          {
+            "line": "Gainage (planche) : 3 séries de 40",
+            "name": "Gainage (planche)",
+            "sets": 3,
+            "seconds": 40,
+            "rest": 30
+          }
+        ]
+      },
+      {
+        "label": "Séance B",
+        "exercises": [
+          {
+            "line": "Soulevé de terre : 3 séries de 5",
+            "name": "Soulevé de terre",
+            "sets": 3,
+            "repMin": 5,
+            "repMax": 5,
+            "rest": 180
+          },
+          {
+            "line": "Développé militaire barre : 3 séries de 8",
+            "name": "Développé militaire barre",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 120
+          },
+          {
+            "line": "Tractions pronation : 3 séries au max",
+            "name": "Tractions pronation",
+            "sets": 3,
+            "amrap": true,
+            "rest": 120
+          },
+          {
+            "line": "Fentes marchées haltères : 3 séries de 12",
+            "name": "Fentes marchées haltères",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 90,
+            "uni": true
+          },
+          {
+            "line": "Curl biceps haltères : 2 séries de 12",
+            "name": "Curl biceps haltères",
+            "sets": 2,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 60
+          },
+          {
+            "line": "Extension triceps poulie haute : 2 séries",
+            "name": "Extension triceps poulie haute",
+            "sets": 2,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 60
+          }
+        ]
+      },
+      {
+        "label": "Séance C",
+        "exercises": [
+          {
+            "line": "Presse à cuisses : 3 séries de 12",
+            "name": "Presse à cuisses",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 120
+          },
+          {
+            "line": "Développé incliné haltères : 3 séries de 10",
+            "name": "Développé incliné haltères",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 90
+          },
+          {
+            "line": "Tirage vertical prise large : 3 séries",
+            "name": "Tirage vertical prise large",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 12,
+            "rest": 90
+          },
+          {
+            "line": "Hip thrust : 3 séries de 10",
+            "name": "Hip thrust",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 90
+          },
+          {
+            "line": "Face pull : 3 séries de 15",
+            "name": "Face pull",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          },
+          {
+            "line": "Crunch : 3 séries de 20",
+            "name": "Crunch",
+            "sets": 3,
+            "repMin": 20,
+            "repMax": 20,
+            "rest": 45
+          }
+        ]
+      }
+    ]
+  }
+}

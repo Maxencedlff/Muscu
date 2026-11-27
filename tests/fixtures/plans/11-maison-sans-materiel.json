@@ -1,0 +1,165 @@
+{
+  "id": "11-maison-sans-materiel",
+  "category": "propre",
+  "description": "Programme au poids du corps : exercices en durée, « chaque côté », et un circuit « 4 tours » dont chaque poste vaut 4 séries de 40 s avec 20 s de repos.",
+  "text": "Programme maison – sans matériel (3 séances / semaine)\n\nSéance 1 – Haut du corps\nPompes : 4 x 12\nPompes diamant : 3 x 8\nPompes pike (épaules) : 3 x 10\nDips sur chaise : 3 x 12\nRowing sous une table : 4 x 10\nSuperman : 3 x 15\nGainage (planche) : 3 x 45 s\n\nSéance 2 – Bas du corps\nSquat poids du corps : 4 x 20\nFentes : 3 x 12 par jambe\nPont fessier : 4 x 15\nChaise contre le mur : 3 x 45 s\nMollets sur une marche : 4 x 20\nSquat sauté : 3 x 10\nGainage latéral : 3 x 30 s chaque côté\n\nSéance 3 – Cardio / abdos\nCircuit – 4 tours, 20 s de repos entre les exercices, 2 min entre les tours :\n- Burpees : 40 s\n- Grimpeur : 40 s\n- Jumping jacks : 40 s\n- Crunch vélo : 40 s\nPuis :\nDead bug : 3 x 10 par côté\nGainage creux : 3 x 20 s",
+  "expected": {
+    "title": "Programme maison – sans matériel (3 séances / semaine)",
+    "sessions": [
+      {
+        "label": "Séance 1 – Haut du corps",
+        "exercises": [
+          {
+            "line": "Pompes : 4 x 12",
+            "name": "Pompes",
+            "sets": 4,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "Pompes diamant : 3 x 8",
+            "name": "Pompes diamant",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 8
+          },
+          {
+            "line": "Pompes pike (épaules) : 3 x 10",
+            "name": "Pompes pike (épaules)",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "Dips sur chaise : 3 x 12",
+            "name": "Dips sur chaise",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "Rowing sous une table : 4 x 10",
+            "name": "Rowing sous une table",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "Superman : 3 x 15",
+            "name": "Superman",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "Gainage (planche) : 3 x 45 s",
+            "name": "Gainage (planche)",
+            "sets": 3,
+            "seconds": 45
+          }
+        ]
+      },
+      {
+        "label": "Séance 2 – Bas du corps",
+        "exercises": [
+          {
+            "line": "Squat poids du corps : 4 x 20",
+            "name": "Squat poids du corps",
+            "sets": 4,
+            "repMin": 20,
+            "repMax": 20
+          },
+          {
+            "line": "Fentes : 3 x 12 par jambe",
+            "name": "Fentes",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "uni": true
+          },
+          {
+            "line": "Pont fessier : 4 x 15",
+            "name": "Pont fessier",
+            "sets": 4,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "Chaise contre le mur : 3 x 45 s",
+            "name": "Chaise contre le mur",
+            "sets": 3,
+            "seconds": 45
+          },
+          {
+            "line": "Mollets sur une marche : 4 x 20",
+            "name": "Mollets sur une marche",
+            "sets": 4,
+            "repMin": 20,
+            "repMax": 20
+          },
+          {
+            "line": "Squat sauté : 3 x 10",
+            "name": "Squat sauté",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "Gainage latéral : 3 x 30 s",
+            "name": "Gainage latéral",
+            "sets": 3,
+            "seconds": 30,
+            "uni": true
+          }
+        ]
+      },
+      {
+        "label": "Séance 3 – Cardio / abdos",
+        "exercises": [
+          {
+            "line": "- Burpees : 40 s",
+            "name": "Burpees",
+            "sets": 4,
+            "seconds": 40,
+            "rest": 20
+          },
+          {
+            "line": "- Grimpeur : 40 s",
+            "name": "Grimpeur",
+            "sets": 4,
+            "seconds": 40,
+            "rest": 20
+          },
+          {
+            "line": "- Jumping jacks : 40 s",
+            "name": "Jumping jacks",
+            "sets": 4,
+            "seconds": 40,
+            "rest": 20
+          },
+          {
+            "line": "- Crunch vélo : 40 s",
+            "name": "Crunch vélo",
+            "sets": 4,
+            "seconds": 40,
+            "rest": 20
+          },
+          {
+            "line": "Dead bug : 3 x 10",
+            "name": "Dead bug",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "uni": true
+          },
+          {
+            "line": "Gainage creux : 3 x 20 s",
+            "name": "Gainage creux",
+            "sets": 3,
+            "seconds": 20
+          }
+        ]
+      }
+    ]
+  }
+}

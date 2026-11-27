@@ -1,0 +1,63 @@
+{
+  "id": "50-dictee-guidee-pull",
+  "category": "dictee",
+  "description": "Mode guidé dos/biceps : fourchette « de 6 à 8 », « 2 minutes 30 », « chaque bras », charge dite « 50 kilos », homophone « face poule », dégressive sur la dernière.",
+  "text": "tractions\n4 séries de 6 à 8 repos 2 minutes 30\nrowing haltères\n3 fois 10 chaque bras\ntirage vertical prise serrée\n3 séries de 12 à 50 kilos\nface poule\n3 fois 20\ncurl barre\n4 fois 10 avec une dégressive à la dernière série\ncurl marteau\n3 fois 12",
+  "expected": {
+    "title": null,
+    "sessions": [
+      {
+        "label": null,
+        "exercises": [
+          {
+            "line": "tractions",
+            "name": "Tractions pronation",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 8,
+            "rest": 150
+          },
+          {
+            "line": "rowing haltères",
+            "name": "Rowing haltère unilatéral",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "uni": true
+          },
+          {
+            "line": "tirage vertical prise serrée",
+            "name": "Tirage vertical prise serrée",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "load": 50
+          },
+          {
+            "line": "face poule",
+            "name": "Face pull",
+            "sets": 3,
+            "repMin": 20,
+            "repMax": 20
+          },
+          {
+            "line": "curl barre",
+            "name": "Curl biceps barre",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10,
+            "tech": "drop",
+            "techWhere": "last"
+          },
+          {
+            "line": "curl marteau",
+            "name": "Curl marteau",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          }
+        ]
+      }
+    ]
+  }
+}

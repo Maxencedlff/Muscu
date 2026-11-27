@@ -1,0 +1,72 @@
+{
+  "id": "36-nombres-en-lettres",
+  "category": "libre",
+  "description": "Tous les nombres en lettres (« quatre séries de dix », « une minute trente », « trois fois trente secondes »), « 2 fois par semaine » dans le titre et une ligne d'échauffement sur un exercice réel à ne pas compter.",
+  "text": "Programme débutant (à faire 2 fois par semaine)\n\nSéance unique :\n- Échauffement : 2 séries légères au développé couché\n- Développé couché : quatre séries de dix, deux minutes de repos\n- Tirage vertical : trois séries de douze\n- Presse à cuisses : trois séries de quinze, une minute trente de repos\n- Développé épaules à la machine : trois séries de dix\n- Leg curl : trois séries de douze\n- Curl marteau : deux séries de quinze\n- Gainage : trois fois trente secondes\n- Vélo 10 min pour finir (retour au calme)",
+  "expected": {
+    "title": "Programme débutant",
+    "sessions": [
+      {
+        "label": "Séance unique",
+        "exercises": [
+          {
+            "line": "- Développé couché : quatre séries de dix",
+            "name": "Développé couché barre",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 120
+          },
+          {
+            "line": "- Tirage vertical : trois séries de douze",
+            "name": "Tirage vertical prise large",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "- Presse à cuisses : trois séries de quinze",
+            "name": "Presse à cuisses",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 90
+          },
+          {
+            "line": "- Développé épaules à la machine",
+            "name": "Développé épaules machine",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "- Leg curl : trois séries de douze",
+            "name": "Leg curl machine",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "- Curl marteau : deux séries de quinze",
+            "name": "Curl marteau",
+            "sets": 2,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "- Gainage : trois fois trente secondes",
+            "name": "Gainage (planche)",
+            "sets": 3,
+            "seconds": 30
+          },
+          {
+            "line": "- Vélo 10 min pour finir",
+            "name": "Vélo",
+            "seconds": 600,
+            "optional": true
+          }
+        ]
+      }
+    ]
+  }
+}

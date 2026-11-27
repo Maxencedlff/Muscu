@@ -1,0 +1,133 @@
+{
+  "id": "26-tableau-pdf-noms-coupes",
+  "category": "tableau",
+  "description": "Extraction PDF où les noms longs sont coupés sur deux lignes (« Développé incliné » / « haltères 3 10 1'30 ») : il faut recoller la cellule et ne pas créer d'exercice fantôme.",
+  "text": "Séance Haut du corps\nExercice          Séries   Reps   Récup\nDéveloppé couché barre   4   8   2'\nDéveloppé incliné\nhaltères          3        10     1'30\nTirage vertical prise large   4   10   1'30\nRowing haltère\nunilatéral        3        12     1'30\nÉlévations latérales   4   15   1'\nFace pull         3        15     1'\nExtension triceps poulie\nhaute             3        12     1'\nCurl biceps haltères   3   12   1'\n\nSéance Bas du corps\nExercice          Séries   Reps   Récup\nSquat barre       4        6      3'\nPresse à cuisses  3        12     2'\nLeg curl machine  3        12     1'30\nExtension quadriceps   3   15   1'\nHip thrust        3        10     2'\nMollets debout    4        15     1'",
+  "expected": {
+    "title": null,
+    "sessions": [
+      {
+        "label": "Séance Haut du corps",
+        "exercises": [
+          {
+            "line": "Développé couché barre   4",
+            "name": "Développé couché barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 120
+          },
+          {
+            "line": "Développé incliné",
+            "name": "Développé incliné haltères",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 90
+          },
+          {
+            "line": "Tirage vertical prise large   4",
+            "name": "Tirage vertical prise large",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 90
+          },
+          {
+            "line": "Rowing haltère",
+            "name": "Rowing haltère unilatéral",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 90
+          },
+          {
+            "line": "Élévations latérales   4",
+            "name": "Élévations latérales",
+            "sets": 4,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          },
+          {
+            "line": "Face pull         3",
+            "name": "Face pull",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          },
+          {
+            "line": "Extension triceps poulie",
+            "name": "Extension triceps poulie haute",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 60
+          },
+          {
+            "line": "Curl biceps haltères   3",
+            "name": "Curl biceps haltères",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 60
+          }
+        ]
+      },
+      {
+        "label": "Séance Bas du corps",
+        "exercises": [
+          {
+            "line": "Squat barre       4",
+            "name": "Squat barre",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 6,
+            "rest": 180
+          },
+          {
+            "line": "Presse à cuisses  3",
+            "name": "Presse à cuisses",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 120
+          },
+          {
+            "line": "Leg curl machine  3",
+            "name": "Leg curl machine",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 90
+          },
+          {
+            "line": "Extension quadriceps   3",
+            "name": "Extension quadriceps",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          },
+          {
+            "line": "Hip thrust        3",
+            "name": "Hip thrust",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 120
+          },
+          {
+            "line": "Mollets debout    4",
+            "name": "Mollets debout",
+            "sets": 4,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,160 @@
+{
+  "id": "37-emojis-jours-repos",
+  "category": "libre",
+  "description": "Programme style Instagram avec emojis en puces et dans les titres, jours de repos (« Mardi : repos 😴 », « Week-end : repos + 10 000 pas ») à ne pas lire comme séances, superset sur une ligne avec « + ».",
+  "text": "🔥 PROGRAMME SÈCHE 🔥\n\n📅 Lundi : Haut du corps 💪\n👉 DC 4x10\n👉 Rowing haltère 4x10/bras\n👉 OHP 3x10\n👉 Tirage poitrine 3x12\n👉 Élév lat 3x15\n👉 Bi/tri en superset : curl haltères 3x12 + pushdown 3x12\n\n📅 Mardi : repos 😴\n\n📅 Mercredi : Bas du corps 🦵\n👉 Squat 4x10\n👉 RDL 3x12\n👉 Fentes marchées 3x10/jambe\n👉 Leg ext 3x15\n👉 Leg curl 3x15\n👉 HT 4x12\n\n📅 Jeudi : repos 😴\n\n📅 Vendredi : Full body circuit 🔁\n👉 Burpees 3x15\n👉 KB swing 3x20\n👉 Pompes 3x max\n👉 Goblet squat 3x15\n👉 Mountain climbers 3x30 s\n👉 Planche 3x1 min\n\n📅 Week-end : repos + 10 000 pas/jour 🚶",
+  "expected": {
+    "title": "PROGRAMME SÈCHE",
+    "sessions": [
+      {
+        "label": "Lundi : Haut du corps",
+        "exercises": [
+          {
+            "line": "👉 DC 4x10",
+            "name": "Développé couché barre",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "👉 Rowing haltère 4x10/bras",
+            "name": "Rowing haltère unilatéral",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10,
+            "uni": true
+          },
+          {
+            "line": "👉 OHP 3x10",
+            "name": "Développé militaire barre",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "👉 Tirage poitrine 3x12",
+            "name": "Tirage vertical prise large",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "👉 Élév lat 3x15",
+            "name": "Élévations latérales",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "curl haltères 3x12",
+            "name": "Curl biceps haltères",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "ss": "A"
+          },
+          {
+            "line": "pushdown 3x12",
+            "name": "Extension triceps poulie haute",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "ss": "A"
+          }
+        ]
+      },
+      {
+        "label": "Mercredi : Bas du corps",
+        "exercises": [
+          {
+            "line": "👉 Squat 4x10",
+            "name": "Squat barre",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "👉 RDL 3x12",
+            "name": "Soulevé de terre roumain",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "👉 Fentes marchées 3x10/jambe",
+            "name": "Fentes marchées haltères",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "uni": true
+          },
+          {
+            "line": "👉 Leg ext 3x15",
+            "name": "Extension quadriceps",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "👉 Leg curl 3x15",
+            "name": "Leg curl machine",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "👉 HT 4x12",
+            "name": "Hip thrust",
+            "sets": 4,
+            "repMin": 12,
+            "repMax": 12
+          }
+        ]
+      },
+      {
+        "label": "Vendredi : Full body circuit",
+        "exercises": [
+          {
+            "line": "👉 Burpees 3x15",
+            "name": "Burpees",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "👉 KB swing 3x20",
+            "name": "Swing kettlebell",
+            "sets": 3,
+            "repMin": 20,
+            "repMax": 20
+          },
+          {
+            "line": "👉 Pompes 3x max",
+            "name": "Pompes",
+            "sets": 3,
+            "amrap": true
+          },
+          {
+            "line": "👉 Goblet squat 3x15",
+            "name": "Squat gobelet",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "👉 Mountain climbers 3x30 s",
+            "name": "Grimpeur",
+            "sets": 3,
+            "seconds": 30
+          },
+          {
+            "line": "👉 Planche 3x1 min",
+            "name": "Gainage (planche)",
+            "sets": 3,
+            "seconds": 60
+          }
+        ]
+      }
+    ]
+  }
+}

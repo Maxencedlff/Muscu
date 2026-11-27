@@ -1,0 +1,153 @@
+{
+  "id": "43-une-ligne-par-jour",
+  "category": "libre",
+  "description": "Toute une séance sur une seule ligne par jour, exercices séparés par virgules ou « / », jours de repos, et un samedi footing 30 min (cardio en durée).",
+  "text": "Semaine type :\nLundi : DC 4x8, DI haltères 3x10, écarté poulie 3x15, dips 3x10\nMardi : tractions 4x8, rowing barre 4x10, tirage poulie basse 3x12, curl haltères 3x12\nMercredi : repos\nJeudi : squat 4x8, presse 3x12, leg curl 3x12, mollets 4x15\nVendredi : DM 4x8 / élév lat 4x15 / oiseau 3x15 / triceps poulie 3x12\nSamedi : footing 30 min\nDimanche : repos",
+  "expected": {
+    "title": null,
+    "sessions": [
+      {
+        "label": "Lundi",
+        "exercises": [
+          {
+            "line": "DC 4x8",
+            "name": "Développé couché barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8
+          },
+          {
+            "line": "DI haltères 3x10",
+            "name": "Développé incliné haltères",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "écarté poulie 3x15",
+            "name": "Écarté poulie vis-à-vis",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "dips 3x10",
+            "name": "Dips",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10
+          }
+        ]
+      },
+      {
+        "label": "Mardi",
+        "exercises": [
+          {
+            "line": "tractions 4x8",
+            "name": "Tractions pronation",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8
+          },
+          {
+            "line": "rowing barre 4x10",
+            "name": "Rowing barre",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "tirage poulie basse 3x12",
+            "name": "Tirage horizontal câble",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "curl haltères 3x12",
+            "name": "Curl biceps haltères",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          }
+        ]
+      },
+      {
+        "label": "Jeudi",
+        "exercises": [
+          {
+            "line": "squat 4x8",
+            "name": "Squat barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8
+          },
+          {
+            "line": "presse 3x12",
+            "name": "Presse à cuisses",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "leg curl 3x12",
+            "name": "Leg curl machine",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "mollets 4x15",
+            "name": "Mollets debout",
+            "sets": 4,
+            "repMin": 15,
+            "repMax": 15
+          }
+        ]
+      },
+      {
+        "label": "Vendredi",
+        "exercises": [
+          {
+            "line": "DM 4x8",
+            "name": "Développé militaire barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8
+          },
+          {
+            "line": "élév lat 4x15",
+            "name": "Élévations latérales",
+            "sets": 4,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "oiseau 3x15",
+            "name": "Oiseau (élévations arrière)",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "triceps poulie 3x12",
+            "name": "Extension triceps poulie haute",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          }
+        ]
+      },
+      {
+        "label": "Samedi",
+        "exercises": [
+          {
+            "line": "footing 30 min",
+            "name": "Course à pied",
+            "seconds": 1800
+          }
+        ]
+      }
+    ]
+  }
+}

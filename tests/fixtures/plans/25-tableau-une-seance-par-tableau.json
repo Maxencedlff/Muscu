@@ -1,0 +1,151 @@
+{
+  "id": "25-tableau-une-seance-par-tableau",
+  "category": "tableau",
+  "description": "PDF avec un tableau par séance et son titre au-dessus, colonnes par espaces, repos « 1 min 30 » contenant lui-même des espaces, colonne % 1RM avec « - » pour vide, une ligne mal alignée.",
+  "text": "PROGRAMME – SEMAINE 1\n\nSéance 1 : Jambes\nExercice                    Séries   Reps   Repos       % 1RM\nSquat barre                 5        5      3 min       75 %\nPresse à cuisses            4        10     2 min       -\nSoulevé de terre roumain    3        8      2 min       65 %\nLeg curl machine            3        12     1 min 30    -\nMollets debout              4        15     1 min       -\n\nSéance 2 : Pectoraux / Triceps\nExercice                    Séries   Reps   Repos       % 1RM\nDéveloppé couché barre      5        5      3 min       75 %\nDéveloppé incliné haltères  4        10     2 min       -\nÉcarté poulie vis-à-vis     3        15     1 min       -\nBarre au front              3        10     1 min 30    -\nExtension triceps poulie haute   3   12     1 min       -\n\nSéance 3 : Dos / Biceps\nExercice                    Séries   Reps   Repos       % 1RM\nSoulevé de terre            3        3      3 min       85 %\nTirage vertical prise large 4        10     2 min       -\nRowing barre                4        8      2 min       70 %\nCurl biceps barre           3        10     1 min 30    -\nCurl marteau                3        12     1 min       -",
+  "expected": {
+    "title": "PROGRAMME – SEMAINE 1",
+    "sessions": [
+      {
+        "label": "Séance 1 : Jambes",
+        "exercises": [
+          {
+            "line": "Squat barre                 5",
+            "name": "Squat barre",
+            "sets": 5,
+            "repMin": 5,
+            "repMax": 5,
+            "rest": 180,
+            "pct": 75
+          },
+          {
+            "line": "Presse à cuisses            4",
+            "name": "Presse à cuisses",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 120
+          },
+          {
+            "line": "Soulevé de terre roumain    3",
+            "name": "Soulevé de terre roumain",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 120,
+            "pct": 65
+          },
+          {
+            "line": "Leg curl machine            3",
+            "name": "Leg curl machine",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 90
+          },
+          {
+            "line": "Mollets debout              4",
+            "name": "Mollets debout",
+            "sets": 4,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          }
+        ]
+      },
+      {
+        "label": "Séance 2 : Pectoraux / Triceps",
+        "exercises": [
+          {
+            "line": "Développé couché barre      5",
+            "name": "Développé couché barre",
+            "sets": 5,
+            "repMin": 5,
+            "repMax": 5,
+            "rest": 180,
+            "pct": 75
+          },
+          {
+            "line": "Développé incliné haltères  4",
+            "name": "Développé incliné haltères",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 120
+          },
+          {
+            "line": "Écarté poulie vis-à-vis     3",
+            "name": "Écarté poulie vis-à-vis",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          },
+          {
+            "line": "Barre au front              3",
+            "name": "Barre au front",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 90
+          },
+          {
+            "line": "Extension triceps poulie haute   3",
+            "name": "Extension triceps poulie haute",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 60
+          }
+        ]
+      },
+      {
+        "label": "Séance 3 : Dos / Biceps",
+        "exercises": [
+          {
+            "line": "Soulevé de terre            3",
+            "name": "Soulevé de terre",
+            "sets": 3,
+            "repMin": 3,
+            "repMax": 3,
+            "rest": 180,
+            "pct": 85
+          },
+          {
+            "line": "Tirage vertical prise large 4",
+            "name": "Tirage vertical prise large",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 120
+          },
+          {
+            "line": "Rowing barre                4",
+            "name": "Rowing barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 120,
+            "pct": 70
+          },
+          {
+            "line": "Curl biceps barre           3",
+            "name": "Curl biceps barre",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 90
+          },
+          {
+            "line": "Curl marteau                3",
+            "name": "Curl marteau",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 60
+          }
+        ]
+      }
+    ]
+  }
+}

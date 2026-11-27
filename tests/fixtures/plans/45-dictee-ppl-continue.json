@@ -1,0 +1,112 @@
+{
+  "id": "45-dictee-ppl-continue",
+  "category": "dictee",
+  "description": "Dictée iOS d'un PPL complet d'un seul bloc, sans ponctuation ni retour à la ligne : « séance suivante » sépare les séances, « fois » = x, homophones « développer couché », « squatte », « lègue curl ».",
+  "text": "séance push développer couché quatre séries de 10 repos 2 minutes ensuite développé incliné haltères 3 séries de 12 après élévation latérale 4 fois 15 puis triceps à la poulie 3 fois 12 séance suivante pull tractions 4 séries de 8 rowing barre 4 fois 10 tirage vertical 3 séries de 12 curl haltères 3 fois 12 séance suivante jambes squatte 4 fois 8 repos 3 minutes presse à cuisses 3 séries de 15 lègue curl 3 fois 12 mollets 4 fois 20",
+  "expected": {
+    "title": null,
+    "sessions": [
+      {
+        "label": "push",
+        "exercises": [
+          {
+            "line": "développer couché quatre séries de 10",
+            "name": "Développé couché barre",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 120
+          },
+          {
+            "line": "développé incliné haltères 3 séries de 12",
+            "name": "Développé incliné haltères",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "élévation latérale 4 fois 15",
+            "name": "Élévations latérales",
+            "sets": 4,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "triceps à la poulie 3 fois 12",
+            "name": "Extension triceps poulie haute",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          }
+        ]
+      },
+      {
+        "label": "pull",
+        "exercises": [
+          {
+            "line": "tractions 4 séries de 8",
+            "name": "Tractions pronation",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8
+          },
+          {
+            "line": "rowing barre 4 fois 10",
+            "name": "Rowing barre",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "tirage vertical 3 séries de 12",
+            "name": "Tirage vertical prise large",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "curl haltères 3 fois 12",
+            "name": "Curl biceps haltères",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          }
+        ]
+      },
+      {
+        "label": "jambes",
+        "exercises": [
+          {
+            "line": "squatte 4 fois 8",
+            "name": "Squat barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 180
+          },
+          {
+            "line": "presse à cuisses 3 séries de 15",
+            "name": "Presse à cuisses",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "lègue curl 3 fois 12",
+            "name": "Leg curl machine",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "mollets 4 fois 20",
+            "name": "Mollets debout",
+            "sets": 4,
+            "repMin": 20,
+            "repMax": 20
+          }
+        ]
+      }
+    ]
+  }
+}

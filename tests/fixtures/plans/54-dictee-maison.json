@@ -1,0 +1,65 @@
+{
+  "id": "54-dictee-maison",
+  "category": "dictee",
+  "description": "Dictée d'un programme maison sans séance nommée : « squats » au pluriel, « par jambe », « de chaque côté », gainages en minute et en secondes.",
+  "text": "programme maison sans matériel pompes 4 séries de 15 ensuite squats poids du corps 4 fois 20 après fentes 3 séries de 12 par jambe puis pompes diamant 3 fois 10 superman 3 fois 15 gainage 3 fois 1 minute et gainage latéral 2 fois 30 secondes de chaque côté",
+  "expected": {
+    "title": null,
+    "sessions": [
+      {
+        "label": null,
+        "exercises": [
+          {
+            "line": "pompes 4 séries de 15",
+            "name": "Pompes",
+            "sets": 4,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "squats poids du corps 4 fois 20",
+            "name": "Squat poids du corps",
+            "sets": 4,
+            "repMin": 20,
+            "repMax": 20
+          },
+          {
+            "line": "fentes 3 séries de 12 par jambe",
+            "name": "Fentes",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "uni": true
+          },
+          {
+            "line": "pompes diamant 3 fois 10",
+            "name": "Pompes diamant",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "superman 3 fois 15",
+            "name": "Superman",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "gainage 3 fois 1 minute",
+            "name": "Gainage (planche)",
+            "sets": 3,
+            "seconds": 60
+          },
+          {
+            "line": "gainage latéral 2 fois 30 secondes",
+            "name": "Gainage latéral",
+            "sets": 2,
+            "seconds": 30,
+            "uni": true
+          }
+        ]
+      }
+    ]
+  }
+}

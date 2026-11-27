@@ -1,0 +1,151 @@
+{
+  "id": "16-supersets-a1-a2",
+  "category": "propre",
+  "description": "Supersets notés A1/A2, B1/B2 et un tri-set C1/C2/C3 ; « pas de repos » = repos 0 ; la ligne « D. » seule n'est pas un superset.",
+  "text": "Programme supersets – 2 séances\n\nSéance Haut du corps\nA1. Développé incliné haltères 4 x 8-10 – pas de repos\nA2. Tractions pronation 4 x 6-8 – repos 2 min\nB1. Développé militaire haltères 3 x 10 – pas de repos\nB2. Rowing haltère unilatéral 3 x 10 par bras – repos 90 s\nC1. Curl biceps barre 3 x 12\nC2. Barre au front 3 x 12\nC3. Élévations latérales 3 x 15 – repos 1 min après C3\nD. Face pull 3 x 20 – repos 1 min\n\nSéance Bas du corps\nA1. Squat barre 4 x 8 – pas de repos\nA2. Relevés de genoux suspendu 4 x 12 – repos 2 min 30\nB1. Soulevé de terre roumain 3 x 10\nB2. Extension quadriceps 3 x 15 – repos 2 min\nC1. Leg curl machine 3 x 12\nC2. Mollets debout 3 x 15 – repos 1 min\nD. Hip thrust 3 x 12 – repos 2 min",
+  "expected": {
+    "title": "Programme supersets – 2 séances",
+    "sessions": [
+      {
+        "label": "Séance Haut du corps",
+        "exercises": [
+          {
+            "line": "A1. Développé incliné haltères",
+            "name": "Développé incliné haltères",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 10,
+            "rest": 0,
+            "ss": "A"
+          },
+          {
+            "line": "A2. Tractions pronation",
+            "name": "Tractions pronation",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 8,
+            "rest": 120,
+            "ss": "A"
+          },
+          {
+            "line": "B1. Développé militaire haltères",
+            "name": "Développé militaire haltères",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 0,
+            "ss": "B"
+          },
+          {
+            "line": "B2. Rowing haltère unilatéral",
+            "name": "Rowing haltère unilatéral",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 90,
+            "uni": true,
+            "ss": "B"
+          },
+          {
+            "line": "C1. Curl biceps barre",
+            "name": "Curl biceps barre",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "ss": "C"
+          },
+          {
+            "line": "C2. Barre au front",
+            "name": "Barre au front",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "ss": "C"
+          },
+          {
+            "line": "C3. Élévations latérales",
+            "name": "Élévations latérales",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60,
+            "ss": "C"
+          },
+          {
+            "line": "D. Face pull",
+            "name": "Face pull",
+            "sets": 3,
+            "repMin": 20,
+            "repMax": 20,
+            "rest": 60
+          }
+        ]
+      },
+      {
+        "label": "Séance Bas du corps",
+        "exercises": [
+          {
+            "line": "A1. Squat barre",
+            "name": "Squat barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 0,
+            "ss": "A"
+          },
+          {
+            "line": "A2. Relevés de genoux suspendu",
+            "name": "Relevés de genoux suspendu",
+            "sets": 4,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 150,
+            "ss": "A"
+          },
+          {
+            "line": "B1. Soulevé de terre roumain",
+            "name": "Soulevé de terre roumain",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "ss": "B"
+          },
+          {
+            "line": "B2. Extension quadriceps",
+            "name": "Extension quadriceps",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 120,
+            "ss": "B"
+          },
+          {
+            "line": "C1. Leg curl machine",
+            "name": "Leg curl machine",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "ss": "C"
+          },
+          {
+            "line": "C2. Mollets debout",
+            "name": "Mollets debout",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60,
+            "ss": "C"
+          },
+          {
+            "line": "D. Hip thrust",
+            "name": "Hip thrust",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 120
+          }
+        ]
+      }
+    ]
+  }
+}

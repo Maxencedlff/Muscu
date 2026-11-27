@@ -1,0 +1,161 @@
+{
+  "id": "35-numerotes-parentheses",
+  "category": "libre",
+  "description": "Liste numérotée « 1) » avec notes entre parenthèses à ignorer (sauf le lest « +10 kg »), alias variés (T-bar, shrugs, leg press, sdt jambes tendues), « Abdos : roue abdominale » et consigne de repos générale en fin.",
+  "text": "PROGRAMME PRISE DE MASSE – coach Karim\n\nJOUR 1 – PUSH\n1) Développé couché : 5x5 (charge lourde)\n2) Développé incliné haltères : 4x8-10 (tempo lent en descente)\n3) Pec deck : 3x15 (contraction 1 s en haut)\n4) Développé Arnold : 3x10\n5) Élévations latérales : 4x12-15\n6) Extension triceps corde : 3x12\n\nJOUR 2 – PULL\n1) Soulevé de terre : 4x5 (ceinture conseillée)\n2) Tractions lestées : 4x6 (+10 kg)\n3) Rowing T-bar : 3x10\n4) Tirage vertical prise serrée : 3x12\n5) Shrugs haltères : 4x12\n6) Curl barre : 4x10\n7) Curl concentré : 3x12 par bras\n\nJOUR 3 – LEGS\n1) Squat : 5x5 (descends sous la parallèle)\n2) Leg press : 4x12\n3) Sdt jambes tendues : 3x10\n4) Leg curl assis : 4x12\n5) Mollets à la presse : 4x20\n6) Abdos : roue abdominale 3x10\n\nRepos 2 min entre les séries sur les polyarticulaires, 1 min sur le reste.",
+  "expected": {
+    "title": "PROGRAMME PRISE DE MASSE",
+    "sessions": [
+      {
+        "label": "JOUR 1 – PUSH",
+        "exercises": [
+          {
+            "line": "1) Développé couché : 5x5",
+            "name": "Développé couché barre",
+            "sets": 5,
+            "repMin": 5,
+            "repMax": 5
+          },
+          {
+            "line": "2) Développé incliné haltères",
+            "name": "Développé incliné haltères",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 10
+          },
+          {
+            "line": "3) Pec deck",
+            "name": "Pec deck",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "4) Développé Arnold",
+            "name": "Développé Arnold",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "5) Élévations latérales",
+            "name": "Élévations latérales",
+            "sets": 4,
+            "repMin": 12,
+            "repMax": 15
+          },
+          {
+            "line": "6) Extension triceps corde",
+            "name": "Extension triceps poulie haute",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          }
+        ]
+      },
+      {
+        "label": "JOUR 2 – PULL",
+        "exercises": [
+          {
+            "line": "1) Soulevé de terre",
+            "name": "Soulevé de terre",
+            "sets": 4,
+            "repMin": 5,
+            "repMax": 5
+          },
+          {
+            "line": "2) Tractions lestées",
+            "name": "Tractions pronation",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 6,
+            "load": 10
+          },
+          {
+            "line": "3) Rowing T-bar",
+            "name": "Rowing barre T",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "4) Tirage vertical prise serrée",
+            "name": "Tirage vertical prise serrée",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "5) Shrugs haltères",
+            "name": "Haussements d'épaules haltères",
+            "sets": 4,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "6) Curl barre",
+            "name": "Curl biceps barre",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "7) Curl concentré",
+            "name": "Curl concentration",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "uni": true
+          }
+        ]
+      },
+      {
+        "label": "JOUR 3 – LEGS",
+        "exercises": [
+          {
+            "line": "1) Squat : 5x5",
+            "name": "Squat barre",
+            "sets": 5,
+            "repMin": 5,
+            "repMax": 5
+          },
+          {
+            "line": "2) Leg press",
+            "name": "Presse à cuisses",
+            "sets": 4,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "3) Sdt jambes tendues",
+            "name": "Soulevé de terre roumain",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "4) Leg curl assis",
+            "name": "Leg curl machine",
+            "sets": 4,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "5) Mollets à la presse",
+            "name": "Mollets à la presse",
+            "sets": 4,
+            "repMin": 20,
+            "repMax": 20
+          },
+          {
+            "line": "6) Abdos : roue abdominale",
+            "name": "Roue abdominale",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10
+          }
+        ]
+      }
+    ]
+  }
+}

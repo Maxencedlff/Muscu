@@ -1,0 +1,116 @@
+{
+  "id": "24-tableau-cellules-vides",
+  "category": "tableau",
+  "description": "Feuille Google Sheets avec beaucoup de cellules vides (séries, reps, repos ou charge manquants), tabulations finales en trop, en-tête unique en haut et lest conditionnel dans les notes à ne pas lire comme charge.",
+  "text": "Exercice\tSéries\tReps\tRepos\tCharge\tNotes\nPUSH\t\t\t\t\t\nDéveloppé couché barre\t4\t8\t2 min\t80 kg\t\nDéveloppé incliné haltères\t3\t10\t\t28 kg\t\nDips\t3\t\t90 s\t\tau poids du corps\nÉlévations latérales\t4\t15\t1 min\t10 kg\t\nExtension triceps poulie haute\t\t12\t1 min\t\t\nPompes\t2\tmax\t\t\tfinisher\n\t\t\t\t\t\nPULL\t\t\t\t\t\nSoulevé de terre\t3\t5\t3 min\t120 kg\t\nTractions pronation\t4\t8\t2 min\t\tlest +10 kg si trop facile\nRowing haltère unilatéral\t3\t10\t90 s\t32 kg\tpar bras\nFace pull\t3\t15\t\t\t\nCurl biceps barre\t3\t10\t1 min\t30 kg\t\nCurl concentration\t2\t12\t\t\t\t\t",
+  "expected": {
+    "title": null,
+    "sessions": [
+      {
+        "label": "PUSH",
+        "exercises": [
+          {
+            "line": "Développé couché barre\t4",
+            "name": "Développé couché barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 120,
+            "load": 80
+          },
+          {
+            "line": "Développé incliné haltères\t3",
+            "name": "Développé incliné haltères",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "load": 28
+          },
+          {
+            "line": "Dips\t3",
+            "name": "Dips",
+            "sets": 3,
+            "rest": 90
+          },
+          {
+            "line": "Élévations latérales\t4",
+            "name": "Élévations latérales",
+            "sets": 4,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60,
+            "load": 10
+          },
+          {
+            "line": "Extension triceps poulie haute\t\t12",
+            "name": "Extension triceps poulie haute",
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 60
+          },
+          {
+            "line": "Pompes\t2",
+            "name": "Pompes",
+            "sets": 2,
+            "amrap": true
+          }
+        ]
+      },
+      {
+        "label": "PULL",
+        "exercises": [
+          {
+            "line": "Soulevé de terre\t3",
+            "name": "Soulevé de terre",
+            "sets": 3,
+            "repMin": 5,
+            "repMax": 5,
+            "rest": 180,
+            "load": 120
+          },
+          {
+            "line": "Tractions pronation\t4",
+            "name": "Tractions pronation",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 120
+          },
+          {
+            "line": "Rowing haltère unilatéral\t3",
+            "name": "Rowing haltère unilatéral",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 90,
+            "load": 32,
+            "uni": true
+          },
+          {
+            "line": "Face pull\t3",
+            "name": "Face pull",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "Curl biceps barre\t3",
+            "name": "Curl biceps barre",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 60,
+            "load": 30
+          },
+          {
+            "line": "Curl concentration\t2",
+            "name": "Curl concentration",
+            "sets": 2,
+            "repMin": 12,
+            "repMax": 12
+          }
+        ]
+      }
+    ]
+  }
+}

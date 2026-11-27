@@ -1,0 +1,101 @@
+{
+  "id": "27-tableau-semaines-progression",
+  "category": "tableau",
+  "description": "Tableau avec une colonne par semaine (S1 à S4) : la vérité retient la semaine 1, plus le repos de la dernière colonne.",
+  "text": "Cycle 4 semaines – progression\nOn garde les mêmes exercices, seules les séries x reps changent chaque semaine.\n\nSéance A\nExercice\tSemaine 1\tSemaine 2\tSemaine 3\tSemaine 4\tRepos\nSquat barre\t4x8\t4x7\t4x6\t3x5\t3 min\nDéveloppé couché barre\t4x8\t4x7\t4x6\t3x5\t3 min\nRowing barre\t4x10\t4x10\t4x8\t4x8\t2 min\nÉlévations latérales\t3x15\t3x15\t4x15\t4x15\t1 min\nCrunch\t3x20\t3x20\t3x25\t3x25\t45 s\n\nSéance B\nExercice\tSemaine 1\tSemaine 2\tSemaine 3\tSemaine 4\tRepos\nSoulevé de terre\t3x6\t3x5\t3x4\t3x3\t3 min\nDéveloppé militaire barre\t4x8\t4x7\t4x6\t3x5\t2 min\nTractions pronation\t4x6\t4x7\t4x8\t4xmax\t2 min\nFentes bulgares\t3x10\t3x10\t3x12\t3x12\t90 s\nCurl biceps haltères\t3x12\t3x12\t4x12\t4x12\t1 min",
+  "expected": {
+    "title": "Cycle 4 semaines – progression",
+    "sessions": [
+      {
+        "label": "Séance A",
+        "exercises": [
+          {
+            "line": "Squat barre\t4x8",
+            "name": "Squat barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 180
+          },
+          {
+            "line": "Développé couché barre\t4x8",
+            "name": "Développé couché barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 180
+          },
+          {
+            "line": "Rowing barre\t4x10",
+            "name": "Rowing barre",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 120
+          },
+          {
+            "line": "Élévations latérales\t3x15",
+            "name": "Élévations latérales",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          },
+          {
+            "line": "Crunch\t3x20",
+            "name": "Crunch",
+            "sets": 3,
+            "repMin": 20,
+            "repMax": 20,
+            "rest": 45
+          }
+        ]
+      },
+      {
+        "label": "Séance B",
+        "exercises": [
+          {
+            "line": "Soulevé de terre\t3x6",
+            "name": "Soulevé de terre",
+            "sets": 3,
+            "repMin": 6,
+            "repMax": 6,
+            "rest": 180
+          },
+          {
+            "line": "Développé militaire barre\t4x8",
+            "name": "Développé militaire barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 120
+          },
+          {
+            "line": "Tractions pronation\t4x6",
+            "name": "Tractions pronation",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 6,
+            "rest": 120
+          },
+          {
+            "line": "Fentes bulgares\t3x10",
+            "name": "Fentes bulgares",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 90
+          },
+          {
+            "line": "Curl biceps haltères\t3x12",
+            "name": "Curl biceps haltères",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 60
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,102 @@
+{
+  "id": "03-stronglifts-5x5",
+  "category": "propre",
+  "description": "StrongLifts 5x5 A/B avec charges (dont « 62,5 kg » à virgule) et une ligne « Semaine type : lundi A… » qui ne doit pas créer de séance.",
+  "text": "StrongLifts 5x5 – débutant\n\nSemaine type : lundi A, mercredi B, vendredi A (puis B, A, B la semaine suivante).\nAjoute 2,5 kg à chaque séance si toutes les séries sont réussies.\n\nSéance A\nSquat barre : 5x5 à 60 kg, repos 3 min\nDéveloppé couché barre : 5x5 à 50 kg, repos 3 min\nRowing barre : 5x5 à 40 kg, repos 3 min\nDips : 3x8-12, repos 2 min\nGainage (planche) : 3x30 s\n\nSéance B\nSquat barre : 5x5 à 62,5 kg, repos 3 min\nDéveloppé militaire barre : 5x5 à 30 kg, repos 3 min\nSoulevé de terre : 1x5 à 70 kg\nTractions pronation : 3x max, repos 2 min\nCurl biceps barre : 2x10",
+  "expected": {
+    "title": "StrongLifts 5x5 – débutant",
+    "sessions": [
+      {
+        "label": "Séance A",
+        "exercises": [
+          {
+            "line": "Squat barre : 5x5 à 60 kg",
+            "name": "Squat barre",
+            "sets": 5,
+            "repMin": 5,
+            "repMax": 5,
+            "rest": 180,
+            "load": 60
+          },
+          {
+            "line": "Développé couché barre : 5x5",
+            "name": "Développé couché barre",
+            "sets": 5,
+            "repMin": 5,
+            "repMax": 5,
+            "rest": 180,
+            "load": 50
+          },
+          {
+            "line": "Rowing barre : 5x5",
+            "name": "Rowing barre",
+            "sets": 5,
+            "repMin": 5,
+            "repMax": 5,
+            "rest": 180,
+            "load": 40
+          },
+          {
+            "line": "Dips : 3x8-12",
+            "name": "Dips",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 12,
+            "rest": 120
+          },
+          {
+            "line": "Gainage (planche) : 3x30 s",
+            "name": "Gainage (planche)",
+            "sets": 3,
+            "seconds": 30
+          }
+        ]
+      },
+      {
+        "label": "Séance B",
+        "exercises": [
+          {
+            "line": "Squat barre : 5x5 à 62,5 kg",
+            "name": "Squat barre",
+            "sets": 5,
+            "repMin": 5,
+            "repMax": 5,
+            "rest": 180,
+            "load": 62.5
+          },
+          {
+            "line": "Développé militaire barre : 5x5",
+            "name": "Développé militaire barre",
+            "sets": 5,
+            "repMin": 5,
+            "repMax": 5,
+            "rest": 180,
+            "load": 30
+          },
+          {
+            "line": "Soulevé de terre : 1x5",
+            "name": "Soulevé de terre",
+            "sets": 1,
+            "repMin": 5,
+            "repMax": 5,
+            "load": 70
+          },
+          {
+            "line": "Tractions pronation : 3x max",
+            "name": "Tractions pronation",
+            "sets": 3,
+            "amrap": true,
+            "rest": 120
+          },
+          {
+            "line": "Curl biceps barre : 2x10",
+            "name": "Curl biceps barre",
+            "sets": 2,
+            "repMin": 10,
+            "repMax": 10
+          }
+        ]
+      }
+    ]
+  }
+}

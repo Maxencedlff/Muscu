@@ -1,0 +1,62 @@
+{
+  "id": "53-dictee-superset-tempo",
+  "category": "dictee",
+  "description": "Dictée de séance bras : deux supersets dits à l'oral (« en superset X et Y … chacun », « enchaîné avec ») dont la prescription est dite une seule fois pour les deux, tempo dicté « 3 1 1 ».",
+  "text": "séance bras en superset curl barre et barre au front 4 séries de 10 chacun ensuite curl incliné enchaîné avec extension triceps à la poulie 3 fois 12 puis curl marteau 3 fois 15 tempo 3 1 1 et pour finir dips 3 fois maximum",
+  "expected": {
+    "title": null,
+    "sessions": [
+      {
+        "label": "bras",
+        "exercises": [
+          {
+            "line": "curl barre et barre au front",
+            "name": "Curl biceps barre",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10,
+            "ss": "A"
+          },
+          {
+            "line": "barre au front 4 séries de 10",
+            "name": "Barre au front",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10,
+            "ss": "A"
+          },
+          {
+            "line": "curl incliné enchaîné avec",
+            "name": "Curl incliné",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "ss": "B"
+          },
+          {
+            "line": "extension triceps à la poulie 3 fois 12",
+            "name": "Extension triceps poulie haute",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "ss": "B"
+          },
+          {
+            "line": "curl marteau 3 fois 15",
+            "name": "Curl marteau",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "tempo": "3-1-1"
+          },
+          {
+            "line": "dips 3 fois maximum",
+            "name": "Dips",
+            "sets": 3,
+            "amrap": true
+          }
+        ]
+      }
+    ]
+  }
+}

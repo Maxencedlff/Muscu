@@ -2,7 +2,7 @@
 import Hevy, Progrès, Historique, bilan, image partagée, carte des muscles, fiche d'un programme.
 
 - Premier lancement : nom du programme en français (« Corps entier », « Appelé aussi Full Body »), plus de pastille grise
-  devant la séance (prise pour un bouton radio) ; « J'ai déjà un programme » mène à « Importer depuis Hevy ou Strong ».
+  devant la séance (prise pour un bouton radio) ; « J'ai déjà un programme » mène à « Importer un programme » (texte, PDF, Hevy ou Strong).
 - Séance créée et nommée « Push » à la main : affichée « Push », jamais « Pousser (Push) » ; séance intégrée : « Jambes »,
   plus « Jambes (Legs) ».
 - Import Hevy sur une app neuve : le programme importé devient le programme actif, ses exercices se rangent dessous
@@ -60,8 +60,8 @@ def t_premier_lancement(bench, eng, dev, theme):
         page.click('.onb [data-action="onb-have"]'); settle(page)
         page.evaluate("data.tour = 'seen'; save(true); if (typeof tourClose === 'function') tourClose()")
         page.wait_for_selector('.view.prog-add')
-        imp = page.locator('.view.prog-add [data-action="import-other-app"]')
-        R.check(imp.count() == 1 and imp.inner_text().strip() == 'Importer depuis Hevy ou Strong', f'{t} Ajouter un programme : import proposé')
+        imp = page.locator('.view.prog-add [data-action="plan-import"]')
+        R.check(imp.count() == 1 and imp.inner_text().strip() == 'Importer un programme', f'{t} Ajouter un programme : import proposé (texte, PDF, Hevy ou Strong)')
         names = page.locator('.view.prog-add .cell__title').all_inner_texts()
         R.check(any(n.startswith('Pousser, tirer, jambes') and '(PPL)' in n for n in names), f'{t} catalogue : nom français, nom courant entre parenthèses {names[:4]}')
         shot(page, LOT, f'prog_add_{t}')

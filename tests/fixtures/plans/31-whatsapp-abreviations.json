@@ -1,0 +1,171 @@
+{
+  "id": "31-whatsapp-abreviations",
+  "category": "libre",
+  "description": "Message WhatsApp de coach plein d'abréviations de salle (DC, DI, DM, tirage poitrine, poulie basse, leg ext, élev lat), un mercredi de repos et des formules de politesse.",
+  "text": "Salut ! Voilà ton prog pour les 4 prochaines semaines 💪\n\nLundi : Pecs / tri\n- DC 4x8 (2min récup)\n- DI halteres 3x10\n- Ecarté poulie 3x15\n- Dips 3x max\n- Ext triceps poulie 3x12\n\nMardi : dos / bi\n- Tractions 4x6-8\n- Rowing barre 4x8\n- Tirage poitrine 3x10\n- Poulie basse 3x12\n- Curl EZ 3x10\n- Curl marteau 3x12\n\nMercredi : repos\n\nJeudi : jambes\n- Squat 4x6\n- Presse 4x10\n- Leg ext 3x15\n- Leg curl 3x12\n- Mollets 4x15\n\nVendredi : épaules\n- DM 4x8\n- Elev lat 4x15\n- Oiseau 3x15\n- Face pull 3x20\n\nHésite pas si t'as des questions, bon courage 🔥",
+  "expected": {
+    "title": null,
+    "sessions": [
+      {
+        "label": "Lundi : Pecs / tri",
+        "exercises": [
+          {
+            "line": "- DC 4x8",
+            "name": "Développé couché barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 120
+          },
+          {
+            "line": "- DI halteres 3x10",
+            "name": "Développé incliné haltères",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "- Ecarté poulie 3x15",
+            "name": "Écarté poulie vis-à-vis",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "- Dips 3x max",
+            "name": "Dips",
+            "sets": 3,
+            "amrap": true
+          },
+          {
+            "line": "- Ext triceps poulie 3x12",
+            "name": "Extension triceps poulie haute",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          }
+        ]
+      },
+      {
+        "label": "Mardi : dos / bi",
+        "exercises": [
+          {
+            "line": "- Tractions 4x6-8",
+            "name": "Tractions pronation",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 8
+          },
+          {
+            "line": "- Rowing barre 4x8",
+            "name": "Rowing barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8
+          },
+          {
+            "line": "- Tirage poitrine 3x10",
+            "name": "Tirage vertical prise large",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "- Poulie basse 3x12",
+            "name": "Tirage horizontal câble",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "- Curl EZ 3x10",
+            "name": "Curl biceps barre",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "- Curl marteau 3x12",
+            "name": "Curl marteau",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          }
+        ]
+      },
+      {
+        "label": "Jeudi : jambes",
+        "exercises": [
+          {
+            "line": "- Squat 4x6",
+            "name": "Squat barre",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 6
+          },
+          {
+            "line": "- Presse 4x10",
+            "name": "Presse à cuisses",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "- Leg ext 3x15",
+            "name": "Extension quadriceps",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "- Leg curl 3x12",
+            "name": "Leg curl machine",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "- Mollets 4x15",
+            "name": "Mollets debout",
+            "sets": 4,
+            "repMin": 15,
+            "repMax": 15
+          }
+        ]
+      },
+      {
+        "label": "Vendredi : épaules",
+        "exercises": [
+          {
+            "line": "- DM 4x8",
+            "name": "Développé militaire barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8
+          },
+          {
+            "line": "- Elev lat 4x15",
+            "name": "Élévations latérales",
+            "sets": 4,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "- Oiseau 3x15",
+            "name": "Oiseau (élévations arrière)",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "- Face pull 3x20",
+            "name": "Face pull",
+            "sets": 3,
+            "repMin": 20,
+            "repMax": 20
+          }
+        ]
+      }
+    ]
+  }
+}

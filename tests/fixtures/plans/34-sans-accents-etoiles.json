@@ -1,0 +1,152 @@
+{
+  "id": "34-sans-accents-etoiles",
+  "category": "libre",
+  "description": "Plan sans aucun accent, puces « * » y compris devant les titres de séance, « 3x/semaine » dans le titre, repos collés (« 1min30 »).",
+  "text": "PROG FULL BODY - 3x/semaine\n(sans accents, desole clavier qwerty)\n\n* Seance A\n* Squat barre 3x8 - recup 2min\n* Developpe couche halteres 3x10 - recup 1min30\n* Tirage vertical prise serree 3x10 - recup 1min30\n* Elevations laterales 3x15 - recup 1min\n* Releve de jambes 3x12\n\n* Seance B\n* Souleve de terre 3x5 - recup 3min\n* Developpe militaire barre 3x8 - recup 2min\n* Rowing haltere 3x10 chaque bras - recup 1min30\n* Hip thrust 3x12 - recup 1min30\n* Crunch poulie 3x15\n\n* Seance C\n* Presse a cuisses 3x12 - recup 2min\n* Developpe incline barre 3x8 - recup 2min\n* Tractions supination 3x max - recup 2min\n* Ecarte poulie basse 3x15 - recup 1min\n* Curl pupitre 3x12 - recup 1min\n* Barre au front 3x12 - recup 1min",
+  "expected": {
+    "title": "PROG FULL BODY - 3x/semaine",
+    "sessions": [
+      {
+        "label": "Seance A",
+        "exercises": [
+          {
+            "line": "* Squat barre 3x8",
+            "name": "Squat barre",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 120
+          },
+          {
+            "line": "* Developpe couche halteres",
+            "name": "Développé couché haltères",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 90
+          },
+          {
+            "line": "* Tirage vertical prise serree",
+            "name": "Tirage vertical prise serrée",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 90
+          },
+          {
+            "line": "* Elevations laterales",
+            "name": "Élévations latérales",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          },
+          {
+            "line": "* Releve de jambes",
+            "name": "Relevés de jambes",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          }
+        ]
+      },
+      {
+        "label": "Seance B",
+        "exercises": [
+          {
+            "line": "* Souleve de terre 3x5",
+            "name": "Soulevé de terre",
+            "sets": 3,
+            "repMin": 5,
+            "repMax": 5,
+            "rest": 180
+          },
+          {
+            "line": "* Developpe militaire barre",
+            "name": "Développé militaire barre",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 120
+          },
+          {
+            "line": "* Rowing haltere 3x10",
+            "name": "Rowing haltère unilatéral",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 90,
+            "uni": true
+          },
+          {
+            "line": "* Hip thrust 3x12",
+            "name": "Hip thrust",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 90
+          },
+          {
+            "line": "* Crunch poulie 3x15",
+            "name": "Crunch poulie",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          }
+        ]
+      },
+      {
+        "label": "Seance C",
+        "exercises": [
+          {
+            "line": "* Presse a cuisses",
+            "name": "Presse à cuisses",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 120
+          },
+          {
+            "line": "* Developpe incline barre",
+            "name": "Développé incliné barre",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 120
+          },
+          {
+            "line": "* Tractions supination",
+            "name": "Tractions supination",
+            "sets": 3,
+            "amrap": true,
+            "rest": 120
+          },
+          {
+            "line": "* Ecarte poulie basse",
+            "name": "Écarté poulie basse",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          },
+          {
+            "line": "* Curl pupitre",
+            "name": "Curl pupitre",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 60
+          },
+          {
+            "line": "* Barre au front",
+            "name": "Barre au front",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 60
+          }
+        ]
+      }
+    ]
+  }
+}

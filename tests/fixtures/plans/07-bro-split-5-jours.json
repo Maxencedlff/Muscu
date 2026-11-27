@@ -1,0 +1,239 @@
+{
+  "id": "07-bro-split-5-jours",
+  "category": "propre",
+  "description": "Bro split un muscle par jour, avec une pyramide « 4 séries (12-10-8-6) » (repMin 6, repMax 12), un drop set en dernière série et un week-end de repos à ne pas lire comme séance.",
+  "text": "BRO SPLIT 5 JOURS\n\nLundi : Pectoraux\nDéveloppé couché barre : 4 séries (12-10-8-6), repos 2 min\nDéveloppé incliné haltères : 4x10, repos 90 s\nDéveloppé décliné : 3x10\nÉcarté haltères plat : 3x12\nPec deck : 3x15, dernière série en drop set\nPompes : 2x max\n\nMardi : Dos\nTractions pronation : 4x8, repos 2 min\nRowing barre : 4x10, repos 2 min\nTirage vertical prise serrée : 3x12\nRowing barre T : 3x10\nTirage bras tendus poulie : 3x15\nExtension lombaires : 3x15\n\nMercredi : Épaules\nDéveloppé militaire barre : 4x8, repos 2 min\nÉlévations latérales : 4x15\nÉlévations frontales : 3x12\nOiseau (élévations arrière) : 4x15\nHaussements d'épaules haltères : 4x12\n\nJeudi : Bras\nCurl biceps barre : 4x10\nBarre au front : 4x10\nCurl pupitre : 3x12\nExtension triceps poulie haute : 3x12\nCurl marteau : 3x12\nKickback triceps : 3x15\n\nVendredi : Jambes\nSquat barre : 5x8, repos 3 min\nPresse à cuisses : 4x12\nExtension quadriceps : 3x15\nLeg curl machine : 4x12\nMollets debout : 5x15\n\nSamedi / Dimanche : repos",
+  "expected": {
+    "title": "BRO SPLIT 5 JOURS",
+    "sessions": [
+      {
+        "label": "Lundi : Pectoraux",
+        "exercises": [
+          {
+            "line": "Développé couché barre : 4 séries (12-10-8-6)",
+            "name": "Développé couché barre",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 12,
+            "rest": 120
+          },
+          {
+            "line": "Développé incliné haltères : 4x10",
+            "name": "Développé incliné haltères",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 90
+          },
+          {
+            "line": "Développé décliné : 3x10",
+            "name": "Développé décliné",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "Écarté haltères plat : 3x12",
+            "name": "Écarté haltères plat",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "Pec deck : 3x15",
+            "name": "Pec deck",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "tech": "drop",
+            "techWhere": "last"
+          },
+          {
+            "line": "Pompes : 2x max",
+            "name": "Pompes",
+            "sets": 2,
+            "amrap": true
+          }
+        ]
+      },
+      {
+        "label": "Mardi : Dos",
+        "exercises": [
+          {
+            "line": "Tractions pronation : 4x8",
+            "name": "Tractions pronation",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 120
+          },
+          {
+            "line": "Rowing barre : 4x10",
+            "name": "Rowing barre",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 120
+          },
+          {
+            "line": "Tirage vertical prise serrée : 3x12",
+            "name": "Tirage vertical prise serrée",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "Rowing barre T : 3x10",
+            "name": "Rowing barre T",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "Tirage bras tendus poulie : 3x15",
+            "name": "Tirage bras tendus poulie",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "Extension lombaires : 3x15",
+            "name": "Extension lombaires",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          }
+        ]
+      },
+      {
+        "label": "Mercredi : Épaules",
+        "exercises": [
+          {
+            "line": "Développé militaire barre : 4x8",
+            "name": "Développé militaire barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 120
+          },
+          {
+            "line": "Élévations latérales : 4x15",
+            "name": "Élévations latérales",
+            "sets": 4,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "Élévations frontales : 3x12",
+            "name": "Élévations frontales",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "Oiseau (élévations arrière) : 4x15",
+            "name": "Oiseau (élévations arrière)",
+            "sets": 4,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "Haussements d'épaules haltères : 4x12",
+            "name": "Haussements d'épaules haltères",
+            "sets": 4,
+            "repMin": 12,
+            "repMax": 12
+          }
+        ]
+      },
+      {
+        "label": "Jeudi : Bras",
+        "exercises": [
+          {
+            "line": "Curl biceps barre : 4x10",
+            "name": "Curl biceps barre",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "Barre au front : 4x10",
+            "name": "Barre au front",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "Curl pupitre : 3x12",
+            "name": "Curl pupitre",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "Extension triceps poulie haute : 3x12",
+            "name": "Extension triceps poulie haute",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "Curl marteau : 3x12",
+            "name": "Curl marteau",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "Kickback triceps : 3x15",
+            "name": "Kickback triceps",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          }
+        ]
+      },
+      {
+        "label": "Vendredi : Jambes",
+        "exercises": [
+          {
+            "line": "Squat barre : 5x8",
+            "name": "Squat barre",
+            "sets": 5,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 180
+          },
+          {
+            "line": "Presse à cuisses : 4x12",
+            "name": "Presse à cuisses",
+            "sets": 4,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "Extension quadriceps : 3x15",
+            "name": "Extension quadriceps",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "Leg curl machine : 4x12",
+            "name": "Leg curl machine",
+            "sets": 4,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "Mollets debout : 5x15",
+            "name": "Mollets debout",
+            "sets": 5,
+            "repMin": 15,
+            "repMax": 15
+          }
+        ]
+      }
+    ]
+  }
+}

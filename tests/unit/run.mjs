@@ -86,6 +86,11 @@ const SCRIPTS = [
   'js/data/atlas.js',
   'js/data/measures.js',
   'js/data/import-csv.js',
+  'js/data/plan-grammar.js',
+  'js/data/plan-match.js',
+  'js/data/plan-table.js',
+  'js/data/plan-parser.js',
+  'js/data/plan-aliases.js',
   'js/data/import-measures.js',
   'js/data/progress-photos.js',
   'js/data/photo-vault.js',
@@ -2366,6 +2371,9 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 (await import('./intensif.mjs')).default({ test, run, reset, assert, sameJSON });
 // ── Séries notées par bras (tests dans unilateral.mjs) ──
 (await import('./unilateral.mjs')).default({ test, run, reset, assert, sameJSON });
+// ── Import d'un programme : grammaire, reconnaissance, tableaux, corpus (tests dans plan-import.mjs) ──
+(await import('./plan-import.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
+
 // ── Import depuis Hevy et Strong (tests dans import-csv.mjs) ──
 (await import('./import-csv.mjs')).default({ test, run, reset, assert, app, sameJSON, ROOT });
 // ── Import des mesures Hevy (tests dans import-measures.mjs) ──

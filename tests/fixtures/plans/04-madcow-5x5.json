@@ -1,0 +1,130 @@
+{
+  "id": "04-madcow-5x5",
+  "category": "propre",
+  "description": "Madcow 5x5 lundi/mercredi/vendredi : montée en pyramide, notes entre parenthèses, et top set + back-off (tech topback, séries non comptées).",
+  "text": "Madcow 5x5 (intermédiaire)\n\nLundi – lourd\nSquat barre : 5x5 en montée progressive, repos 3 min\nDéveloppé couché barre : 5x5 en montée progressive, repos 3 min\nRowing barre : 5x5 en montée progressive, repos 2 min\nExtension lombaires : 2x10-12\nCrunch : 4x10-15\n\nMercredi – léger\nSquat barre : 4x5 (on reste sur la charge de la 3e série de lundi)\nDéveloppé militaire barre : 4x5, repos 2 min\nSoulevé de terre : 4x5, repos 3 min\nCrunch : 3x10-15\n\nVendredi – intense\nSquat barre : top set de 3 puis back-off 1x8\nDéveloppé couché barre : top set de 3 puis back-off 1x8\nRowing barre : top set de 3 puis back-off 1x8\nDips : 3x5-8\nCurl biceps barre : 3x8\nExtension triceps poulie haute : 3x8",
+  "expected": {
+    "title": "Madcow 5x5 (intermédiaire)",
+    "sessions": [
+      {
+        "label": "Lundi – lourd",
+        "exercises": [
+          {
+            "line": "Squat barre : 5x5 en montée",
+            "name": "Squat barre",
+            "sets": 5,
+            "repMin": 5,
+            "repMax": 5,
+            "rest": 180
+          },
+          {
+            "line": "Développé couché barre : 5x5",
+            "name": "Développé couché barre",
+            "sets": 5,
+            "repMin": 5,
+            "repMax": 5,
+            "rest": 180
+          },
+          {
+            "line": "Rowing barre : 5x5",
+            "name": "Rowing barre",
+            "sets": 5,
+            "repMin": 5,
+            "repMax": 5,
+            "rest": 120
+          },
+          {
+            "line": "Extension lombaires : 2x10-12",
+            "name": "Extension lombaires",
+            "sets": 2,
+            "repMin": 10,
+            "repMax": 12
+          },
+          {
+            "line": "Crunch : 4x10-15",
+            "name": "Crunch",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 15
+          }
+        ]
+      },
+      {
+        "label": "Mercredi – léger",
+        "exercises": [
+          {
+            "line": "Squat barre : 4x5",
+            "name": "Squat barre",
+            "sets": 4,
+            "repMin": 5,
+            "repMax": 5
+          },
+          {
+            "line": "Développé militaire barre : 4x5",
+            "name": "Développé militaire barre",
+            "sets": 4,
+            "repMin": 5,
+            "repMax": 5,
+            "rest": 120
+          },
+          {
+            "line": "Soulevé de terre : 4x5",
+            "name": "Soulevé de terre",
+            "sets": 4,
+            "repMin": 5,
+            "repMax": 5,
+            "rest": 180
+          },
+          {
+            "line": "Crunch : 3x10-15",
+            "name": "Crunch",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 15
+          }
+        ]
+      },
+      {
+        "label": "Vendredi – intense",
+        "exercises": [
+          {
+            "line": "Squat barre : top set de 3",
+            "name": "Squat barre",
+            "tech": "topback"
+          },
+          {
+            "line": "Développé couché barre : top set de 3",
+            "name": "Développé couché barre",
+            "tech": "topback"
+          },
+          {
+            "line": "Rowing barre : top set de 3",
+            "name": "Rowing barre",
+            "tech": "topback"
+          },
+          {
+            "line": "Dips : 3x5-8",
+            "name": "Dips",
+            "sets": 3,
+            "repMin": 5,
+            "repMax": 8
+          },
+          {
+            "line": "Curl biceps barre : 3x8",
+            "name": "Curl biceps barre",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 8
+          },
+          {
+            "line": "Extension triceps poulie haute : 3x8",
+            "name": "Extension triceps poulie haute",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 8
+          }
+        ]
+      }
+    ]
+  }
+}

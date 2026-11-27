@@ -1,0 +1,91 @@
+{
+  "id": "47-dictee-homophones",
+  "category": "dictee",
+  "description": "Dictée truffée d'erreurs de reconnaissance (« roming », « poule over », « face poule », « leg cœur l », « hip trust », « lègue extension ») avec « première séance » / « deuxième séance ».",
+  "text": "première séance haut du corps développé coucher haltères 4 fois 10 roming barre 4 fois 10 poule over à la poulie 3 fois 15 face poule 3 fois 15 curl marteau 3 fois 12 deuxième séance bas du corps squatte 4 fois 8 leg cœur l 3 fois 12 hip trust 4 fois 10 lègue extension 3 fois 15 mollets assis 4 fois 15",
+  "expected": {
+    "title": null,
+    "sessions": [
+      {
+        "label": "haut du corps",
+        "exercises": [
+          {
+            "line": "développé coucher haltères 4 fois 10",
+            "name": "Développé couché haltères",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "roming barre 4 fois 10",
+            "name": "Rowing barre",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "poule over à la poulie 3 fois 15",
+            "name": "Pull-over poulie",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "face poule 3 fois 15",
+            "name": "Face pull",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "curl marteau 3 fois 12",
+            "name": "Curl marteau",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          }
+        ]
+      },
+      {
+        "label": "bas du corps",
+        "exercises": [
+          {
+            "line": "squatte 4 fois 8",
+            "name": "Squat barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8
+          },
+          {
+            "line": "leg cœur l 3 fois 12",
+            "name": "Leg curl machine",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "hip trust 4 fois 10",
+            "name": "Hip thrust",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "lègue extension 3 fois 15",
+            "name": "Extension quadriceps",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "mollets assis 4 fois 15",
+            "name": "Mollets assis",
+            "sets": 4,
+            "repMin": 15,
+            "repMax": 15
+          }
+        ]
+      }
+    ]
+  }
+}

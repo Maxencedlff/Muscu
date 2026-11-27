@@ -1,0 +1,144 @@
+{
+  "id": "30-tableau-colonne-seance",
+  "category": "tableau",
+  "description": "Tableur où la séance est une colonne (« Lundi » sur la première ligne du groupe, cellule vide ensuite) : il faut découper les séances d'après cette colonne.",
+  "text": "Séance\tExercice\tSéries\tReps\tRepos\nLundi\tSquat barre\t4\t8\t3 min\n\tPresse à cuisses\t3\t10-12\t2 min\n\tFentes bulgares\t3\t10/jambe\t90 s\n\tLeg curl machine\t3\t12\t1 min\n\tGainage (planche)\t3\t30 s\t30 s\nMercredi\tDéveloppé couché barre\t4\t8-10\t2 min\n\tDéveloppé militaire barre\t3\t8\t2 min\n\tDips\t3\tmax\t90 s\n\tÉlévations latérales\t3\t15\t1 min\n\tExtension triceps poulie haute\t3\t12\t1 min\nVendredi\tSoulevé de terre\t3\t5\t3 min\n\tTractions pronation\t4\tmax\t2 min\n\tRowing barre\t4\t10\t2 min\n\tFace pull\t3\t15\t1 min\n\tCurl biceps barre\t3\t12\t1 min",
+  "expected": {
+    "title": null,
+    "sessions": [
+      {
+        "label": "Lundi",
+        "exercises": [
+          {
+            "line": "Squat barre\t4",
+            "name": "Squat barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 180
+          },
+          {
+            "line": "Presse à cuisses\t3",
+            "name": "Presse à cuisses",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 12,
+            "rest": 120
+          },
+          {
+            "line": "Fentes bulgares\t3",
+            "name": "Fentes bulgares",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 90,
+            "uni": true
+          },
+          {
+            "line": "Leg curl machine\t3",
+            "name": "Leg curl machine",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 60
+          },
+          {
+            "line": "Gainage (planche)\t3",
+            "name": "Gainage (planche)",
+            "sets": 3,
+            "seconds": 30,
+            "rest": 30
+          }
+        ]
+      },
+      {
+        "label": "Mercredi",
+        "exercises": [
+          {
+            "line": "Développé couché barre\t4",
+            "name": "Développé couché barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 10,
+            "rest": 120
+          },
+          {
+            "line": "Développé militaire barre\t3",
+            "name": "Développé militaire barre",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 120
+          },
+          {
+            "line": "Dips\t3",
+            "name": "Dips",
+            "sets": 3,
+            "amrap": true,
+            "rest": 90
+          },
+          {
+            "line": "Élévations latérales\t3",
+            "name": "Élévations latérales",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          },
+          {
+            "line": "Extension triceps poulie haute\t3",
+            "name": "Extension triceps poulie haute",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 60
+          }
+        ]
+      },
+      {
+        "label": "Vendredi",
+        "exercises": [
+          {
+            "line": "Soulevé de terre\t3",
+            "name": "Soulevé de terre",
+            "sets": 3,
+            "repMin": 5,
+            "repMax": 5,
+            "rest": 180
+          },
+          {
+            "line": "Tractions pronation\t4",
+            "name": "Tractions pronation",
+            "sets": 4,
+            "amrap": true,
+            "rest": 120
+          },
+          {
+            "line": "Rowing barre\t4",
+            "name": "Rowing barre",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 120
+          },
+          {
+            "line": "Face pull\t3",
+            "name": "Face pull",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          },
+          {
+            "line": "Curl biceps barre\t3",
+            "name": "Curl biceps barre",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 60
+          }
+        ]
+      }
+    ]
+  }
+}

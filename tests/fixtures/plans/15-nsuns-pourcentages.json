@@ -1,0 +1,180 @@
+{
+  "id": "15-nsuns-pourcentages",
+  "category": "propre",
+  "description": "Programme type nSuns avec pourcentages du max (dont « 72,5 % »), une série AMRAP en plus des séries de travail sur le même exercice (deux lignes distinctes).",
+  "text": "nSuns 4 jours (version simplifiée)\nLes % sont calculés sur ton max d'entraînement (90 % du vrai 1RM).\n\nJour 1 – Bench / OHP\nDéveloppé couché barre : 4 x 6 @ 75 %\nDéveloppé couché barre : 1 x max @ 85 % (série AMRAP)\nDéveloppé militaire barre : 3 x 8 @ 65 %\nDips : 3 x 10-12\nTirage vertical prise large : 3 x 10\n\nJour 2 – Squat / Sumo\nSquat barre : 5 x 5 @ 75 %\nSquat barre : 1 x AMRAP @ 85 %\nSoulevé de terre sumo : 3 x 5 @ 70 %\nLeg curl machine : 3 x 12\nRelevés de jambes : 3 x 15\n\nJour 3 – Deadlift / Front\nSoulevé de terre : 3 x 3 @ 85 %\nSoulevé de terre : 1 x max à 90 %\nSquat avant : 3 x 6 @ 65 %\nRowing barre : 4 x 8\nCurl biceps barre : 3 x 10\n\nJour 4 – OHP / Incliné\nDéveloppé militaire barre : 5 x 5 @ 72,5 %\nDéveloppé incliné barre : 3 x 8 @ 60 %\nDéveloppé couché prise serrée : 3 x 8 @ 65 %\nFace pull : 3 x 20\nÉlévations latérales : 3 x 15",
+  "expected": {
+    "title": "nSuns 4 jours (version simplifiée)",
+    "sessions": [
+      {
+        "label": "Jour 1 – Bench / OHP",
+        "exercises": [
+          {
+            "line": "Développé couché barre : 4 x 6 @ 75 %",
+            "name": "Développé couché barre",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 6,
+            "pct": 75
+          },
+          {
+            "line": "Développé couché barre : 1 x max",
+            "name": "Développé couché barre",
+            "sets": 1,
+            "amrap": true,
+            "pct": 85
+          },
+          {
+            "line": "Développé militaire barre : 3 x 8",
+            "name": "Développé militaire barre",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 8,
+            "pct": 65
+          },
+          {
+            "line": "Dips : 3 x 10-12",
+            "name": "Dips",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 12
+          },
+          {
+            "line": "Tirage vertical prise large : 3 x 10",
+            "name": "Tirage vertical prise large",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10
+          }
+        ]
+      },
+      {
+        "label": "Jour 2 – Squat / Sumo",
+        "exercises": [
+          {
+            "line": "Squat barre : 5 x 5",
+            "name": "Squat barre",
+            "sets": 5,
+            "repMin": 5,
+            "repMax": 5,
+            "pct": 75
+          },
+          {
+            "line": "Squat barre : 1 x AMRAP",
+            "name": "Squat barre",
+            "sets": 1,
+            "amrap": true,
+            "pct": 85
+          },
+          {
+            "line": "Soulevé de terre sumo : 3 x 5",
+            "name": "Soulevé de terre sumo",
+            "sets": 3,
+            "repMin": 5,
+            "repMax": 5,
+            "pct": 70
+          },
+          {
+            "line": "Leg curl machine : 3 x 12",
+            "name": "Leg curl machine",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "Relevés de jambes : 3 x 15",
+            "name": "Relevés de jambes",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          }
+        ]
+      },
+      {
+        "label": "Jour 3 – Deadlift / Front",
+        "exercises": [
+          {
+            "line": "Soulevé de terre : 3 x 3",
+            "name": "Soulevé de terre",
+            "sets": 3,
+            "repMin": 3,
+            "repMax": 3,
+            "pct": 85
+          },
+          {
+            "line": "Soulevé de terre : 1 x max",
+            "name": "Soulevé de terre",
+            "sets": 1,
+            "amrap": true,
+            "pct": 90
+          },
+          {
+            "line": "Squat avant : 3 x 6",
+            "name": "Squat avant",
+            "sets": 3,
+            "repMin": 6,
+            "repMax": 6,
+            "pct": 65
+          },
+          {
+            "line": "Rowing barre : 4 x 8",
+            "name": "Rowing barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8
+          },
+          {
+            "line": "Curl biceps barre : 3 x 10",
+            "name": "Curl biceps barre",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10
+          }
+        ]
+      },
+      {
+        "label": "Jour 4 – OHP / Incliné",
+        "exercises": [
+          {
+            "line": "Développé militaire barre : 5 x 5",
+            "name": "Développé militaire barre",
+            "sets": 5,
+            "repMin": 5,
+            "repMax": 5,
+            "pct": 72.5
+          },
+          {
+            "line": "Développé incliné barre : 3 x 8",
+            "name": "Développé incliné barre",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 8,
+            "pct": 60
+          },
+          {
+            "line": "Développé couché prise serrée : 3 x 8",
+            "name": "Développé couché prise serrée",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 8,
+            "pct": 65
+          },
+          {
+            "line": "Face pull : 3 x 20",
+            "name": "Face pull",
+            "sets": 3,
+            "repMin": 20,
+            "repMax": 20
+          },
+          {
+            "line": "Élévations latérales : 3 x 15",
+            "name": "Élévations latérales",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          }
+        ]
+      }
+    ]
+  }
+}

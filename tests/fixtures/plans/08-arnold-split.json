@@ -1,0 +1,194 @@
+{
+  "id": "08-arnold-split",
+  "category": "propre",
+  "description": "Arnold split 3 séances répétées 2 fois/semaine : supersets annoncés par un titre « Superset A : » puis par « + » sur une seule ligne.",
+  "text": "Arnold Split – 6 jours\n\nPectoraux - Dos (lundi et jeudi)\nSuperset A :\n- Développé couché barre 5 x 6-10\n- Tractions pronation 5 x max\nDéveloppé incliné haltères 4 x 8-12 + Rowing barre 4 x 8-12\nÉcarté haltères plat 3 x 10-12\nPull-over haltère 3 x 10-12\nTractions prise serrée 3 x max\nCrunch 5 x 25\n\nÉpaules - Bras (mardi et vendredi)\nDéveloppé militaire barre 4 x 6-10\nÉlévations latérales 4 x 10-12\nRowing menton 3 x 10\nCurl biceps barre 4 x 8-10 + Barre au front 4 x 8-10\nCurl biceps haltères 3 x 10 + Extension nuque 3 x 10\nCurl poignets 4 x 15\n\nJambes (mercredi et samedi)\nSquat barre 5 x 8-12\nSquat avant 4 x 8\nFentes marchées haltères 3 x 12 par jambe\nLeg curl machine 4 x 10-12\nSoulevé de terre roumain 3 x 10\nMollets debout 5 x 10-15\nRelevés de genoux suspendu 4 x 15",
+  "expected": {
+    "title": "Arnold Split – 6 jours",
+    "sessions": [
+      {
+        "label": "Pectoraux - Dos (lundi et jeudi)",
+        "exercises": [
+          {
+            "line": "- Développé couché barre 5 x 6-10",
+            "name": "Développé couché barre",
+            "sets": 5,
+            "repMin": 6,
+            "repMax": 10,
+            "ss": "A"
+          },
+          {
+            "line": "- Tractions pronation 5 x max",
+            "name": "Tractions pronation",
+            "sets": 5,
+            "amrap": true,
+            "ss": "A"
+          },
+          {
+            "line": "Développé incliné haltères 4 x 8-12 +",
+            "name": "Développé incliné haltères",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 12,
+            "ss": "B"
+          },
+          {
+            "line": "Développé incliné haltères 4 x 8-12 + Rowing barre",
+            "name": "Rowing barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 12,
+            "ss": "B"
+          },
+          {
+            "line": "Écarté haltères plat 3 x 10-12",
+            "name": "Écarté haltères plat",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 12
+          },
+          {
+            "line": "Pull-over haltère 3 x 10-12",
+            "name": "Pull-over haltère",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 12
+          },
+          {
+            "line": "Tractions prise serrée 3 x max",
+            "name": "Tractions prise serrée",
+            "sets": 3,
+            "amrap": true
+          },
+          {
+            "line": "Crunch 5 x 25",
+            "name": "Crunch",
+            "sets": 5,
+            "repMin": 25,
+            "repMax": 25
+          }
+        ]
+      },
+      {
+        "label": "Épaules - Bras (mardi et vendredi)",
+        "exercises": [
+          {
+            "line": "Développé militaire barre 4 x 6-10",
+            "name": "Développé militaire barre",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 10
+          },
+          {
+            "line": "Élévations latérales 4 x 10-12",
+            "name": "Élévations latérales",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 12
+          },
+          {
+            "line": "Rowing menton 3 x 10",
+            "name": "Rowing menton",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "Curl biceps barre 4 x 8-10 +",
+            "name": "Curl biceps barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 10,
+            "ss": "A"
+          },
+          {
+            "line": "Curl biceps barre 4 x 8-10 + Barre au front",
+            "name": "Barre au front",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 10,
+            "ss": "A"
+          },
+          {
+            "line": "Curl biceps haltères 3 x 10 +",
+            "name": "Curl biceps haltères",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "ss": "B"
+          },
+          {
+            "line": "Curl biceps haltères 3 x 10 + Extension nuque",
+            "name": "Extension nuque",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "ss": "B"
+          },
+          {
+            "line": "Curl poignets 4 x 15",
+            "name": "Curl poignets",
+            "sets": 4,
+            "repMin": 15,
+            "repMax": 15
+          }
+        ]
+      },
+      {
+        "label": "Jambes (mercredi et samedi)",
+        "exercises": [
+          {
+            "line": "Squat barre 5 x 8-12",
+            "name": "Squat barre",
+            "sets": 5,
+            "repMin": 8,
+            "repMax": 12
+          },
+          {
+            "line": "Squat avant 4 x 8",
+            "name": "Squat avant",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8
+          },
+          {
+            "line": "Fentes marchées haltères 3 x 12",
+            "name": "Fentes marchées haltères",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "uni": true
+          },
+          {
+            "line": "Leg curl machine 4 x 10-12",
+            "name": "Leg curl machine",
+            "sets": 4,
+            "repMin": 10,
+            "repMax": 12
+          },
+          {
+            "line": "Soulevé de terre roumain 3 x 10",
+            "name": "Soulevé de terre roumain",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "Mollets debout 5 x 10-15",
+            "name": "Mollets debout",
+            "sets": 5,
+            "repMin": 10,
+            "repMax": 15
+          },
+          {
+            "line": "Relevés de genoux suspendu 4 x 15",
+            "name": "Relevés de genoux suspendu",
+            "sets": 4,
+            "repMin": 15,
+            "repMax": 15
+          }
+        ]
+      }
+    ]
+  }
+}

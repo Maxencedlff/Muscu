@@ -1,0 +1,128 @@
+{
+  "id": "19-tableau-excel-tabulations",
+  "category": "tableau",
+  "description": "Copier-coller depuis Excel : colonnes séparées par tabulations, en-tête répété par séance, titre de séance sur une ligne seule suivie de tabulations vides, charge sans unité dans une colonne « Charge (kg) ».",
+  "text": "Programme Full Body – 2 séances\nSéance A — Haut\t\t\t\t\nExercice\tSéries\tReps\tRepos\tCharge (kg)\nDéveloppé couché barre\t4\t8-10\t2 min\t70\nRowing barre\t4\t8-10\t2 min\t60\nDéveloppé militaire haltères\t3\t10\t90 s\t18\nTirage vertical prise large\t3\t12\t90 s\t55\nCurl biceps haltères\t3\t12\t60 s\t12\nExtension triceps poulie haute\t3\t12\t60 s\t25\n\t\t\t\t\nSéance B — Bas\t\t\t\t\nExercice\tSéries\tReps\tRepos\tCharge (kg)\nSquat barre\t4\t6-8\t3 min\t90\nSoulevé de terre roumain\t3\t10\t2 min\t80\nPresse à cuisses\t3\t12\t2 min\t160\nLeg curl machine\t3\t12\t90 s\t40\nMollets debout\t4\t15\t60 s\t\nCrunch poulie\t3\t15\t60 s\t30",
+  "expected": {
+    "title": "Programme Full Body – 2 séances",
+    "sessions": [
+      {
+        "label": "Séance A — Haut",
+        "exercises": [
+          {
+            "line": "Développé couché barre\t4",
+            "name": "Développé couché barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 10,
+            "rest": 120,
+            "load": 70
+          },
+          {
+            "line": "Rowing barre\t4",
+            "name": "Rowing barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 10,
+            "rest": 120,
+            "load": 60
+          },
+          {
+            "line": "Développé militaire haltères\t3",
+            "name": "Développé militaire haltères",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 90,
+            "load": 18
+          },
+          {
+            "line": "Tirage vertical prise large\t3",
+            "name": "Tirage vertical prise large",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 90,
+            "load": 55
+          },
+          {
+            "line": "Curl biceps haltères\t3",
+            "name": "Curl biceps haltères",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 60,
+            "load": 12
+          },
+          {
+            "line": "Extension triceps poulie haute\t3",
+            "name": "Extension triceps poulie haute",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 60,
+            "load": 25
+          }
+        ]
+      },
+      {
+        "label": "Séance B — Bas",
+        "exercises": [
+          {
+            "line": "Squat barre\t4",
+            "name": "Squat barre",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 8,
+            "rest": 180,
+            "load": 90
+          },
+          {
+            "line": "Soulevé de terre roumain\t3",
+            "name": "Soulevé de terre roumain",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 120,
+            "load": 80
+          },
+          {
+            "line": "Presse à cuisses\t3",
+            "name": "Presse à cuisses",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 120,
+            "load": 160
+          },
+          {
+            "line": "Leg curl machine\t3",
+            "name": "Leg curl machine",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 90,
+            "load": 40
+          },
+          {
+            "line": "Mollets debout\t4",
+            "name": "Mollets debout",
+            "sets": 4,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          },
+          {
+            "line": "Crunch poulie\t3",
+            "name": "Crunch poulie",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60,
+            "load": 30
+          }
+        ]
+      }
+    ]
+  }
+}

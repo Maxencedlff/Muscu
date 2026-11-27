@@ -1,0 +1,169 @@
+{
+  "id": "12-anglais-ppl",
+  "category": "propre",
+  "description": "PPL entièrement en anglais (noms au pluriel « Lateral Raises », « Face Pulls », « Tricep » sans s, AMRAP, « rest 90s »).",
+  "text": "My PPL Routine\n\nPush Day\nBench Press 4x8 (rest 2 min)\nIncline Dumbbell Press 3x10 (rest 90s)\nOverhead Press 3x8 (rest 2 min)\nLateral Raises 4x15 (rest 60s)\nTricep Pushdown 3x12 (rest 60s)\nOverhead Tricep Extension 3x12 (rest 60s)\n\nPull Day\nDeadlift 3x5 (rest 3 min)\nPull-ups 4xAMRAP (rest 2 min)\nBarbell Row 4x8 (rest 2 min)\nFace Pulls 3x15 (rest 60s)\nBarbell Curl 3x10 (rest 60s)\nHammer Curls 3x12 (rest 60s)\n\nLeg Day\nBack Squat 4x6 (rest 3 min)\nRomanian Deadlift 3x10 (rest 2 min)\nLeg Press 3x12 (rest 2 min)\nLeg Curl 3x12 (rest 60s)\nCalf Raises 4x15 (rest 60s)\nHanging Knee Raises 3x15 (rest 60s)",
+  "expected": {
+    "title": "My PPL Routine",
+    "sessions": [
+      {
+        "label": "Push Day",
+        "exercises": [
+          {
+            "line": "Bench Press 4x8",
+            "name": "Développé couché barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 120
+          },
+          {
+            "line": "Incline Dumbbell Press 3x10",
+            "name": "Développé incliné haltères",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 90
+          },
+          {
+            "line": "Overhead Press 3x8",
+            "name": "Développé militaire barre",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 120
+          },
+          {
+            "line": "Lateral Raises 4x15",
+            "name": "Élévations latérales",
+            "sets": 4,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          },
+          {
+            "line": "Tricep Pushdown 3x12",
+            "name": "Extension triceps poulie haute",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 60
+          },
+          {
+            "line": "Overhead Tricep Extension 3x12",
+            "name": "Extension triceps corde nuque",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 60
+          }
+        ]
+      },
+      {
+        "label": "Pull Day",
+        "exercises": [
+          {
+            "line": "Deadlift 3x5",
+            "name": "Soulevé de terre",
+            "sets": 3,
+            "repMin": 5,
+            "repMax": 5,
+            "rest": 180
+          },
+          {
+            "line": "Pull-ups 4xAMRAP",
+            "name": "Tractions pronation",
+            "sets": 4,
+            "amrap": true,
+            "rest": 120
+          },
+          {
+            "line": "Barbell Row 4x8",
+            "name": "Rowing barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 120
+          },
+          {
+            "line": "Face Pulls 3x15",
+            "name": "Face pull",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          },
+          {
+            "line": "Barbell Curl 3x10",
+            "name": "Curl biceps barre",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 60
+          },
+          {
+            "line": "Hammer Curls 3x12",
+            "name": "Curl marteau",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 60
+          }
+        ]
+      },
+      {
+        "label": "Leg Day",
+        "exercises": [
+          {
+            "line": "Back Squat 4x6",
+            "name": "Squat barre",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 6,
+            "rest": 180
+          },
+          {
+            "line": "Romanian Deadlift 3x10",
+            "name": "Soulevé de terre roumain",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10,
+            "rest": 120
+          },
+          {
+            "line": "Leg Press 3x12",
+            "name": "Presse à cuisses",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 120
+          },
+          {
+            "line": "Leg Curl 3x12",
+            "name": "Leg curl machine",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 60
+          },
+          {
+            "line": "Calf Raises 4x15",
+            "name": "Mollets debout",
+            "sets": 4,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          },
+          {
+            "line": "Hanging Knee Raises 3x15",
+            "name": "Relevés de genoux suspendu",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          }
+        ]
+      }
+    ]
+  }
+}

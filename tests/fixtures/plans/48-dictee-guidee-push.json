@@ -1,0 +1,58 @@
+{
+  "id": "48-dictee-guidee-push",
+  "category": "dictee",
+  "description": "Mode guidé : une ligne exercice puis une ligne prescription, en alternance ; « au maximum » et « max » = AMRAP, nombres mêlés chiffres et lettres.",
+  "text": "développé couché\n4 séries de 8 repos 2 minutes\ndéveloppé incliné avec haltères\ntrois séries de 10\nécarté à la poulie\n3 fois 15\ndips\n3 séries au maximum\nextension triceps à la poulie haute\nquatre fois douze repos une minute\npompes\ndeux séries max",
+  "expected": {
+    "title": null,
+    "sessions": [
+      {
+        "label": null,
+        "exercises": [
+          {
+            "line": "développé couché",
+            "name": "Développé couché barre",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8,
+            "rest": 120
+          },
+          {
+            "line": "développé incliné avec haltères",
+            "name": "Développé incliné haltères",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "écarté à la poulie",
+            "name": "Écarté poulie vis-à-vis",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15
+          },
+          {
+            "line": "dips",
+            "name": "Dips",
+            "sets": 3,
+            "amrap": true
+          },
+          {
+            "line": "extension triceps à la poulie haute",
+            "name": "Extension triceps poulie haute",
+            "sets": 4,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 60
+          },
+          {
+            "line": "pompes",
+            "name": "Pompes",
+            "sets": 2,
+            "amrap": true
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -319,6 +319,15 @@ function sanitizeData(d) {
       if (!k || k.length > 80 || !list.length) delete d[field][k]; else d[field][k] = list;
     });
   });
+  // Dictionnaire appris de l'import de programme (js/data/plan-aliases.js) : { clé de mots : nom d'exercice }, 600 au plus
+  if (d.planAliases !== undefined) {
+    if (!isObj(d.planAliases)) delete d.planAliases;
+    else {
+      const keys = Object.keys(d.planAliases);
+      keys.forEach((k, i) => { const v = d.planAliases[k]; if (i >= 600 || !k || k.length > 80 || typeof v !== 'string' || !v.trim() || v.length > 80) delete d.planAliases[k]; });
+      if (!Object.keys(d.planAliases).length) delete d.planAliases;
+    }
+  }
   // Matériel des exercices créés par la personne : { nom normalisé: identifiant de EQUIPMENT } (validé à la lecture,
   // customEquipOf : la liste du matériel est chargée après ce fichier)
   if (d.exerciseEquip !== undefined) {

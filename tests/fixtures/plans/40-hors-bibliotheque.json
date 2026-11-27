@@ -1,0 +1,120 @@
+{
+  "id": "40-hors-bibliotheque",
+  "category": "libre",
+  "description": "Plan athlétique avec beaucoup d'exercices absents de la bibliothèque (box jump, sissy squat, traîneau, Copenhagen, landmine, seal row, Zercher, Cossack) : name null + raw, sans les forcer vers un exercice voisin.",
+  "text": "Prog athlé / force – 2 séances\n\nSéance 1\n- Box jump 4x5\n- Squat barre 4x6\n- Sissy squat 3x12\n- Nordic curl 3x6\n- Poussée de traîneau 6x20 m\n- Copenhagen plank 3x20 s par côté\n\nSéance 2\n- Landmine press 4x8 par bras\n- Tractions pronation 4x6\n- Seal row 3x10\n- Développé couché barre 4x5\n- Zercher squat 3x6\n- Pallof press 3x12\n- Cossack squat 3x8 par jambe",
+  "expected": {
+    "title": "Prog athlé / force – 2 séances",
+    "sessions": [
+      {
+        "label": "Séance 1",
+        "exercises": [
+          {
+            "line": "- Box jump 4x5",
+            "name": null,
+            "raw": "Box jump",
+            "sets": 4,
+            "repMin": 5,
+            "repMax": 5
+          },
+          {
+            "line": "- Squat barre 4x6",
+            "name": "Squat barre",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 6
+          },
+          {
+            "line": "- Sissy squat 3x12",
+            "name": null,
+            "raw": "Sissy squat",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "- Nordic curl 3x6",
+            "name": "Curl nordique",
+            "sets": 3,
+            "repMin": 6,
+            "repMax": 6
+          },
+          {
+            "line": "- Poussée de traîneau 6x20 m",
+            "name": null,
+            "raw": "Poussée de traîneau",
+            "sets": 6
+          },
+          {
+            "line": "- Copenhagen plank 3x20 s",
+            "name": null,
+            "raw": "Copenhagen plank",
+            "sets": 3,
+            "seconds": 20,
+            "uni": true
+          }
+        ]
+      },
+      {
+        "label": "Séance 2",
+        "exercises": [
+          {
+            "line": "- Landmine press 4x8",
+            "name": null,
+            "raw": "Landmine press",
+            "sets": 4,
+            "repMin": 8,
+            "repMax": 8,
+            "uni": true
+          },
+          {
+            "line": "- Tractions pronation 4x6",
+            "name": "Tractions pronation",
+            "sets": 4,
+            "repMin": 6,
+            "repMax": 6
+          },
+          {
+            "line": "- Seal row 3x10",
+            "name": null,
+            "raw": "Seal row",
+            "sets": 3,
+            "repMin": 10,
+            "repMax": 10
+          },
+          {
+            "line": "- Développé couché barre 4x5",
+            "name": "Développé couché barre",
+            "sets": 4,
+            "repMin": 5,
+            "repMax": 5
+          },
+          {
+            "line": "- Zercher squat 3x6",
+            "name": null,
+            "raw": "Zercher squat",
+            "sets": 3,
+            "repMin": 6,
+            "repMax": 6
+          },
+          {
+            "line": "- Pallof press 3x12",
+            "name": "Pallof press",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12
+          },
+          {
+            "line": "- Cossack squat 3x8",
+            "name": null,
+            "raw": "Cossack squat",
+            "sets": 3,
+            "repMin": 8,
+            "repMax": 8,
+            "uni": true
+          }
+        ]
+      }
+    ]
+  }
+}

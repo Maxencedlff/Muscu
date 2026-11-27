@@ -29,12 +29,14 @@
 // dietPlans, dietActive, dietFoods (js/data/nutrition.js) : plans diète (les miens et ceux reçus d'un coach),
 // plan suivi et aliments perso (dietFoodsGone : identifiants de ceux retirés de Mes aliments, pour qu'un autre appareil
 // ne les fasse pas revenir) : seulement avec l'accord (SYNC_DIET_CONSENT_KEYS) ; dietConsent : cet accord daté.
+// planAliases (js/data/plan-aliases.js) : corrections apprises à l'import d'un programme, fusionnées par union, pour qu'un
+// import fait sur l'iPad reconnaisse ce que le coach a corrigé sur son iPhone. Des noms d'exercices, rien de personnel.
 // appVersion / appSeenAt (noteAppVersion) : version du contenu de l'app et date où elle a été vue,
 // pour savoir côté serveur qui a quelle version ; le dernier appareil lancé l'emporte, rien d'autre ne part.
 const SYNC_PROFILE_KEYS = ['activeProgramme', 'programmes', 'userProgrammes', 'customSessions', 'defaultRest', 'unit',
   'weeklyGoal', 'exEquip', 'onboarded', 'exerciseMuscles', 'exerciseMusclesSecondary', 'exerciseEquip', 'sideFirst', 'silhouette', 'myProgrammes',
   'level', 'sessionVisibleDefault', 'appVersion', 'appSeenAt', 'dietPlans', 'dietActive', 'dietFoods', 'dietFoodsGone', 'dietConsent',
-  'defis', 'defisRecap', 'design'];
+  'defis', 'defisRecap', 'design', 'planAliases'];
 // defis (js/data/defis.js, docs/DEFIS.md) : toujours fusionnés (mergeDefis : réglages au plus récent, ajouts réunis
 // moins ceux retirés), jamais recopiés tels quels, dans toutes les branches de applyRemoteProfile ; defisRecap
 // (« Défis dans les récaps », { on, at }) : le choix le plus récent gagne, absent du compte il reste tel quel ici.
@@ -75,7 +77,7 @@ const SYNC_LOCAL_ONLY = ['history', 'trash', 'bodyWeightKg', 'bodyWeightLog', 'b
 // connaît pas encore (myProgrammes, silhouette) renvoie un profil sans elles, il ne les a pas effacées.
 const SYNC_ABSENT_IS_CHOICE = ['weeklyGoal', 'exerciseMuscles', 'exerciseMusclesSecondary'];
 // Dictionnaires du profil fusionnés élément par élément (programmes, exercices perso…) : rien n'est perdu
-const SYNC_UNION_KEYS = ['programmes', 'userProgrammes', 'customSessions', 'exerciseMuscles', 'exerciseMusclesSecondary', 'exerciseEquip'];   // nutrition : mergeDietProfile
+const SYNC_UNION_KEYS = ['programmes', 'userProgrammes', 'customSessions', 'exerciseMuscles', 'exerciseMusclesSecondary', 'exerciseEquip', 'planAliases'];   // nutrition : mergeDietProfile
 
 // État de synchro vide d'un compte : curseur serveur, empreintes envoyées, profil
 function emptySyncMeta(userId) { return { userId, cursor: null, pushed: {}, pushedCore: {}, profileHash: null, profileCore: null, profileAt: null }; }

@@ -1,0 +1,124 @@
+{
+  "id": "21-tableau-pdf-majuscules-espaces",
+  "category": "tableau",
+  "description": "Extraction PDF d'un programme de salle : noms en MAJUSCULES, colonnes alignées par espaces, pied « Page 1/2 » et en-tête répété au mauvais endroit, gainage « 30 sec » et repos 30\".",
+  "text": "PROGRAMME DE LA SALLE – NIVEAU 1\nVotre coach : accueil de la salle          Durée : 8 semaines\n\nJOUR 1\nEXERCICE                         SÉRIES      RÉPÉTITIONS      RÉCUPÉRATION\nDÉVELOPPÉ COUCHÉ MACHINE           3            12               1'30\nTIRAGE VERTICAL PRISE LARGE        3            12               1'30\nDÉVELOPPÉ ÉPAULES MACHINE          3            12               1'30\nROWING MACHINE                     3            12               1'30\nEXTENSION TRICEPS POULIE HAUTE     3            15               1'\nCURL BICEPS HALTÈRES               3            15               1'\n\nPage 1/2\n\nEXERCICE                         SÉRIES      RÉPÉTITIONS      RÉCUPÉRATION\nJOUR 2\nPRESSE À CUISSES                   4            12               2'\nEXTENSION QUADRICEPS               3            15               1'\nLEG CURL MACHINE                   3            15               1'\nABDUCTEURS MACHINE                 3            20               1'\nMOLLETS ASSIS                      3            20               1'\nCRUNCH MACHINE                     3            20               1'\nGAINAGE                            3            30 sec           30\"\n\nPage 2/2",
+  "expected": {
+    "title": "PROGRAMME DE LA SALLE – NIVEAU 1",
+    "sessions": [
+      {
+        "label": "JOUR 1",
+        "exercises": [
+          {
+            "line": "DÉVELOPPÉ COUCHÉ MACHINE",
+            "name": "Développé couché machine",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 90
+          },
+          {
+            "line": "TIRAGE VERTICAL PRISE LARGE",
+            "name": "Tirage vertical prise large",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 90
+          },
+          {
+            "line": "DÉVELOPPÉ ÉPAULES MACHINE",
+            "name": "Développé épaules machine",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 90
+          },
+          {
+            "line": "ROWING MACHINE",
+            "name": "Rowing machine",
+            "sets": 3,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 90
+          },
+          {
+            "line": "EXTENSION TRICEPS POULIE HAUTE",
+            "name": "Extension triceps poulie haute",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          },
+          {
+            "line": "CURL BICEPS HALTÈRES",
+            "name": "Curl biceps haltères",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          }
+        ]
+      },
+      {
+        "label": "JOUR 2",
+        "exercises": [
+          {
+            "line": "PRESSE À CUISSES",
+            "name": "Presse à cuisses",
+            "sets": 4,
+            "repMin": 12,
+            "repMax": 12,
+            "rest": 120
+          },
+          {
+            "line": "EXTENSION QUADRICEPS",
+            "name": "Extension quadriceps",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          },
+          {
+            "line": "LEG CURL MACHINE",
+            "name": "Leg curl machine",
+            "sets": 3,
+            "repMin": 15,
+            "repMax": 15,
+            "rest": 60
+          },
+          {
+            "line": "ABDUCTEURS MACHINE",
+            "name": "Abducteurs machine",
+            "sets": 3,
+            "repMin": 20,
+            "repMax": 20,
+            "rest": 60
+          },
+          {
+            "line": "MOLLETS ASSIS",
+            "name": "Mollets assis",
+            "sets": 3,
+            "repMin": 20,
+            "repMax": 20,
+            "rest": 60
+          },
+          {
+            "line": "CRUNCH MACHINE",
+            "name": "Crunch machine",
+            "sets": 3,
+            "repMin": 20,
+            "repMax": 20,
+            "rest": 60
+          },
+          {
+            "line": "GAINAGE",
+            "name": "Gainage (planche)",
+            "sets": 3,
+            "seconds": 30,
+            "rest": 30
+          }
+        ]
+      }
+    ]
+  }
+}
