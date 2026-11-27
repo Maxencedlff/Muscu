@@ -8,7 +8,7 @@
 //
 // Aucune fonction ne lève d'exception. Chacune répond { ok: true, … } ou { ok: false, reason, message } ; message est
 // une phrase prête à afficher. reason :
-//   'web'         navigateur : « Disponible dans l'app iPhone »
+//   'web'         navigateur : « Disponible dans l'app iPhone et iPad »
 //   'unsupported' app Android (pas encore de module)
 //   'outdated'    app iPhone d'avant ces modules (une mise à jour à chaud peut arriver avant la build)
 //   'canceled' | 'denied' | 'unavailable' | 'busy' | 'invalid' | 'locked' | 'offline' | 'failed'
@@ -16,6 +16,9 @@
 // Lecture : pick(source, { limit, customWords }), readImage({ path | base64 }), readPdfScan({ path | base64, maxPages }),
 // readFile(file) (fichier d'un <input type="file"> : image ou PDF) → { ok, pages, … } ; page = { width, height, text,
 // lines: [{ text, confidence, box: { x, y, w, h }, words: [{ text, box }] }] }, boîtes de 0 à 1, origine en haut à gauche.
+// Toutes acceptent onProgress({ done, total }) : appelé au début (done 0) puis après chaque page lue (événement
+// "progress" du module, écouteur retiré à la fin). cancelRead() arrête la lecture en cours avant la page suivante :
+// elle répond alors { ok: false, reason: 'canceled' }.
 // Dictée : dictation.status(), dictation.authorize(), dictation.start({ contextualStrings, allowServer, onPartial,
 // onFinal, onError }), dictation.stop() → { ok, text, segments }, dictation.cancel().
 
@@ -33,7 +36,7 @@ const PlanReader = (() => {
   const MAX_FILE = 40 * 1024 * 1024;   // même borne que PlanReaderPlugin.swift (maxInputBytes)
   const OFFLINE = 'Dictée hors ligne indisponible sur cet appareil';   // texte exact du module Swift
   const MESSAGES = {
-    web: "Disponible dans l'app iPhone",
+    web: "Disponible dans l'app iPhone et iPad",
     unsupported: 'Pas encore disponible sur ce téléphone',
     outdated: "Mets l'app à jour pour utiliser cette fonction",
     canceled: '',
@@ -48,6 +51,7 @@ const PlanReader = (() => {
   const CODES = { CANCELED: 'canceled', DENIED: 'denied', UNAVAILABLE: 'unavailable', BUSY: 'busy', INVALID: 'invalid',
     LOCKED: 'locked', OFFLINE_UNAVAILABLE: 'offline', UNIMPLEMENTED: 'outdated' };
 
+  const safe = (fn, v) => { try { fn?.(v); } catch { /* l'écran qui écoute gère son propre état */ } };
   const fail = reason => ({ ok: false, reason, message: MESSAGES[reason] });
   const fromError = e => fail(CODES[e?.code] || 'failed');
   // Hors de l'app iPhone avec le module : la raison à montrer
@@ -93,6 +97,29 @@ const PlanReader = (() => {
     return null;
   }
 
+  // Progression d'une lecture : écouteur de l'événement "progress" posé avant l'appel, retiré après, valeurs bornées ;
+  // une coquille qui n'émet rien laisse simplement l'écran sans compteur
+  async function withProgress(onProgress, run) {
+    let handle = null;
+    if (typeof onProgress === 'function') {
+      try {
+        handle = Reader.addListener('progress', d => {
+          const total = Number.isInteger(d?.total) && d.total > 0 ? Math.min(d.total, 100) : 0;
+          const done = Number.isInteger(d?.done) && d.done > 0 ? Math.min(d.done, total) : 0;
+          if (total) safe(onProgress, { done, total });
+        });
+      } catch { handle = null; }
+    }
+    try { return await run(); } finally {
+      if (handle) Promise.resolve(handle).then(h => h?.remove?.()).catch(() => {});
+    }
+  }
+
+  async function cancelRead() {
+    if (!hasReader) return absent();
+    try { await Reader.cancelRead(); return { ok: true }; } catch (e) { return fromError(e); }
+  }
+
   async function sources() {
     if (!hasReader) return { photos: false, camera: false, scan: false };
     try {
@@ -101,12 +128,12 @@ const PlanReader = (() => {
     } catch { return { photos: false, camera: false, scan: false }; }
   }
 
-  async function pick(source, { limit = 5, customWords = [] } = {}) {
+  async function pick(source, { limit = 5, customWords = [], onProgress } = {}) {
     if (!hasReader) return absent();
     if (!SOURCES.includes(source)) return fail('invalid');
     const n = Math.min(10, Math.max(1, Math.round(Number(limit)) || 1));
     try {
-      const r = await Reader.pick({ source, limit: n, customWords: vocabulary(customWords) });
+      const r = await withProgress(onProgress, () => Reader.pick({ source, limit: n, customWords: vocabulary(customWords) }));
       const pages = cleanPages(r);
       return pages.length ? { ok: true, source, pages } : fail('failed');
     } catch (e) { return fromError(e); }
@@ -117,7 +144,7 @@ const PlanReader = (() => {
     const src = input(o);
     if (!src) return fail('invalid');
     try {
-      const pages = cleanPages(await Reader.readImage({ ...src, customWords: vocabulary(o.customWords) }));
+      const pages = cleanPages(await withProgress(o.onProgress, () => Reader.readImage({ ...src, customWords: vocabulary(o.customWords) })));
       return pages.length ? { ok: true, pages } : fail('failed');
     } catch (e) { return fromError(e); }
   }
@@ -128,7 +155,7 @@ const PlanReader = (() => {
     if (!src) return fail('invalid');
     const maxPages = Math.min(50, Math.max(1, Math.round(Number(o.maxPages)) || 20));
     try {
-      const r = await Reader.readPdfScan({ ...src, maxPages, customWords: vocabulary(o.customWords) });
+      const r = await withProgress(o.onProgress, () => Reader.readPdfScan({ ...src, maxPages, customWords: vocabulary(o.customWords) }));
       const pages = cleanPages(r);
       if (!pages.length) return fail('failed');
       return { ok: true, pages, pageCount: Number.isInteger(r?.pageCount) ? r.pageCount : pages.length,
@@ -171,7 +198,6 @@ const PlanReader = (() => {
     for (const h of l?.handles || []) Promise.resolve(h).then(x => x?.remove?.()).catch(() => {});
     return l;
   }
-  const safe = (fn, v) => { try { fn?.(v); } catch { /* l'écran qui écoute gère son propre état */ } };
 
   const dictation = {
     get available() { return hasDictation; },
@@ -231,7 +257,7 @@ const PlanReader = (() => {
 
   return {
     get available() { return hasReader; },
-    sources, pick, readImage, readPdfScan, readFile, dictation, vocabulary,
+    sources, pick, readImage, readPdfScan, readFile, cancelRead, dictation, vocabulary,
     OFFLINE_MESSAGE: OFFLINE,
   };
 })();

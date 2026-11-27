@@ -44,6 +44,7 @@ const SCRIPTS = [
   'js/data/water.js',
   'js/data/defis.js',
   'js/data/design.js',
+  'js/data/plan-aliases.js',
   'js/data/store.js',
   'js/data/records.js',
   'js/data/accessors.js',
@@ -90,7 +91,6 @@ const SCRIPTS = [
   'js/data/plan-match.js',
   'js/data/plan-table.js',
   'js/data/plan-parser.js',
-  'js/data/plan-aliases.js',
   'js/data/import-measures.js',
   'js/data/progress-photos.js',
   'js/data/photo-vault.js',
@@ -2321,6 +2321,12 @@ test('Diagnostic du son : verdict, action courte, cause, aide, « Joué » ou «
 (await import('./age-range.mjs')).default({ test, run, assert, sameJSON });
 // ── Lecture et dictée d'un programme sur l'iPhone : pont js/platform/plan-reader.js, contrat du Swift (plan-reader.mjs) ──
 (await import('./plan-reader.mjs')).default({ test, assert, sameJSON, ROOT });
+// ── pdf.js embarqué (vendor/pdfjs/) : build legacy 4.10.38, empreintes sha256 figées (pdfjs-vendor.mjs) ──
+(await import('./pdfjs-vendor.mjs')).default({ test, assert, ROOT });
+// ── Import d'un programme : cas réels lus sur un iPhone (plan-reels.mjs, tools/plan-corpus/reels.mjs) ──
+(await import('./plan-reels.mjs')).default({ test, assert });
+// ── Garde des mises à jour à chaud : features.json et la dernière build examinée (features.mjs, docs/REVUE_APPLE.md 6.2) ──
+(await import('./features.mjs')).default({ test, assert, ROOT });
 // ── Prise d'un exercice et ordre de la séance (tests dans grips.mjs) ──
 (await import('./grips.mjs')).default({ test, run, reset, assert, sameJSON });
 // ── Coach : nettoyage, programmes envoyés, import et mise à jour (tests dans coach.mjs) ──

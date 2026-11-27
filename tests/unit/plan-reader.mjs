@@ -46,7 +46,7 @@ export default function ({ test, assert, sameJSON, ROOT }) {
     assert.equal(PR.dictation.available, false);
     for (const r of [await PR.pick('scan'), await PR.readImage({ base64: 'QUJD' }), await PR.readPdfScan({ path: '/x.pdf' }),
       await PR.dictation.start(), await PR.dictation.stop(), await PR.readFile({ size: 3, type: 'image/png' })]) {
-      sameJSON(r, { ok: false, reason: 'web', message: "Disponible dans l'app iPhone" });
+      sameJSON(r, { ok: false, reason: 'web', message: "Disponible dans l'app iPhone et iPad" });
     }
     sameJSON(await PR.sources(), { photos: false, camera: false, scan: false });
     sameJSON(await PR.dictation.status(), { available: false, onDevice: false, speech: 'notDetermined', microphone: 'notDetermined' });
@@ -123,6 +123,38 @@ export default function ({ test, assert, sameJSON, ROOT }) {
     }
   });
 
+  test('plan-reader : progression page par page, écouteur retiré, annulation de la lecture', async () => {
+    const page = { width: 10, height: 10, lines: [{ text: 'A', confidence: 1, box: { x: 0, y: 0, w: 1, h: 1 } }] };
+    let emitRef = null;
+    const ctx = load({ reader: {
+      pick: () => { for (const d of [{ done: 0, total: 2 }, { done: 1, total: 2 }, { done: 9, total: 2 }, { done: 'x', total: 0 }]) emitRef('progress', d); return { source: 'scan', pages: [page] }; },
+      readPdfScan: () => { emitRef('progress', { done: 0, total: 1 }); return { pages: [page] }; },
+      cancelRead: () => ({}),
+    } });
+    emitRef = ctx.emit;
+    const seen = [];
+    const r = await ctx.PR.pick('scan', { onProgress: p => { seen.push([p.done, p.total]); if (p.done === 1) throw new Error('écran'); } });
+    assert.equal(r.ok, true, 'une erreur de l\'écran ne remonte pas');
+    sameJSON(seen, [[0, 2], [1, 2], [2, 2]], 'bornées, total absent ignoré');
+    await new Promise(res => setTimeout(res, 0));
+    assert.equal((ctx.listeners.progress || []).length, 0, 'écouteur retiré après la lecture');
+    // readFile transmet onProgress, sans l'envoyer au module
+    const seenPdf = [];
+    assert.equal((await ctx.PR.readFile({ size: 3, type: 'application/pdf', name: 'a.pdf' }, { onProgress: p => seenPdf.push(p.done) })).ok, true);
+    sameJSON(seenPdf, [0]);
+    assert.ok(!('onProgress' in ctx.calls.at(-1)[2]), 'onProgress reste côté web');
+    // Sans onProgress : aucun écouteur posé
+    await ctx.PR.pick('scan');
+    assert.equal((ctx.listeners.progress || []).length, 0);
+    sameJSON(await ctx.PR.cancelRead(), { ok: true });
+    assert.equal(ctx.calls.at(-1)[1], 'cancelRead');
+    // Lecture annulée par le module ; build sans cancelRead ; navigateur
+    const cut = load({ reader: { readImage: () => { throw err('CANCELED'); }, cancelRead: () => { throw err('UNIMPLEMENTED'); } } });
+    assert.equal((await cut.PR.readImage({ base64: 'QUJD' })).reason, 'canceled');
+    assert.equal((await cut.PR.cancelRead()).reason, 'outdated');
+    assert.equal((await load({ native: false }).PR.cancelRead()).reason, 'web');
+  });
+
   test('plan-reader : dictée hors ligne ou refus clair, serveurs seulement avec allowServer === true', async () => {
     const message = 'Dictée hors ligne indisponible sur cet appareil';
     const { PR, calls } = load({ dictation: { start: o => { if (o.allowServer !== true) throw err('OFFLINE_UNAVAILABLE'); return { started: true, onDevice: false }; } } });
@@ -185,7 +217,7 @@ export default function ({ test, assert, sameJSON, ROOT }) {
   test('plan-reader : contrat de MdlfPlanReader (méthodes, Vision, sources, entrées)', () => {
     const src = swift('PlanReaderPlugin.swift');
     assert.match(src, /jsName = "MdlfPlanReader"/);
-    sameJSON(methods(src), ['sources', 'pick', 'readImage', 'readPdfScan']);
+    sameJSON(methods(src), ['sources', 'pick', 'readImage', 'readPdfScan', 'cancelRead']);
     for (const m of methods(src)) {
       assert.match(bridge, new RegExp(`Reader\\.${m}\\(`), `le pont appelle ${m}`);
       assert.match(fake, new RegExp(`\\b${m}: async`), `faux module E2E : ${m}`);
@@ -198,7 +230,20 @@ export default function ({ test, assert, sameJSON, ROOT }) {
     assert.match(src, /boundingBox\(for: range\)/, 'boîtes des mots');
     assert.match(src, /1 - r\.maxY/, 'origine ramenée en haut à gauche');
     // Les trois sources d'images et le PDF rendu page par page
-    for (const k of ['PHPickerViewController', 'UIImagePickerController()', 'VNDocumentCameraViewController()', 'page.thumbnail(of:']) assert.ok(src.includes(k), k);
+    for (const k of ['PHPickerViewController', 'UIImagePickerController()', 'VNDocumentCameraViewController()', 'page.draw(with: .cropBox, to: cg)']) assert.ok(src.includes(k), k);
+    // Mémoire (audit m4) : jamais une image décodée en pleine taille puis redessinée ; miniature ImageIO bornée à
+    // 3 000 px, pages de PDF rendues à l'échelle 1, pages numérisées chargées une à une
+    assert.doesNotMatch(src, /UIImage\(data:/, 'pas de UIImage(data:)');
+    assert.doesNotMatch(src, /loadObject\(ofClass: UIImage/, 'photothèque : octets, pas d\'UIImage décodée');
+    for (const k of ['CGImageSourceCreateThumbnailAtIndex', 'kCGImageSourceCreateThumbnailFromImageAlways: true',
+      'kCGImageSourceCreateThumbnailWithTransform: true', 'kCGImageSourceShouldCacheImmediately: true',
+      'kCGImageSourceThumbnailMaxPixelSize: maxSide', 'static let maxSide = 3000', 'format.scale = 1', 'case .scan(let scan, let i)']) assert.ok(src.includes(k), k);
+    assert.match(src, /for \(i, load\) in loaders\.enumerated\(\) \{\s*if isCanceled \{ return nil \}\s*autoreleasepool/, 'annulation vérifiée entre deux pages, une page à la fois');
+    // Progression : au début (done 0) puis après chaque page, lue par le pont
+    assert.match(src, /notifyListeners\("progress", data: \["done": 0, "total": total\]\)/);
+    assert.match(src, /notifyListeners\("progress", data: \["done": i \+ 1, "total": total\]\)/);
+    assert.ok(bridge.includes("Reader.addListener('progress'"), 'pont : progress');
+    assert.equal((src.match(/self\.readPages\(/g) || []).length, 3, 'pick, readImage et readPdfScan passent tous par readPages');
     for (const s of ['photos', 'camera', 'scan']) assert.ok(src.includes(`"${s}"`) && bridge.includes(`'${s}'`), s);
     // Codes de rejet : chacun connu du pont
     const codes = [...new Set([...src.matchAll(/call\.reject\([^)]*"([A-Z_]+)"\)/g)].map(m => m[1]))].sort();
@@ -245,11 +290,13 @@ export default function ({ test, assert, sameJSON, ROOT }) {
   test('plan-reader : Info.plist, manifeste, projet Xcode et chargement de la page', () => {
     const plist = read('ios/App/App/Info.plist');
     const purpose = k => (plist.match(new RegExp(`<key>${k}</key>\\s*<string>([^<]*)</string>`)) || [])[1] || '';
-    assert.match(purpose('NSMicrophoneUsageDescription'), /dictes ton programme[^]*sur ton iPhone[^]*ni enregistrée ni envoyée/);
+    // Textes exacts (audit m5) : « ton appareil » (l'iPad aussi), et aucun accord promis que l'app ne demande pas
+    assert.match(purpose('NSMicrophoneUsageDescription'), /dictes ton programme[^]*sur ton appareil[^]*ni enregistrée ni envoyée/);
     const speech = purpose('NSSpeechRecognitionUsageDescription');
-    assert.match(speech, /sur ton iPhone, hors ligne/);
-    assert.match(speech, /ton accord avant d'utiliser le service de dictée d'Apple/, 'le repli en ligne est dit, et soumis à accord');
-    assert.match(purpose('NSCameraUsageDescription'), /numériser un programme d'entraînement[^]*lu directement sur ton iPhone/);
+    assert.match(speech, /sur ton appareil, hors ligne/);
+    assert.match(speech, /ne sait pas le faire hors ligne, la dictée n'est pas proposée/, 'pas de repli en ligne');
+    assert.doesNotMatch(speech, /accord|service de dictée d'Apple/, 'aucun accord promis');
+    assert.match(purpose('NSCameraUsageDescription'), /numériser un programme d'entraînement[^]*lu directement sur ton appareil/);
     // Rien de collecté : aucune donnée de plus dans le manifeste de confidentialité
     assert.doesNotMatch(read('ios/App/App/PrivacyInfo.xcprivacy'), /AudioData|NSPrivacyCollectedDataTypeAudio/);
     const pbx = read('ios/App/App.xcodeproj/project.pbxproj');

@@ -9,23 +9,33 @@ Pro sans Apple Intelligence compris).
 Tout devient du texte **sur le téléphone**, puis un moteur maison, en JavaScript pur et testé, le comprend et apprend
 des corrections.
 
-| Source | Texte obtenu par | Vague |
+**Tout part dans une seule build TestFlight (branche `import-build`), jamais en mise à jour à chaud** : c'est une
+fonction nouvelle (règle 2.5.2 d'Apple ; règle du projet, IOS.md « Règle Apple » et docs/BUILD.md). Même Coller et
+PDF, qui ne touchent pas au natif, sont une fonction nouvelle (deux écrans, le bouton d'« Ajouter un programme »
+changé, une entrée sur la fiche d'un élève, une donnée de plus copiée sur le compte). La garde `features.json`
+(docs/REVUE_APPLE.md, 6.2) fait refuser à `ota.yml` toute mise à jour à chaud qui l'apporterait.
+
+| Source | Texte obtenu par | Livraison |
 |---|---|---|
-| Texte collé (message, WhatsApp, Notes, copier-coller d'Excel) | tel quel | 1 (OTA) |
-| PDF texte | pdf.js 4.10.38 embarqué (`vendor/pdfjs/`), morceaux placés remis en lignes et colonnes | 1 (OTA) |
-| Fichier texte, export CSV Hevy / Strong | tel quel ; le CSV part dans l'import existant (`import-ui.js`) | 1 (OTA) |
-| Photo, PDF scanné, manuscrit | Apple Vision (`VNRecognizeTextRequest`, fr-FR, iOS 13+), boîtes de chaque ligne | 2 (build) |
-| Dictée | `SFSpeechRecognizer` sur l'appareil, `contextualStrings` = noms et alias de la bibliothèque | 2 (build) |
+| Texte collé (message, WhatsApp, Notes, copier-coller d'Excel) | tel quel | build |
+| PDF texte | pdf.js 4.10.38, build **legacy** embarquée (`vendor/pdfjs/`, empreintes sha256 vérifiées par `tests/unit/pdfjs-vendor.mjs`), morceaux placés remis en lignes et colonnes | build |
+| Fichier texte, export CSV Hevy / Strong | tel quel ; le CSV part dans l'import existant (`import-ui.js`) | build |
+| Photo, PDF scanné, manuscrit | Apple Vision (`VNRecognizeTextRequest`, fr-FR, iOS 13+), boîtes de chaque ligne | build |
+| Dictée | `SFSpeechRecognizer` sur l'appareil, `contextualStrings` = noms et alias de la bibliothèque | build |
 | Android : photo | ML Kit Text Recognition (sur l'appareil, gratuit) | plus tard |
 
-La partie native de la vague 2 (modules `PlanReaderPlugin`, `PlanDictationPlugin`, pont `js/platform/plan-reader.js`)
-est préparée sur la branche `import-natif`. Le moteur la lit déjà : `planTextFromPages(pages)` prend les pages de
+La partie native (modules `PlanReaderPlugin`, `PlanDictationPlugin`, second pont natif `js/platform/plan-reader.js`,
+dédié à l'import) vient de la branche `import-natif`, réunie avec l'écran et le moteur dans `import-build`. Le moteur la lit déjà : `planTextFromPages(pages)` prend les pages de
 `PlanReader` (lignes et mots, boîtes de 0 à 1, origine en haut à gauche) et `planTextFromBoxes(items)` des boîtes
 `{ text, x, y, w, h }` ; le texte rendu garde les cases d'un tableau séparées par des tabulations. L'écran propose
-« Photo », « Scanner une feuille » et « Dicter » seulement quand `PlanReader.available` (et
-`PlanReader.dictation.available`) ; sinon il reste sur Coller et Choisir un fichier. Un PDF sans texte passe par
+« Photo », « Scanner une feuille » et « Dicter » **en haut**, au-dessus de la zone de texte, seulement quand
+`PlanReader.available` (et, pour Dicter, `PlanReader.dictation.available` ET `status().onDevice` : la dictée hors
+ligne doit être possible sur l'appareil) ; sinon il reste sur Coller et Choisir un fichier. Une lecture de plusieurs
+pages montre « Page N sur M » et un bouton Annuler (`onProgress`, `PlanReader.cancelRead`) ; Vision lit des
+miniatures bornées à 3 000 px (`CGImageSourceCreateThumbnailAtIndex`), pas l'image entière. Un PDF sans texte passe par
 `PlanReader.readFile` (scan). Dictée : « Tout d'un coup », ou « Pas à pas » (« Quel exercice ? » puis « Combien de
-séries et de reps ? », vocabulaire réduit à chaque question, `planDictationWords`). Testé avec un faux pont de même
+séries et de reps ? », vocabulaire réduit à chaque question, `planDictationWords`). Annuler abandonne toute la dictée ;
+une réponse vide repose la même question (rien ne se décale) ; « J'ai fini » lit ce qui est déjà dicté. Testé avec un faux pont de même
 forme (`tests/test_import_programme.py`).
 
 ## Le moteur (`js/data/plan-*.js`)
@@ -47,26 +57,50 @@ forme (`tests/test_import_programme.py`).
   « Lundi : DC 4x8, squat 5x5 » = une séance, deux exercices), en-têtes (« Lundi », « Séance A », « Push »,
   « Jour 1 », capitales), jours de repos, sections ignorées (échauffement, conseils, variantes), lignes de suite
   (« Repos 2 min » sous l'exercice), mode guidé (nom, puis prescription), supersets, confiance par ligne :
-  **sûr**, **à vérifier** (nom approché, séries ou reps non lues), **pas compris** (hors bibliothèque).
+  **sûr**, **à vérifier** (nom approché, matériel écrit différent de celui de la fiche : « Tirage horizontal machine »
+  lu comme « Tirage horizontal câble », séries ou reps non lues), **pas compris** (hors bibliothèque). Une précision
+  retirée pour trouver la fiche reste dans la consigne quand elle compte (« Weighted dips » = Dips, consigne « Lesté »).
+  Limites : 20 000 caractères lus à l'écran, 300 exercices, 14 séances ; une limite atteinte est dite sur l'écran
+  « Vérifier l'import » (« Programme incomplet »), jamais en silence.
   `planDraftProgramme` en fait un programme perso : séries, fourchette ou reps fixes, repos, tempo, charge prescrite,
   technique (`intens`), superset (`ss`) ; ce qui n'a pas de champ (%, RPE, RIR, max, par bras, pyramide, durée) va
   dans la consigne de l'exercice.
-- `plan-aliases.js` : dictionnaire appris (`data.planAliases`, 600 au plus, synchronisé avec le compte par union).
+- `plan-aliases.js` : dictionnaire appris (`data.planAliases` { mots lus : nom }, `data.planAliasesAt` { mots lus :
+  date }, 600 au plus : les plus anciennes sortent, à l'enregistrement comme dans `sanitizeData`). Copié sur le compte
+  (privacy.html, FR et EN). Fusion de la synchro datée clé par clé (`mergePlanAliases`) : une correction oubliée laisse
+  une pierre tombale datée, et ne revient pas d'un appareil qui l'a encore. Liste et effacement : Réglages ›
+  Programmes › Corrections retenues (cellule montrée dès qu'il y en a une). Clés lues avec `Object.hasOwn` (« constructor
+  4x8 » ne plante pas).
+
+Empreintes figées de pdf.js (fichiers de `pdfjs-dist@4.10.38/legacy/build/`, renommés en `.js`) :
+`pdf.min.js` 44ec6f011027ee77791386b66c14876a5fc29e20bf0433c07c6726fff7212b72,
+`pdf.worker.min.js` bd88805178a26c729db8c0107a5b630cb900ec070f4d8c7529a3e45530afd41d. Aucune faille connue sur cette
+version ; la branche 4.x n'est plus suivie par Mozilla : passer à une 5.x se fera en remplaçant les deux fichiers et
+les empreintes du test.
 
 ## L'écran
 
 Programme › Ajouter un programme › **Importer un programme** (un seul bouton, qui remplace « Importer depuis Hevy ou
 Strong » : le fichier CSV y passe aussi), et la fiche d'un élève côté coach.
 
-1. Coller le texte, ou « Choisir un fichier » (PDF, texte, CSV).
+1. Photo, Scanner une feuille, Dicter en haut (app iPhone et iPad), puis coller le texte, ou « Choisir un fichier »
+   (PDF, texte, CSV, image). Le pied de l'écran dit ce qui part : la photo, la voix et le texte sont lus sur
+   l'appareil sans être envoyés ; avec un compte, le programme enregistré et les corrections y sont copiés.
 2. **Vérifier l'import** : chaque ligne montre la ligne source en petit, puis ce qui est compris. « À vérifier » et
    « Pas compris » : fond gris de remplissage et mot en clair, jamais d'orange (réservé aux boutons). Un toucher sur
    une ligne : changer l'exercice (les plus proches d'abord), modifier séries et reps (même grammaire), la retirer.
 3. **Enregistrer le programme** : il s'ajoute à Mes programmes (il devient l'actif si le programme d'office n'a
-   jamais servi) ; pour un élève, il est créé sans toucher aux séances du coach, « Envoyer à … » en bas de sa page.
+   jamais servi) ; pour un élève, il est ajouté aux programmes du coach (« Ajouté à tes programmes, prêt à envoyer à … », dit à
+   l'écran et dans le message de fin) sans toucher à ses séances, « Envoyer à … » en bas de sa page.
    Les exercices corrigés sont retenus.
 
 ## Mesure
+
+**Chiffres de laboratoire pour la photo et la dictée** : le bruit photo est simulé (`plan-corpus-lib.mjs`, et il
+ressemble par construction à ce que corrige `planDeOcr`), la dictée est écrite, pas dite. Ils ne disent pas ce que
+donneront de vraies photos ni une vraie voix. Les vrais cas : `tests/fixtures/plans/reels/` (10 photos et 10 dictées
+fournies par Maxence après la build, texte lu récupéré sur l'iPhone, passé par `node tools/plan-corpus/reels.mjs`).
+Relecture de l'audit : sur 5 plans écrits par l'auditeur, environ 26 lignes justes sur 29.
 
 Corpus `tests/fixtures/plans/` : 54 plans écrits à l'aveugle (sans voir le moteur) avec leur vérité attendue
 (794 exercices), plus des variantes simulées de façon déterministe (`tests/unit/plan-corpus-lib.mjs`) : photo
@@ -102,17 +136,24 @@ tout le monde :
 - dans l'app : une case « Partager mes corrections, sans mon nom » (Réglages › Coach), décochée d'office ; à décrire
   dans privacy.html et App Privacy avant de la brancher.
 
-## Vague 2 : ce que demandera la build
+## La build : ce qu'elle contient
 
 - Modules Swift (branche `import-natif`) : Vision (`VNRecognizeTextRequest`, `.accurate`, `recognitionLanguages =
   ["fr-FR", "en-US"]`, `usesLanguageCorrection`, boîtes de chaque ligne converties en haut à gauche),
   `VNDocumentCameraViewController` pour cadrer la feuille, `PDFKit` pour rendre les pages d'un PDF scanné en images ;
   `SFSpeechRecognizer(locale: fr-FR)`, `requiresOnDeviceRecognition = true` quand `supportsOnDeviceRecognition`,
   `contextualStrings` = noms et alias de la bibliothèque (100 au plus par requête, les plus courants), mode guidé.
-- Info.plist : `NSCameraUsageDescription` (« Pour photographier un programme écrit sur papier. La photo est lue sur
-  ton iPhone et n'est pas envoyée. »), `NSMicrophoneUsageDescription` (« Pour dicter ton programme. »),
-  `NSSpeechRecognitionUsageDescription` (« Pour comprendre ta dictée, sur ton iPhone. »),
-  `NSPhotoLibraryUsageDescription` si l'on choisit une photo existante (le sélecteur `PHPicker` n'en demande pas).
+- Info.plist (textes réels de la build) :
+  - `NSCameraUsageDescription`, passage ajouté : « pour photographier ou numériser un programme d'entraînement sur
+    papier (le texte est lu directement sur ton appareil, l'image n'est pas envoyée) » ;
+  - `NSMicrophoneUsageDescription` : « MDLF Training utilise le micro seulement quand tu dictes ton programme
+    d'entraînement. Ta voix est transformée en texte directement sur ton appareil : elle n'est ni enregistrée ni
+    envoyée. » ;
+  - `NSSpeechRecognitionUsageDescription` : « MDLF Training transforme ta dictée en texte pour remplir ton programme
+    d'entraînement. La reconnaissance se fait sur ton appareil, hors ligne. Si ton appareil ne sait pas le faire hors
+    ligne, la dictée n'est pas proposée. » (exact : Dicter n'apparaît que si `status().onDevice`, et le pont refuse
+    `OFFLINE_UNAVAILABLE` sans jamais basculer vers les serveurs d'Apple) ;
+  - Photos passe par `PHPicker` : aucune autorisation (`NSPhotoLibraryUsageDescription` inchangé).
 - App Privacy : rien de nouveau tant que tout reste sur l'appareil (la photo, l'audio et le texte ne quittent pas
   l'iPhone ; seul le programme créé se synchronise, comme aujourd'hui). Sans `requiresOnDeviceRecognition`, Apple
   envoie l'audio à ses serveurs : à déclarer dans privacy.html, d'où le choix sur l'appareil.
@@ -121,7 +162,9 @@ tout le monde :
   (`mdlf://import`) ; nouvelle cible Xcode, profil de provisionnement et capacité App Groups à créer ; à réserver à
   une build dédiée.
 - Build TestFlight (règle 2.5.2 : une nouvelle fonction passe par une build, pas une OTA) ; `ios.yml` en mode contrôle
-  sur la branche d'abord.
+  sur la branche d'abord ; « What to Test » et le paragraphe de la note d'examen : docs/REVUE_APPLE.md, section 6.7.
+  À l'approbation, ajouter `programme.import-texte-pdf`, `programme.import-photo-dictee` et
+  `reglages.corrections-retenues` à `store/derniere-build.json`.
 
 ## Vague 3 : un petit modèle dans le navigateur du coach (option)
 

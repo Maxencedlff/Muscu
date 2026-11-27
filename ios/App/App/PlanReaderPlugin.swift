@@ -1,5 +1,6 @@
 import AVFoundation
 import Capacitor
+import ImageIO
 import PDFKit
 import PhotosUI
 import UIKit
@@ -29,7 +30,11 @@ import VisionKit
 /// page = { width, height, text, lines: [{ text, confidence, box, words: [{ text, box }] }] } ; box = { x, y, w, h }
 /// normalisée de 0 à 1, origine EN HAUT à gauche (comme le web ; Vision compte depuis le bas, converti ici). width et
 /// height en pixels de l'image lue, à l'endroit. customWords : noms d'exercices qui aident la correction linguistique.
-/// Rejets : CANCELED (fermé sans rien choisir), DENIED (appareil photo refusé), UNAVAILABLE (source absente, simulateur),
+///   cancelRead()                    → {} : arrête la lecture en cours avant la page suivante (elle rejette CANCELED)
+/// Événement "progress" { done, total } : émis au début (done 0) puis après chaque page lue (pick, readImage, readPdfScan).
+/// Mémoire : chaque image est ramenée à 3 000 pixels au plus sur le grand côté AVANT d'être décodée en entier
+/// (miniature ImageIO pour les octets, rendu borné pour les pages de PDF et les images déjà en mémoire), une page à la fois.
+/// Rejets : CANCELED (fermé sans rien choisir, ou lecture annulée), DENIED (appareil photo refusé), UNAVAILABLE (source absente, simulateur),
 /// BUSY (un choix déjà ouvert), INVALID (entrée illisible ou hors de l'app), LOCKED (PDF protégé), FAILED (le reste).
 @objc(PlanReaderPlugin)
 public class PlanReaderPlugin: CAPPlugin, CAPBridgedPlugin {
@@ -40,6 +45,7 @@ public class PlanReaderPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "pick", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "readImage", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "readPdfScan", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "cancelRead", returnType: CAPPluginReturnPromise),
     ]
 
     /// Lecture hors du fil principal, une à la fois (Vision en mode précis prend 0,5 à 2 s par page)
@@ -51,6 +57,35 @@ public class PlanReaderPlugin: CAPPlugin, CAPBridgedPlugin {
     static let maxScanPages = 30
     static let maxPdfPages = 50
     static let maxInputBytes = 40 * 1024 * 1024
+    /// Grand côté d'une image lue : assez pour l'écriture manuscrite d'une feuille A4 (≈ 360 ppp), borné pour la mémoire
+    static let maxSide = 3000
+
+    /// Annulation demandée par cancelRead, lue entre deux pages (posée depuis le fil principal, lue sur la file de lecture)
+    private let cancelLock = NSLock()
+    private var cancelFlag = false
+    private func setCanceled(_ v: Bool) { cancelLock.lock(); cancelFlag = v; cancelLock.unlock() }
+    private var isCanceled: Bool { cancelLock.lock(); defer { cancelLock.unlock() }; return cancelFlag }
+
+    @objc func cancelRead(_ call: CAPPluginCall) {
+        setCanceled(true)
+        call.resolve()
+    }
+
+    /// Pages lues une à une (chaque image chargée seulement à son tour, puis libérée) ; progression émise au début et
+    /// après chaque page ; nil si la lecture a été annulée
+    private func readPages(_ loaders: [() -> CGImage?], words: [String]) -> [[String: Any]]? {
+        let total = loaders.count
+        notifyListeners("progress", data: ["done": 0, "total": total])
+        var pages: [[String: Any]] = []
+        for (i, load) in loaders.enumerated() {
+            if isCanceled { return nil }
+            autoreleasepool {
+                if let cg = load(), let read = try? PlanReaderPlugin.recognize(cg, customWords: words) { pages.append(read) }
+            }
+            notifyListeners("progress", data: ["done": i + 1, "total": total])
+        }
+        return isCanceled ? nil : pages
+    }
 
     @objc func sources(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
@@ -70,6 +105,7 @@ public class PlanReaderPlugin: CAPPlugin, CAPBridgedPlugin {
             call.reject("Source inconnue", "INVALID")
             return
         }
+        setCanceled(false)
         DispatchQueue.main.async {
             guard self.picker == nil, let host = self.bridge?.viewController else {
                 call.reject("Un choix est déjà ouvert", "BUSY")
@@ -93,9 +129,9 @@ public class PlanReaderPlugin: CAPPlugin, CAPBridgedPlugin {
                     case .failed: call.reject("Image illisible", "FAILED")
                     case .images(let images):
                         self?.queue.async {
-                            let pages = images.prefix(PlanReaderPlugin.maxScanPages).compactMap { image -> [String: Any]? in
-                                autoreleasepool { PlanReaderPlugin.upright(image).flatMap { try? PlanReaderPlugin.recognize($0, customWords: words) } }
-                            }
+                            guard let self = self else { return }
+                            let loaders: [() -> CGImage?] = images.prefix(PlanReaderPlugin.maxScanPages).map { image in { PlanReaderPlugin.cgImage(image) } }
+                            guard let pages = self.readPages(loaders, words: words) else { call.reject("Lecture annulée", "CANCELED"); return }
                             if pages.isEmpty { call.reject("Image illisible", "FAILED") } else { call.resolve(["source": source, "pages": pages]) }
                         }
                     }
@@ -119,12 +155,14 @@ public class PlanReaderPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func readImage(_ call: CAPPluginCall) {
         let words = PlanReaderPlugin.customWords(call)
         guard let data = input(call) else { return }
+        setCanceled(false)
         queue.async {
-            guard let image = UIImage(data: data), let cg = PlanReaderPlugin.upright(image) else {
+            guard let cg = PlanReaderPlugin.thumbnail(data) else {
                 call.reject("Image illisible", "INVALID")
                 return
             }
-            do { call.resolve(["pages": [try PlanReaderPlugin.recognize(cg, customWords: words)]]) } catch { call.reject("Lecture impossible", "FAILED") }
+            guard let pages = self.readPages([{ cg }], words: words) else { call.reject("Lecture annulée", "CANCELED"); return }
+            if pages.isEmpty { call.reject("Lecture impossible", "FAILED") } else { call.resolve(["pages": pages]) }
         }
     }
 
@@ -132,6 +170,7 @@ public class PlanReaderPlugin: CAPPlugin, CAPBridgedPlugin {
         let words = PlanReaderPlugin.customWords(call)
         let maxPages = max(1, min(call.getInt("maxPages") ?? 20, PlanReaderPlugin.maxPdfPages))
         guard let data = input(call) else { return }
+        setCanceled(false)
         queue.async {
             guard let doc = PDFDocument(data: data) else {
                 call.reject("PDF illisible", "INVALID")
@@ -147,13 +186,8 @@ public class PlanReaderPlugin: CAPPlugin, CAPBridgedPlugin {
                 return
             }
             let hasTextLayer = !(doc.string ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            var pages: [[String: Any]] = []
-            for i in 0..<min(count, maxPages) {
-                autoreleasepool {
-                    guard let page = doc.page(at: i), let cg = PlanReaderPlugin.render(page) else { return }
-                    if let read = try? PlanReaderPlugin.recognize(cg, customWords: words) { pages.append(read) }
-                }
-            }
+            let loaders: [() -> CGImage?] = (0..<min(count, maxPages)).map { i in { doc.page(at: i).flatMap { PlanReaderPlugin.render($0) } } }
+            guard let pages = self.readPages(loaders, words: words) else { call.reject("Lecture annulée", "CANCELED"); return }
             if pages.isEmpty { call.reject("Lecture impossible", "FAILED"); return }
             call.resolve(["pages": pages, "pageCount": count, "truncated": count > maxPages, "hasTextLayer": hasTextLayer])
         }
@@ -222,11 +256,52 @@ public class PlanReaderPlugin: CAPPlugin, CAPBridgedPlugin {
 
     // MARK: - Images
 
-    /// Image à l'endroit (orientation EXIF appliquée), sur fond blanc (un PNG transparent ne devient pas noir sur noir),
-    /// 4 096 pixels au plus sur le grand côté
-    static func upright(_ image: UIImage, maxSide: CGFloat = 4096) -> CGImage? {
+    /// Octets d'une image (JPEG, HEIC, PNG…) → miniature ImageIO de 3 000 pixels au plus, orientation EXIF appliquée :
+    /// l'image n'est jamais décodée en pleine taille (une photo de 48 Mpx ferait 190 Mo en mémoire)
+    static func thumbnail(_ data: Data, maxSide: Int = PlanReaderPlugin.maxSide) -> CGImage? {
+        guard let src = CGImageSourceCreateWithData(data as CFData, [kCGImageSourceShouldCache: false] as CFDictionary),
+              CGImageSourceGetCount(src) > 0 else { return nil }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxSide,
+        ]
+        guard let cg = CGImageSourceCreateThumbnailAtIndex(src, 0, options as CFDictionary) else { return nil }
+        return opaque(cg)
+    }
+
+    /// Image transparente (capture PNG) posée sur fond blanc, à sa taille déjà bornée : un texte noir sur fond
+    /// transparent ne devient pas noir sur noir
+    static func opaque(_ cg: CGImage) -> CGImage? {
+        switch cg.alphaInfo {
+        case .none, .noneSkipFirst, .noneSkipLast: return cg
+        default: break
+        }
+        let rect = CGRect(x: 0, y: 0, width: cg.width, height: cg.height)
+        guard let ctx = CGContext(data: nil, width: cg.width, height: cg.height, bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else { return cg }
+        ctx.setFillColor(UIColor.white.cgColor)
+        ctx.fill(rect)
+        ctx.draw(cg, in: rect)
+        return ctx.makeImage()
+    }
+
+    /// Image fournie par une fenêtre d'iOS, chargée seulement à son tour (PlanPicker.Source)
+    static func cgImage(_ image: PlanPicker.Source) -> CGImage? {
+        switch image {
+        case .data(let data): return thumbnail(data)
+        case .image(let ui): return bounded(ui)
+        case .scan(let scan, let i): return i < scan.pageCount ? bounded(scan.imageOfPage(at: i)) : nil
+        }
+    }
+
+    /// Image déjà en mémoire (appareil photo, page numérisée) → à l'endroit, 3 000 pixels au plus : gardée telle quelle si
+    /// elle convient déjà, sinon dessinée UNE fois dans un tampon à la taille bornée (jamais plus grand)
+    static func bounded(_ image: UIImage, maxSide: CGFloat = CGFloat(PlanReaderPlugin.maxSide)) -> CGImage? {
         let w = image.size.width * image.scale, h = image.size.height * image.scale
         guard w >= 1, h >= 1 else { return nil }
+        if image.imageOrientation == .up, let cg = image.cgImage, CGFloat(max(cg.width, cg.height)) <= maxSide { return opaque(cg) }
         let f = min(1, maxSide / max(w, h))
         let size = CGSize(width: max(1, (w * f).rounded()), height: max(1, (h * f).rounded()))
         let format = UIGraphicsImageRendererFormat()
@@ -240,15 +315,28 @@ public class PlanReaderPlugin: CAPPlugin, CAPBridgedPlugin {
         return out.cgImage
     }
 
-    /// Page de PDF rendue à environ 300 points par pouce (A4 : 2 480 × 3 508), rotation de la page comprise
+    /// Page de PDF rendue à 300 points par pouce, 3 000 pixels au plus sur le grand côté (A4 : 2 121 × 3 000), dans un
+    /// tampon à l'échelle 1 (jamais à l'échelle de l'écran), rotation et origine de la page appliquées par PDFKit
     static func render(_ page: PDFPage) -> CGImage? {
         let bounds = page.bounds(for: .cropBox)
         let turned = page.rotation % 180 != 0
         let pw = turned ? bounds.height : bounds.width, ph = turned ? bounds.width : bounds.height
         guard pw > 0, ph > 0 else { return nil }
-        let scale = min(300.0 / 72.0, 3508 / max(pw, ph))
-        let thumb = page.thumbnail(of: CGSize(width: pw * scale, height: ph * scale), for: .cropBox)
-        return upright(thumb)
+        let scale = min(300.0 / 72.0, CGFloat(PlanReaderPlugin.maxSide) / max(pw, ph))
+        let size = CGSize(width: max(1, (pw * scale).rounded()), height: max(1, (ph * scale).rounded()))
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        let out = UIGraphicsImageRenderer(size: size, format: format).image { ctx in
+            UIColor.white.setFill()
+            ctx.fill(CGRect(origin: .zero, size: size))
+            let cg = ctx.cgContext
+            // Repère du PDF : origine en bas à gauche
+            cg.translateBy(x: 0, y: size.height)
+            cg.scaleBy(x: scale, y: -scale)
+            page.draw(with: .cropBox, to: cg)
+        }
+        return out.cgImage
     }
 
     // MARK: - Vision
@@ -326,7 +414,9 @@ public class PlanReaderPlugin: CAPPlugin, CAPBridgedPlugin {
 /// Rend une seule issue, une seule fois, même si la fenêtre est refermée d'un glissement.
 final class PlanPicker: NSObject, PHPickerViewControllerDelegate, UIImagePickerControllerDelegate, UINavigationControllerDelegate,
                         VNDocumentCameraViewControllerDelegate, UIAdaptivePresentationControllerDelegate {
-    enum Outcome { case images([UIImage]), canceled, failed }
+    /// Image à lire, pas encore décodée : octets de la photothèque, photo de l'appareil, ou page d'une numérisation
+    enum Source { case data(Data), image(UIImage), scan(VNDocumentCameraScan, Int) }
+    enum Outcome { case images([Source]), canceled, failed }
 
     private let source: String
     private let limit: Int
@@ -382,19 +472,21 @@ final class PlanPicker: NSObject, PHPickerViewControllerDelegate, UIImagePickerC
 
     func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
         guard !results.isEmpty else { end(picker, .canceled); return }
-        var images = [UIImage?](repeating: nil, count: results.count)
+        // Octets de chaque image (pas d'UIImage décodée : la miniature bornée est faite à la lecture, une à la fois)
+        var images = [Data?](repeating: nil, count: results.count)
         let group = DispatchGroup()
-        for (i, result) in results.enumerated() where result.itemProvider.canLoadObject(ofClass: UIImage.self) {
+        let type = UTType.image.identifier
+        for (i, result) in results.enumerated() where result.itemProvider.hasItemConformingToTypeIdentifier(type) {
             group.enter()
-            result.itemProvider.loadObject(ofClass: UIImage.self) { object, _ in
+            result.itemProvider.loadDataRepresentation(forTypeIdentifier: type) { data, _ in
                 DispatchQueue.main.async {
-                    images[i] = object as? UIImage
+                    images[i] = data
                     group.leave()
                 }
             }
         }
         group.notify(queue: .main) {
-            let found = images.compactMap { $0 }
+            let found = images.compactMap { $0 }.filter { !$0.isEmpty && $0.count <= PlanReaderPlugin.maxInputBytes }.map { Source.data($0) }
             self.end(picker, found.isEmpty ? .failed : .images(found))
         }
     }
@@ -402,7 +494,7 @@ final class PlanPicker: NSObject, PHPickerViewControllerDelegate, UIImagePickerC
     // MARK: Appareil photo
 
     func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
-        if let image = info[.originalImage] as? UIImage { end(picker, .images([image])) } else { end(picker, .failed) }
+        if let image = info[.originalImage] as? UIImage { end(picker, .images([.image(image)])) } else { end(picker, .failed) }
     }
 
     func imagePickerControllerDidCancel(_ picker: UIImagePickerController) { end(picker, .canceled) }
@@ -410,7 +502,8 @@ final class PlanPicker: NSObject, PHPickerViewControllerDelegate, UIImagePickerC
     // MARK: Numérisation de documents
 
     func documentCameraViewController(_ controller: VNDocumentCameraViewController, didFinishWith scan: VNDocumentCameraScan) {
-        let images = (0..<min(scan.pageCount, PlanReaderPlugin.maxScanPages)).map { scan.imageOfPage(at: $0) }
+        // Pages gardées dans la numérisation et chargées une à une à la lecture (jamais 30 images pleines en mémoire)
+        let images = (0..<min(scan.pageCount, PlanReaderPlugin.maxScanPages)).map { Source.scan(scan, $0) }
         end(controller, images.isEmpty ? .canceled : .images(images))
     }
 

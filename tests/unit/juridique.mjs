@@ -35,7 +35,9 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     assert.ok(!/quelques jours la ligne d'une photo|for a few days \(its day/.test(page), 'plus de « quelques jours » pour les sauvegardes');
     assert.ok(page.includes('id="sauvegardes"') && page.includes('id="backups"'), 'ancres FR et EN');
     // Date de mise à jour, FR et EN, identiques
-    assert.ok(fr.includes('mise à jour le 26 novembre 2026') && en.includes('updated November 26, 2026'), 'date du 26/11/2026 (session du site du coach)');
+    assert.ok(fr.includes('mise à jour le 27 novembre 2026') && en.includes('updated November 27, 2026'), 'date du 27/11/2026 (corrections retenues à l\'import d\'un programme)');
+    // Import d'un programme : les corrections retenues sont copiées sur le compte, et dites (audit M3)
+    assert.ok(fr.includes('les corrections retenues à l\'import d\'un programme (mots lus et nom de l\'exercice') && en.includes('the corrections kept when importing a program (the words read and the exercise name'), 'corrections retenues, FR et EN');
     // Site du coach : session gardée dans le navigateur, « Rester connecté » cochée par défaut (26/11/2026), 90 jours,
     // à décocher sur un ordinateur partagé (FR et EN)
     assert.ok(fr.includes('id="session-site-coach"') && en.includes('id="coach-site-session"'), 'session du site du coach, FR et EN');

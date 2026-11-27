@@ -98,6 +98,12 @@ jobs:
           npm ci --ignore-scripts
           node tests/unit/run.mjs
 
+      # Règle 2.5.2 d'Apple et règle du projet (docs/REVUE_APPLE.md, 6.2) : une fonction déclarée dans
+      # features.json et absente de la dernière build examinée (store/derniere-build.json) part dans une
+      # build TestFlight, jamais en mise à jour à chaud
+      - name: Aucune fonction nouvelle
+        run: node scripts/check-features-ota.mjs
+
       # L'app ouvre les pages de LEGAL_URLS (écran d'abonnement : règle 3.1.2 d'Apple). Elles sont
       # publiées par le job deploy de tests.yml, pas ici (docs/JURIDIQUE.md). Bloquant dès que la
       # variable du dépôt MDLF_SORTIE vaut true (app sur l'App Store ou verrou allumé). Avant, l'app

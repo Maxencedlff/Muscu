@@ -24,10 +24,23 @@ function openPlanImport(student = null) {
   navigate(makeRoute('plan-import', 'texte', ...(student ? [student] : [])));
 }
 
-// Lecture par l'iPhone (Apple Vision, dictée sur l'appareil : js/platform/plan-reader.js, vague 2) : proposée seulement
+// Lecture sur l'appareil, iPhone ou iPad (Apple Vision, dictée hors ligne : js/platform/plan-reader.js) : proposée seulement
 // quand le module natif est là ; sinon l'écran reste sur Coller et Choisir un fichier
 const pimpReader = () => typeof PlanReader !== 'undefined' && PlanReader.available === true;
-const pimpDictation = () => typeof PlanReader !== 'undefined' && PlanReader.dictation?.available === true;
+// Dicter n'est proposé que si la dictée marche hors ligne sur cet appareil (status().onDevice, demandé une fois sans rien
+// autoriser) : jamais de bascule vers les serveurs d'Apple (texte de NSSpeechRecognitionUsageDescription, Info.plist)
+let pimpDictOnDevice = null;
+const pimpDictation = () => {
+  if (typeof PlanReader === 'undefined' || PlanReader.dictation?.available !== true) return false;
+  if (pimpDictOnDevice === null) {
+    pimpDictOnDevice = false;
+    Promise.resolve(PlanReader.dictation.status()).then(r => {
+      pimpDictOnDevice = r?.available === true && r?.onDevice === true;
+      if (pimpDictOnDevice && routeName(currentRoute()) === 'plan-import') render();
+    }).catch(() => {});
+  }
+  return pimpDictOnDevice === true;
+};
 
 // ── Écran 1 : coller le texte ou choisir un fichier ──────────
 function renderPimpText(student) {
@@ -37,10 +50,16 @@ function renderPimpText(student) {
     <div class="view view--grouped pimp-view">
       ${navBar({ title: 'Importer un programme' })}
       <div class="scr">
-        <p class="pimp-lead">${who ? `Le programme de ${esc(who)}, tel que tu l'as déjà : ` : 'Ton programme tel que tu l\'as déjà : '}un message, un tableau, le texte d'un PDF. L'app le lit, puis tu vérifies.</p>
+        <p class="pimp-lead">${who ? `Le programme de ${esc(who)}, tel que tu l'as déjà : ` : 'Ton programme tel que tu l\'as déjà : '}${pimpReader() ? 'une feuille, même écrite à la main, ' : ''}un message, un tableau, le texte d'un PDF. L'app le lit, puis tu vérifies.</p>
+        ${pimpReader() || pimpDictation() ? `<div class="group pimp-sources">
+          ${pimpReader() ? `<button class="cell cell--action" data-action="pimp-photo">${icon('camera', 20)}<span>Photo</span></button>
+          <button class="cell cell--action" data-action="pimp-scan">${icon('doc.on.doc', 20)}<span>Scanner une feuille</span></button>` : ''}
+          ${pimpDictation() ? `<button class="cell cell--action" data-action="pimp-dictate">${icon('waveform', 20)}<span>Dicter</span></button>` : ''}
+        </div>
+        <div class="group-title">Ou colle le texte</div>` : ''}
         <div class="group group--pad">
           <label class="sr-text" for="pimpText">Texte du programme</label>
-          <textarea id="pimpText" class="pimp-text" maxlength="${PIMP_TEXT_MAX}" rows="10" autocapitalize="sentences" spellcheck="false"
+          <textarea id="pimpText" class="pimp-text" rows="10" autocapitalize="sentences" spellcheck="false"
             placeholder="Lundi : Push&#10;Développé couché 4x8-10, repos 2 min&#10;Élévations latérales 3x15&#10;&#10;Mercredi : Pull&#10;Tractions 4 × max">${esc(st.text)}</textarea>
         </div>
         <div class="group-foot">Une séance par titre (« Lundi », « Push », « Séance A »), un exercice par ligne. Les abréviations de salle (DC, SDT, RDL…) sont comprises.</div>
@@ -48,14 +67,18 @@ function renderPimpText(student) {
           <button class="btn btn--primary btn--full" data-action="pimp-read">Lire le programme</button>
         </div>
         <div class="group group--gap">
-          ${pimpReader() ? `<button class="cell cell--action" data-action="pimp-photo">${icon('camera', 20)}<span>Photo</span></button>
-          <button class="cell cell--action" data-action="pimp-scan">${icon('doc.on.doc', 20)}<span>Scanner une feuille</span></button>` : ''}
-          ${pimpDictation() ? `<button class="cell cell--action" data-action="pimp-dictate">${icon('waveform', 20)}<span>Dicter</span></button>` : ''}
           <button class="cell cell--action" data-action="pimp-file">${icon('doc.text', 20)}<span>Choisir un fichier</span></button>
         </div>
-        <div class="group-foot">${pimpReader() ? 'Photo ou scan d\'une feuille, même écrite à la main, dictée, ' : ''}PDF, texte, ou export de Hevy ou Strong. Tout est lu sur ${esc(thisPhone())}, rien n'est envoyé.</div>
+        <div class="group-foot">PDF, texte, ou export de Hevy ou Strong. ${esc(pimpPrivacyText())}</div>
       </div>
     </div>`;
+}
+
+// Ce qui part, en clair (privacy.html, « corrections retenues à l'import d'un programme ») : la photo, la voix et le
+// texte sont lus sur l'appareil ; avec un compte, le programme enregistré et les corrections y sont copiés
+function pimpPrivacyText() {
+  const what = pimpReader() ? (pimpDictation() ? 'La photo, la voix et le texte' : 'La photo et le texte') : 'Le texte';
+  return `${what} sont lus sur ${thisPhone()}, sans être envoyés. ${typeof account !== 'undefined' && account.user ? 'Le programme enregistré et tes corrections sont copiés sur ton compte.' : 'Avec un compte, le programme enregistré et tes corrections y sont copiés.'}`;
 }
 
 // ── Écran 2 : Vérifier l'import ──────────────────────────────
@@ -76,12 +99,14 @@ function pimpPrescText(p) {
   if (p.tempo) bits.push(`tempo ${p.tempo}`);
   if (p.tech) bits.push(p.tech === 'topback' ? '1re lourde, puis allégées' : `${p.techWhere === 'all' ? 'toutes' : 'dernière'} en ${TECHS[p.tech].label.toLowerCase()}`);
   if (p.uni) bits.push('par côté');
+  if (p.weighted) bits.push('lesté');
   return bits.join(' · ');
 }
 function pimpWhyText(it) {
   if (it.level === 'unknown') return it.guess ? `Pas dans la bibliothèque. Peut-être ${it.guess} ?` : 'Pas dans la bibliothèque : touche pour choisir';
   const w = it.why || [];
   if (w.includes('nom')) return 'Nom proche : vérifie l\'exercice';
+  if (w.includes('matériel')) return 'Matériel différent de ta ligne : vérifie l\'exercice';
   if (w.includes('séries')) return 'Nombre de séries non lu : 3 par défaut';
   if (w.includes('reps')) return 'Reps non lues';
   return '';
@@ -122,11 +147,13 @@ function renderPimpReview(student) {
         <div class="group">${list.map(pimpRowHtml).join('')}</div>`;
   }).join('');
   const notes = d.lines.filter(l => l.role === 'note' && l.text.trim()).map(l => l.text.trim());
+  const cut = pimpCutText(st);
   return `
     <div class="view view--grouped pimp-view">
       ${navBar({ title: 'Vérifier l\'import' })}
       <div class="scr">
         <p class="pimp-lead" role="status">${esc(summary)}${items.length ? ' Touche une ligne pour la corriger.' : ''}</p>
+        ${cut ? `<div class="group pimp-cut"><div class="cell"><span class="cell__body"><span class="cell__title">Programme incomplet</span><span class="cell__sub">${esc(cut)}</span></span></div></div>` : ''}
         <div class="group">
           <button class="cell cell--nav" data-action="pimp-name">
             <span class="cell__body"><span class="cell__sub">Nom du programme</span><span class="cell__title">${esc(pimpName())}</span></span>
@@ -142,17 +169,31 @@ function renderPimpReview(student) {
           <button class="btn btn--primary btn--full" data-action="pimp-save" ${items.length ? '' : 'disabled'}>Enregistrer le programme</button>
           <button class="btn btn--secondary btn--full" data-action="pimp-edit-text">Modifier le texte</button>
         </div>
-        <div class="group-foot">${st.student ? `Le programme est créé pour ${esc(personName(coachStudent(st.student)))}, tu pourras l'envoyer ensuite. Tes séances ne changent pas.` : 'Le programme s\'ajoute à Mes programmes.'} Tes corrections sont retenues pour le prochain import.</div>
+        <div class="group-foot">${st.student ? `Ajouté à tes programmes, prêt à envoyer à ${esc(personName(coachStudent(st.student)))}. Tes séances ne changent pas.` : 'Le programme s\'ajoute à Mes programmes.'} Tes corrections sont retenues pour le prochain import (Réglages › Programmes › Corrections retenues).</div>
       </div>
     </div>`;
+}
+// Limites atteintes : texte coupé à PIMP_TEXT_MAX ou par le moteur, 300 exercices, 14 séances (plan-parser.js) : dit en clair
+function pimpCutText(st) {
+  const c = st?.draft?.cut || {}, out = [];
+  if (st?.pagesCut) out.push(`seules les ${st.pagesCut.pagesRead} premières pages sur ${st.pagesCut.pageCount} sont lues`);
+  if (st?.textCut || c.text) out.push(`le texte est coupé après ${fmtNum(PIMP_TEXT_MAX)} caractères`);
+  if (c.items) out.push(`${PARSE_MAX_ITEMS} exercices au plus sont repris`);
+  if (c.sessions) out.push(`${PARSE_MAX_SESSIONS} séances au plus sont reprises`);
+  if (!out.length) return '';
+  const t = out.join(', ');
+  return `${t[0].toUpperCase()}${t.slice(1)} : la fin manque. Importe-la à part, dans un second programme.`;
 }
 const pimpName = () => (pimp?.name || pimp?.draft?.title || 'Programme importé').slice(0, SESSION_LABEL_MAX);
 SCREENS.set('plan-import', { render: (step, student) => (step === 'verifier' ? renderPimpReview(student) : renderPimpText(student)) });
 
 // ── Lecture ─────────────────────────────────────────────────
-function pimpRead(text, source = 'texte') {
+function pimpRead(text, source = 'texte', { pagesRead = 0, pageCount = 0 } = {}) {
   const st = pimpState(pimp?.student || null);
-  st.text = String(text ?? '').slice(0, PIMP_TEXT_MAX);
+  const full = String(text ?? '');
+  st.text = full.slice(0, PIMP_TEXT_MAX);
+  st.textCut = full.length > PIMP_TEXT_MAX;
+  st.pagesCut = pagesRead && pageCount > pagesRead ? { pagesRead, pageCount } : null;
   st.source = source;
   st.draft = planParse(st.text, { learned: planLearnedAliases() });
   st.name = '';
@@ -195,7 +236,8 @@ async function pimpPickExercise(it) {
 }
 document.addEventListener('input', ev => {
   if (ev.target?.id === 'pimpSearch') { const l = $('#pimpPickList'); if (l) l.innerHTML = pimpPickListHtml(ev.target.value.slice(0, SEARCH_MAX)); }
-  else if (ev.target?.id === 'pimpText' && pimp) pimp.text = ev.target.value.slice(0, PIMP_TEXT_MAX);
+  // Pas de maxlength sur la zone : un texte collé trop long serait coupé sans rien dire ; il l'est à la lecture, et dit
+  else if (ev.target?.id === 'pimpText' && pimp) pimp.text = ev.target.value.slice(0, PIMP_TEXT_MAX + 1);
 });
 
 // Séries et reps : la même grammaire que l'import (« 4x10 », « 3 × 8-12 repos 90 s », « 3 × 45 s »)
@@ -244,7 +286,8 @@ function pimpSave() {
   const page = id === data.activeProgramme ? 'programmes' : makeRoute('programmes', id);
   if (next.tab === 'program') next.stacks.program = [TABS.program.root, page]; else s.push(page);
   navCommit(next, 'push', 'replace');
-  showToast(`« ${name} » enregistré${learned ? `, ${plural(learned, 'correction retenue', 'corrections retenues')}` : ''}${student ? '. Tes séances ne changent pas.' : ''}`);
+  showToast(student ? `« ${name} » ajouté à tes programmes, prêt à envoyer à ${personName(coachStudent(student))}`
+    : `« ${name} » enregistré${learned ? `, ${plural(learned, 'correction retenue', 'corrections retenues')}` : ''}`);
 }
 
 // Fichier : PDF (texte lu par pdf.js), texte, ou export CSV de Hevy et Strong (import des séances, js/features/import-ui.js)
@@ -260,17 +303,17 @@ function pimpChooseFile() {
     try {
       // Image (capture d'écran, photo enregistrée) : lue par Vision
       if (/^image\//.test(file.type) && pimpReader()) {
-        const r = await PlanReader.readFile(file, { customWords: planDictationWords('exercice') });
-        if (r.ok) pimpRead(planTextFromPages(r.pages), 'photo'); else if (r.message) showToast(r.message, { error: true });
+        const r = await pimpReading(onProgress => PlanReader.readFile(file, { customWords: planDictationWords('exercice'), onProgress }), true);
+        if (r.ok) pimpRead(planTextFromPages(r.pages), 'photo'); else if (r.message) showToast(r.message, { error: r.reason !== 'canceled' });
         return;
       }
       if (isPdf) {
         showToast('Lecture du PDF…');
         const r = await planPdfText(await file.arrayBuffer());
         if (!r.text.trim() && pimpReader()) {
-          const scan = await PlanReader.readFile(file, { customWords: planDictationWords('exercice') });
-          if (scan.ok) { pimpRead(planTextFromPages(scan.pages), 'scan'); return; }
-          if (scan.message) showToast(scan.message, { error: true });
+          const scan = await pimpReading(onProgress => PlanReader.readFile(file, { customWords: planDictationWords('exercice'), onProgress }), true);
+          if (scan.ok) { pimpRead(planTextFromPages(scan.pages), 'scan', scan.truncated ? { pagesRead: scan.pages.length, pageCount: scan.pageCount } : {}); return; }
+          if (scan.message) showToast(scan.message, { error: scan.reason !== 'canceled' });
           return;
         }
         if (!r.text.trim()) { await dialog({ title: 'Pas de texte dans ce PDF', message: 'C\'est sans doute une photo ou un scan. La lecture des photos arrive dans une prochaine version. En attendant, copie le texte du programme et colle-le ici.', actions: [{ label: 'OK', style: 'preferred' }] }); return; }
@@ -287,9 +330,30 @@ function pimpChooseFile() {
   inp.click();
 }
 
+// Lecture par Vision, page par page : feuille « Page N sur M » avec Annuler (PlanReader.cancelRead, la lecture s'arrête
+// avant la page suivante). Ouverte tout de suite pour un fichier, à la première page lue pour Photo et Scanner (le
+// sélecteur d'Apple passe d'abord)
+async function pimpReading(task, eager = false) {
+  let root = null, over = false;
+  const open = () => {
+    if (root || over) return;
+    sheet({ title: 'Lecture du programme', cancel: 'Annuler', confirm: '',
+      body: '<p class="pimp-dict" id="pimpProgress" role="status" aria-live="polite">Lecture en cours…</p>' })
+      .then(() => { if (!over) PlanReader.cancelRead?.(); });
+    const roots = document.querySelectorAll('.sheet-root:not(.sheet-root--out)');
+    root = roots[roots.length - 1] || null;
+  };
+  if (eager) open();
+  const onProgress = ({ done, total } = {}) => {
+    open();
+    const el = $('#pimpProgress');
+    if (el && total > 1) el.textContent = `Page ${Math.min(done + 1, total)} sur ${total}`;
+  };
+  try { return await task(onProgress); } finally { over = true; root?._close?.(null); }
+}
 // Photo, appareil photo ou feuille numérisée : pages lues par Vision, mises en lignes et colonnes par planTextFromPages
 async function pimpFromReader(source) {
-  const r = await PlanReader.pick(source, { limit: 5, customWords: planDictationWords('exercice') });
+  const r = await pimpReading(onProgress => PlanReader.pick(source, { limit: 5, customWords: planDictationWords('exercice'), onProgress }));
   if (!r.ok) { if (r.message) showToast(r.message, { error: r.reason !== 'canceled' }); return; }
   const text = planTextFromPages(r.pages);
   if (!text.trim()) { showToast('Aucun texte lu sur cette image'); return; }
@@ -300,7 +364,7 @@ async function pimpFromReader(source) {
 const PIMP_STEPS = [{ q: 'Quel exercice ?', words: 'exercice', hint: 'Exemple : développé couché' },
   { q: 'Combien de séries et de reps ?', words: 'prescription', hint: 'Exemple : 4 séries de 10, repos 2 minutes' }];
 async function pimpDictate() {
-  const mode = await dialog({ type: 'sheet', title: 'Dicter le programme', message: 'Sur ton iPhone, sans Internet.', actions: [
+  const mode = await dialog({ type: 'sheet', title: 'Dicter le programme', message: `Sur ${thisPhone()}, sans Internet.`, actions: [
     { label: 'Pas à pas', value: 'guide', style: 'preferred', sub: 'L\'app te demande l\'exercice, puis les séries et les reps' },
     { label: 'Tout d\'un coup', value: 'libre', sub: 'Dis « séance push », puis chaque exercice' },
     { label: 'Annuler', style: 'cancel' }] });
@@ -317,11 +381,20 @@ async function pimpDictate() {
       body: `<p class="imp__lead">${esc(guide ? st.hint : 'Exemple : séance push, développé couché 4 séries de 10, ensuite élévations latérales 3 fois 15.')}</p>
         <p class="pimp-dict" id="pimpDict" role="status" aria-live="polite">${esc(lines.length ? `${lines.length} ligne${lines.length > 1 ? 's' : ''} dictée${lines.length > 1 ? 's' : ''}` : '')}</p>
         ${guide && lines.length ? '<button class="imp-pick imp-pick--keep" data-action="pimp-dict-end">J\'ai fini</button>' : ''}` });
-    // Annuler, ou « J'ai fini » à la question suivante : ce qui vient d'être dit n'est pas gardé
-    if (done === null) { await PlanReader.dictation.cancel(); if (!pimpDictEnd && !lines.length) return; break; }
+    // « J'ai fini » à la question suivante : ce qui vient d'être dit n'est pas gardé, le reste est lu.
+    // Annuler : toute la dictée est abandonnée, rien n'est lu
+    if (done === null) {
+      await PlanReader.dictation.cancel();
+      const end = pimpDictEnd;
+      pimpDictEnd = false;
+      if (!end) return;
+      break;
+    }
     const r = await PlanReader.dictation.stop();
     const said = (r.ok ? r.text : partial).trim();
-    if (said) lines.push(said);
+    // Réponse vide : la même question revient (l'exercice et ses séries ne se décalent pas)
+    if (!said) { showToast('Rien entendu, redis-le'); continue; }
+    lines.push(said);
     if (!guide) break;
     step++;
   }
@@ -342,7 +415,7 @@ registerActions({
   'pimp-dict-end': () => { pimpDictEnd = true; closeTopSheet(); },
   'plan-import': (e, el) => openPlanImport(el?.dataset?.uid || null),
   'pimp-read': () => {
-    const t = ($('#pimpText')?.value ?? pimp?.text ?? '').slice(0, PIMP_TEXT_MAX);
+    const t = ($('#pimpText')?.value ?? pimp?.text ?? '').slice(0, PIMP_TEXT_MAX + 1);
     if (!t.trim()) { showToast('Colle d\'abord le texte du programme'); $('#pimpText')?.focus(); return; }
     haptic();
     pimpRead(t);
@@ -353,7 +426,7 @@ registerActions({
     const it = pimpItem(el.dataset.id);
     if (!it) return;
     const v = await dialog({ type: 'sheet', title: it.name || it.raw || 'Ligne', message: it.src.trim().slice(0, 200), actions: [
-      { label: it.level === 'unknown' ? 'Choisir l\'exercice' : 'Changer l\'exercice', value: 'ex', style: it.level === 'unknown' || it.why?.includes('nom') ? 'preferred' : 'default' },
+      { label: it.level === 'unknown' ? 'Choisir l\'exercice' : 'Changer l\'exercice', value: 'ex', style: it.level === 'unknown' || it.why?.includes('nom') || it.why?.includes('matériel') ? 'preferred' : 'default' },
       { label: 'Modifier séries et reps', value: 'presc' },
       { label: 'Retirer cette ligne', value: 'rm', style: 'destructive' },
       { label: 'Annuler', style: 'cancel' }] });
@@ -383,4 +456,67 @@ registerActions({
     if (v) { s.label = v; render(); }
   },
   'pimp-save': () => pimpSave(),
+});
+
+// ── Réglages › Corrections retenues ─────────────────────────
+// Les corrections apprises à l'import (mots lus → nom de l'exercice, js/data/plan-aliases.js), copiées sur le compte
+// (privacy.html) : listées, les plus récentes d'abord ; chacune s'oublie (pierre tombale datée : la synchro ne la
+// ramène pas d'un autre appareil), ou toutes d'un coup
+function renderPlanAliases() {
+  const list = planAliasesList();
+  const rows = list.map(a => `
+          <button class="cell cell--nav" data-action="pimp-alias" data-key="${esc(a.key)}" aria-label="${esc(`« ${a.key} » lu comme ${a.name}`)}">
+            <span class="cell__body"><span class="cell__sub">« ${esc(clipText(a.key, 60))} »</span><span class="cell__title">${esc(a.name)}</span></span>
+            ${icon('chevron.right', 16)}
+          </button>`).join('');
+  return `
+    <div class="view view--grouped pimp-view">
+      ${navBar({ title: 'Corrections retenues' })}
+      <div class="scr">
+        <p class="pimp-lead">Quand tu corriges un exercice à l'import d'un programme, l'app retient les mots lus et l'exercice choisi, pour le reconnaître la prochaine fois.${account.user ? ' Elles sont copiées sur ton compte, pour tes autres appareils.' : ''}</p>
+        ${list.length ? `<div class="group">${rows}</div>
+        <div class="group">
+          <button class="cell cell--destructive" data-action="pimp-aliases-forget"><span class="cell__title">Tout oublier</span></button>
+        </div>` : '<div class="group"><div class="cell"><span class="cell__body"><span class="cell__sub">Aucune correction retenue.</span></span></div></div>'}
+      </div>
+    </div>`;
+}
+SCREENS.set('plan-aliases', { render: () => renderPlanAliases() });
+// Cellule de Réglages (js/features/settings.js), seulement quand il y a quelque chose à voir
+function planAliasesSettingsHtml() {
+  const n = planAliasesList().length;
+  if (!n) return '';
+  return `
+        <div class="group-title">Programmes</div>
+        <div class="group">
+          <button class="cell cell--nav" data-action="go-plan-aliases">
+            ${cellIco('square.and.arrow.down', 'gray')}
+            <span class="cell__body"><span class="cell__title">Corrections retenues</span></span>
+            <span class="cell__value num">${n}</span>
+            ${icon('chevron.right', 16)}
+          </button>
+        </div>
+        <div class="group-foot">Les exercices corrigés à l'import d'un programme.</div>`;
+}
+
+registerActions({
+  'go-plan-aliases': () => navigate('plan-aliases'),
+  'pimp-alias': async (e, el) => {
+    const key = el.dataset.key, name = planLearnedAliases()[key];
+    if (typeof name !== 'string') return;
+    const v = await dialog({ type: 'sheet', title: `« ${clipText(key, 60)} »`, message: `Lu comme ${name} au prochain import.`, actions: [
+      { label: 'Oublier cette correction', value: 'rm', style: 'destructive' }, { label: 'Annuler', style: 'cancel' }] });
+    if (v !== 'rm' || !planForgetAliasKey(key)) return;
+    save(); haptic(); render();
+  },
+  'pimp-aliases-forget': async () => {
+    const n = planAliasesList().length;
+    if (!n) return;
+    const v = await dialog({ title: 'Tout oublier ?', message: `${plural(n, 'correction retenue sera oubliée', 'corrections retenues seront oubliées')}, aussi sur tes autres appareils. Tes programmes ne changent pas.`,
+      actions: [{ label: 'Annuler', style: 'cancel' }, { label: 'Tout oublier', value: 'rm', style: 'destructive' }] });
+    if (v !== 'rm') return;
+    const now = Date.now();
+    planAliasesList().forEach(a => planForgetAliasKey(a.key, data, now));
+    save(); haptic(); render();
+  },
 });

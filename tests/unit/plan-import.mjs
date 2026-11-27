@@ -146,11 +146,80 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     const d = run('planParse("Push\\nDC inc 4x8", { learned: planLearnedAliases() })');
     assert.equal(d.sessions[0].items[0].name, 'Développé incliné barre');
     assert.equal(d.sessions[0].items[0].how, 'learned');
-    assert.ok(run('SYNC_PROFILE_KEYS.includes("planAliases") && SYNC_UNION_KEYS.includes("planAliases")'));
+    assert.ok(run('SYNC_PROFILE_KEYS.includes("planAliases") && SYNC_PROFILE_KEYS.includes("planAliasesAt") && SYNC_CHOICE_KEYS.includes("planAliases") && !SYNC_UNION_KEYS.includes("planAliases")'));
     run('data.planAliases = { ok: "Squat barre", "": "x", long: "' + 'a'.repeat(90) + '", n: 3 }; data = sanitizeData(data);');
     sameJSON(run('data.planAliases'), { ok: 'Squat barre' });
     run('planLearnAlias("Mon exo à moi Thomas 0612345678", "Truc")');
     assert.ok(!run('planAliasesSharePayload()').some(x => x.n === 'Truc' || /\d{3}/.test(x.k)), 'mise en commun : jamais un nom inventé ni un numéro');
+  });
+
+  test('import de programme : « constructor 4x8 » et autres noms d\'Object ne plantent ni la lecture ni l\'enregistrement', () => {
+    reset();
+    for (const w of ['constructor', 'toString', 'hasOwnProperty', '__proto__', 'valueOf']) {
+      const d = run(`planParse(${JSON.stringify(`Push\n${w} 4x8`)}, { learned: planLearnedAliases() })`);
+      const it = d.sessions[0]?.items[0];
+      assert.ok(!it || typeof it.name === 'string' || it.name === null, w);
+      assert.notEqual(it?.how, 'learned', `${w} : pas une correction retenue`);
+      run(`planLearnAlias(${JSON.stringify(w)}, "Squat barre")`);
+    }
+    run('data = sanitizeData(data)');
+    assert.equal(run('Object.getPrototypeOf(data.planAliases) === Object.prototype'), true, 'prototype intact');
+    assert.notEqual(run('planMatchExercise("constructor", {}).how'), 'learned', 'clé héritée d\'Object : pas une correction');
+    assert.equal(run('planMatchExercise("constructor", planLearnedAliases()).name'), 'Squat barre');
+  });
+
+  test('import de programme : dictionnaire borné partout de la même façon, les plus anciennes sortent', () => {
+    reset();
+    for (let i = 0; i < 605; i++) run(`planLearnAlias(${JSON.stringify(`exo maison x${'abcdefghijklmnopqrstuvwxyz'[i % 26]}${'abcdefghijklmnopqrstuvwxyz'[Math.floor(i / 26) % 26]}x`)}, "Squat barre", data, ${1000 + i})`);
+    const keys = run('Object.keys(data.planAliases)');
+    assert.equal(keys.length, 600);
+    assert.ok(!run('planOwn(data.planAliases, planAliasKey("exo maison xaax"))'), 'la plus ancienne est sortie');
+    assert.ok(run('planOwn(data.planAliases, planAliasKey("exo maison xgxx"))'), 'la plus récente reste');
+    // sanitizeData : même règle (dates), et une donnée ancienne sans date garde les dernières ajoutées
+    run('data.planAliasesAt[planAliasKey("exo maison xbax")] = 1; data = sanitizeData(data)');
+    assert.equal(run('Object.keys(data.planAliases).length'), 600);
+    const old = {}; for (let i = 0; i < 610; i++) old[`mot${String(i).padStart(3, '0')}`] = 'Squat barre';
+    run(`data.planAliases = ${JSON.stringify(old)}; delete data.planAliasesAt; data = sanitizeData(data)`);
+    const kept = run('Object.keys(data.planAliases)');
+    assert.equal(kept.length, 600);
+    assert.ok(!kept.includes('mot000') && kept.includes('mot609'), 'sans date : les premières ajoutées sortent');
+  });
+
+  test('import de programme : une correction oubliée ne revient pas par la synchro (pierre tombale datée)', () => {
+    reset();
+    run('planLearnAlias("DC inc", "Développé incliné barre", data, 1000)');
+    const key = run('planAliasKey("DC inc")');
+    const otherDevice = run('JSON.parse(JSON.stringify({ planAliases: data.planAliases, planAliasesAt: data.planAliasesAt }))');
+    assert.equal(run('planForgetAlias("DC inc", data, 2000)'), true);
+    assert.equal(run('planAliasesList().length'), 0);
+    // Fusion : l'autre appareil l'a encore (datée 1000), l'oubli (2000) gagne
+    let m = run(`mergePlanAliases({ planAliases: data.planAliases, planAliasesAt: data.planAliasesAt }, ${JSON.stringify(otherDevice)})`);
+    assert.ok(!(key in m.map) && m.at[key] === 2000);
+    // Corrigée de nouveau plus tard ailleurs : la nouvelle correction gagne
+    m = run(`mergePlanAliases({ planAliases: data.planAliases, planAliasesAt: data.planAliasesAt }, { planAliases: { [${JSON.stringify(key)}]: "Développé incliné haltères" }, planAliasesAt: { [${JSON.stringify(key)}]: 3000 } })`);
+    assert.equal(m.map[key], 'Développé incliné haltères');
+    // Dans la vraie fusion du profil (mergeChoiceProfile)
+    run(`mergeChoiceProfile(data, { design: data.design, planAliases: data.planAliases, planAliasesAt: data.planAliasesAt }, ${JSON.stringify(otherDevice)})`);
+    assert.ok(!run('planOwn(planLearnedAliases(), ' + JSON.stringify(key) + ')'), 'pas ressuscitée');
+  });
+
+  test('import de programme : matériel changé = à vérifier ; lest gardé dans la consigne ; limites dites', () => {
+    reset();
+    const d = run('planParse("Push\\nTirage horizontal machine 3x10\\nWeighted dips 3x8\\nTirage horizontal poulie 3x10")');
+    const [row, dips, poulie] = d.sessions[0].items;
+    assert.equal(row.level, 'check');
+    assert.ok(row.why.includes('matériel'));
+    assert.equal(poulie.level, 'sure', 'même matériel : sûr');
+    assert.equal(dips.name, 'Dips');
+    assert.equal(dips.presc.weighted, true);
+    assert.match(run(`planExercise(${JSON.stringify(dips)}).consigne`), /Lesté/);
+    // Choisi à la main : plus à vérifier
+    assert.equal(run(`(() => { const it = ${JSON.stringify(row)}; it.how = 'manual'; planGrade(it); return it.level; })()`), 'sure');
+    assert.equal(run('planParse("Push\\nSquat 5x5").cut.items'), false);
+    const many = Array.from({ length: 320 }, (_, i) => `Squat ${i % 5 + 1}x5`).join('\n');
+    assert.equal(run(`planParse(${JSON.stringify(`Push\n${many}`)}).cut.items`), true);
+    const sess = Array.from({ length: 16 }, (_, i) => `Jour ${i + 1}\nSquat 5x5`).join('\n');
+    assert.equal(run(`planParse(${JSON.stringify(sess)}).cut.sessions`), true);
   });
 
   // Seuils de la demande : 90 % des lignes justes sur les plans propres (et les tableaux), plus de 75 % sur le libre,

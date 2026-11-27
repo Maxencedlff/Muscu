@@ -16,7 +16,9 @@
   overflow-wrap: anywhere;
 }
 .pimp-row .cell__body { min-width: 0; }
-.view--grouped .cell.pimp-row--check, .view--grouped .cell.pimp-row--unknown { background: var(--cell2); }
+.view--grouped .cell.pimp-row--check, .view--grouped .cell.pimp-row--unknown { background: var(--cell2); box-shadow: inset 3px 0 0 var(--label2); }
+/* Clair : --cell2 est le gris du fond de page, la ligne s'y perdait (audit m7) ; un gris plus marqué, jamais l'orange */
+body.light .view--grouped .cell.pimp-row--check, body.light .view--grouped .cell.pimp-row--unknown { background: var(--cell3); }
 .pimp-row--unknown .cell__title { color: var(--label2); }
 .pimp-why { color: var(--label); font-weight: 600; }
 .pimp-ss {
@@ -31,3 +33,5 @@
 }
 .pimp-notes .cell { min-height: 0; padding-top: 8px; padding-bottom: 8px; }
 .pimp-dict { min-height: 3.2em; margin: 8px 0 12px; color: var(--label); font-size: var(--fs-body); line-height: 1.4; }
+.pimp-view .pimp-sources { margin-bottom: 8px; }
+.pimp-cut .cell__title { font-weight: 600; }

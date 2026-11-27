@@ -46,11 +46,15 @@ signature échoue). L'empreinte native change : les mises à jour à chaud suiva
 
 Coquilles 68 et 69 : le web garde l'ancien diagnostic (état en texte) et le duck forcé.
 
-## Build suivante : import d'un programme (branche `import-natif`, 27/11/2026)
+## Build suivante : import d'un programme (branche `import-build`, 27/11/2026)
+
+Une seule build, sans mise à jour à chaud avant : fonction nouvelle (règle 2.5.2 ; garde `features.json`,
+docs/REVUE_APPLE.md, 6.2 et 6.7). `import-build` réunit `import-programme` (écran, moteur, PDF) et `import-natif`.
 
 | Sujet | Natif | Web | Serveur |
 |---|---|---|---|
-| Lecture d'un programme sur papier, en photo ou en PDF scanné | `PlanReaderPlugin.swift` (Vision, PHPicker, appareil photo, numérisation de documents, PDFKit), texte de `NSCameraUsageDescription` complété | `js/platform/plan-reader.js` ; écran et moteur d'analyse sur la branche `import-programme` | — |
+| Import d'un programme : texte collé, PDF (pdf.js legacy 4.10.38 embarqué), écran Vérifier l'import, corrections retenues | — | `js/features/plan-import-ui.js`, `js/data/plan-*.js`, `vendor/pdfjs/` ; Réglages › Programmes › Corrections retenues | `planAliases`, `planAliasesAt` dans le profil synchronisé (privacy.html) |
+| Lecture d'un programme sur papier, en photo ou en PDF scanné | `PlanReaderPlugin.swift` (Vision sur miniatures bornées à 3 000 px, PHPicker, appareil photo, numérisation de documents, PDFKit, progression et annulation), texte de `NSCameraUsageDescription` complété | `js/platform/plan-reader.js` (second pont natif) | — |
 | Dictée du programme hors ligne | `PlanDictationPlugin.swift` (Speech fr-FR sur l'appareil), `NSMicrophoneUsageDescription`, `NSSpeechRecognitionUsageDescription` | `PlanReader.dictation` | — |
 
 Sur une build d'avant, le pont répond `outdated` (« Mets l'app à jour ») sans appeler le natif.

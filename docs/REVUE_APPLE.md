@@ -38,6 +38,8 @@ de démo se tape directement dans App Store Connect.
 >
 > Progress check photos for a coach ("Photos de bilan"): a student who joined a coach can send that coach 1 to 3 progress photos from the app's photo vault (Face ID), one by one, after stating they are 18 or older, and only if the coach turned on receiving photos. Photos are encrypted on the iPhone for that coach only (we cannot read them); the student can remove each photo at any time, and the coach can hide one. The demo account (a coach) shows the receiving side in Social › Coach. Like other server settings, this feature can be switched off on our server for operational reasons (abuse, incident); it is on in this build.
 >
+> Importing a program (new in this build): Programs › Add a program › "Importer un programme", and, for a verified coach, the same button on a student's page. The user pastes a program (message, spreadsheet, PDF text), picks a file (PDF, text, image, or a Hevy/Strong CSV export), takes a photo, scans a sheet with the document camera, or dictates it. Everything is read on the device: PDF text with the bundled pdf.js library, photos and scans with Apple's Vision framework (VNRecognizeTextRequest), dictation with the Speech framework using on-device recognition only (requiresOnDeviceRecognition; if the device cannot recognize offline, Dictate is not offered, and audio is never sent to Apple's servers). No image, audio or text leaves the device, and no AI service is used. The app then shows a "Vérifier l'import" (check the import) screen: each line of the source above what was understood, lines to check in gray, and the user can fix the exercise, the sets and reps, or remove a line before saving. The program is added to "Mes programmes"; for a student, it is added to the coach's programs, ready to send. Corrections the user makes (the words read and the chosen exercise) are remembered for the next import and, with an account, synced to the account like the user's programs (described in the privacy policy); they can be listed and erased in Settings › Programmes › Corrections retenues. Permissions: camera (photo of a sheet, also used for barcodes and profile photos), microphone and speech recognition (dictation only, asked when the user taps Dictate). To test without paper: copy any workout text (for example "Push: bench press 4x8, lateral raises 3x15") and paste it.
+>
 > Contact: Maxence de La Fouchardière, contact@mdlf.app, [NUMÉRO DE TÉLÉPHONE].
 
 ## 3. Compte de démo à créer (Maxence)
@@ -187,8 +189,13 @@ d'exploitation (incident, abus, maintenance), décrits dans la note d'examen, al
 Ils ne servent jamais à montrer à Apple une app différente de celle des utilisateurs (docs/PHOTOS_BILAN.md,
 « Éteindre la fonction »).
 
-**Garde proposée, non appliquée** (à décider par Maxence ; `ota.yml` est aussi modifié par la branche
-`audit-ota`) : un fichier `features.json` versionné à la racine, liste des fonctions visibles (identifiant
+**Garde appliquée le 27/11/2026** (branche `import-build`), dans sa forme simple : `features.json` à la racine
+déclare chaque écran (`SCREENS.set`) et les actions des fonctions nouvelles ; `store/derniere-build.json` liste les
+fonctions de la dernière build examinée ; `scripts/check-features-ota.mjs`, lancé par `ota.yml` (étape « Aucune
+fonction nouvelle »), refuse de publier une fonction absente de ce fichier ; `tests/unit/features.mjs` fait échouer
+les tests quand un écran n'est pas déclaré ou qu'une action déclarée n'existe plus. À l'approbation d'une build, y
+recopier ses identifiants. Pas encore fait : la copie de `features.json` dans la build par `ios.yml`.
+Description d'origine : un fichier `features.json` versionné à la racine, liste des fonctions visibles (identifiant
 stable, par exemple `nutrition.plan-item-remove`, `session.rir-last-set`, `coach.photos-bilan`). `ios.yml`
 copie ce fichier dans la build (`dist/features.json`, donc dans l'empreinte `runtime` via
 `scripts/runtime-version.mjs`) et l'attache à l'artefact TestFlight. `ota.yml` (ou `scripts/ota-bundle.py`)
@@ -269,3 +276,22 @@ Raisons :
 
 À faire à la prochaine build soumise : décrire les défis dans « What to Test » et dans la note d'examen (section 2),
 pour que la fonction ne reste pas « non documentée » (règle 2.5.19).
+
+### 6.7 Import d'un programme : une build, pas de mise à jour à chaud (audit du 27/11/2026, B1)
+
+Fonction nouvelle (docs/IMPORT_PROGRAMME.md) : deux écrans, le bouton d'« Ajouter un programme » changé, une entrée
+sur la fiche d'un élève, les corrections retenues copiées sur le compte, deux modules natifs (Vision, Speech) et
+deux autorisations. **Tout part dans la build construite depuis `import-build`**, Coller et PDF compris ; pas
+d'exception comme celle des défis (6.6) : la garde `features.json` (6.2) refuse l'envoi à chaud. Paragraphe de la note
+d'examen : section 2, « Importing a program ».
+
+« What to Test » (TestFlight, prêt à coller) :
+
+> Nouveau : importer un programme. Programme › Ajouter un programme › « Importer un programme » (et, pour un coach, sur la fiche d'un élève).
+> 1. Colle un programme écrit (message, tableau, texte d'un PDF), ou choisis un fichier PDF, texte ou une image.
+> 2. Photo : photographie une feuille, même écrite à la main. Scanner une feuille : cadre la page avec l'appareil photo, plusieurs pages possibles (« Page N sur M », Annuler).
+> 3. Dicter : « Pas à pas » (l'app demande l'exercice, puis les séries et les reps) ou « Tout d'un coup ». La dictée marche sans Internet ; elle n'apparaît pas si l'appareil ne sait pas reconnaître la voix hors ligne.
+> 4. Vérifier l'import : chaque ligne d'origine au-dessus de ce que l'app a compris ; corrige un exercice, des séries ou retire une ligne, puis Enregistrer. Un programme trop long est signalé (« Programme incomplet »).
+> 5. Tes corrections sont retenues pour le prochain import : Réglages › Programmes › Corrections retenues pour les voir et les oublier.
+> À nous dire : ce qui a été mal lu (envoie la photo ou le texte), et sur quel iPhone ou iPad.
+

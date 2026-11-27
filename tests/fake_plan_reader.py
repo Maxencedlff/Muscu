@@ -9,7 +9,8 @@ Mêmes noms de méthodes, mêmes clés de réponse et mêmes codes de rejet que 
 tests/unit/plan-reader.mjs, qui lit les deux fichiers) :
 - MdlfPlanReader : sources() → { photos, camera, scan } ; pick({ source, limit, customWords }) → { source, pages } ;
   readImage({ path | base64, customWords }) → { pages } ; readPdfScan({ path | base64, maxPages, customWords }) →
-  { pages, pageCount, truncated, hasTextLayer }. Rejets CANCELED, DENIED, UNAVAILABLE, BUSY, INVALID, LOCKED, FAILED.
+  { pages, pageCount, truncated, hasTextLayer } ; cancelRead() ; événement progress { done, total } au début puis
+  après chaque page (comme le Swift). Rejets CANCELED, DENIED, UNAVAILABLE, BUSY, INVALID, LOCKED, FAILED.
 - MdlfPlanDictation : status(), authorize() → { available, onDevice, locale, speech, microphone } ; start({
   contextualStrings, allowServer, … }) → { started, onDevice } ; stop() → { text, segments, onDevice } ; cancel() ;
   événements partial { text }, final { text, segments, onDevice }, error { code, message }. Rejet OFFLINE_UNAVAILABLE
@@ -20,8 +21,10 @@ Réglages dans window.__pr (à poser avant l'appel) :
   __pr.pages          pages rendues par la prochaine lecture (défaut : une page d'exemple, PAGE ci-dessous)
   __pr.error          code de rejet de la prochaine lecture ('CANCELED', 'DENIED'…), remis à null après usage
   __pr.sources        réponse de sources()
-  __pr.dictation      { onDevice, speech, microphone, partials: [...], final } : start() émet les partiels un par
-                      un (toutes les 20 ms), stop() émet final
+  __pr.dictation      { onDevice, speech, microphone, partials: [...], final, finals: [...] } : start() émet les
+                      partiels un par un (toutes les 20 ms), stop() émet le texte suivant de finals, sinon final
+  __pr.pageDelay      millisecondes de lecture par page (défaut 0) : laisse le temps de voir la progression et d'annuler
+  __pr.progress       [done, total] de chaque événement progress émis
   __pr.calls          [module, méthode, options] de chaque appel
   __pr.noModules      true : coquille d'avant ces modules (isPluginAvailable faux)
 """
@@ -58,26 +61,47 @@ FAKE_PLAN_READER = """
     pages: [%(page)s], error: null, sources: { photos: true, camera: true, scan: true },
     dictation: { onDevice: true, speech: 'authorized', microphone: 'authorized',
                  partials: ['Développé', 'Développé couché'], final: 'Développé couché 4 séries de 8' },
-    calls: [], noModules: false,
+    calls: [], noModules: false, pageDelay: 0, progress: [],
   }, window.__pr || {});
   const err = (code, message) => { const e = new Error(message || code); e.code = code; return e; };
   const take = () => { const c = pr.error; pr.error = null; if (c) throw err(c); };
   const copy = v => JSON.parse(JSON.stringify(v));
+  // Lecture page par page, comme readPages du Swift : progress au début et après chaque page, cancelRead entre deux
+  const readerListeners = { progress: [] };
+  let canceled = false;
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  const readAll = async pages => {
+    const total = pages.length;
+    const tell = done => { pr.progress.push([done, total]); readerListeners.progress.slice().forEach(fn => fn({ done, total })); };
+    tell(0);
+    for (let i = 0; i < total; i++) {
+      if (canceled) throw err('CANCELED', 'Lecture annulée');
+      if (pr.pageDelay) await wait(pr.pageDelay);
+      tell(i + 1);
+    }
+    if (canceled) throw err('CANCELED', 'Lecture annulée');
+    return pages;
+  };
   const reader = {
+    addListener: (ev, fn) => { (readerListeners[ev] ||= []).push(fn);
+      return Promise.resolve({ remove: () => { readerListeners[ev] = readerListeners[ev].filter(f => f !== fn); } }); },
     sources: async () => { pr.calls.push(['reader', 'sources', {}]); return copy(pr.sources); },
-    pick: async o => { pr.calls.push(['reader', 'pick', o]); take(); return { source: o.source, pages: copy(pr.pages) }; },
-    readImage: async o => { pr.calls.push(['reader', 'readImage', o]); take(); return { pages: copy(pr.pages).slice(0, 1) }; },
-    readPdfScan: async o => { pr.calls.push(['reader', 'readPdfScan', o]); take();
-      const pages = copy(pr.pages).slice(0, o.maxPages || 20);
+    pick: async o => { pr.calls.push(['reader', 'pick', o]); canceled = false; take(); return { source: o.source, pages: await readAll(copy(pr.pages)) }; },
+    readImage: async o => { pr.calls.push(['reader', 'readImage', o]); canceled = false; take(); return { pages: await readAll(copy(pr.pages).slice(0, 1)) }; },
+    readPdfScan: async o => { pr.calls.push(['reader', 'readPdfScan', o]); canceled = false; take();
+      const pages = await readAll(copy(pr.pages).slice(0, o.maxPages || 20));
       return { pages, pageCount: pr.pages.length, truncated: pr.pages.length > pages.length, hasTextLayer: false }; },
+    cancelRead: async () => { pr.calls.push(['reader', 'cancelRead', {}]); canceled = true; return {}; },
   };
   const listeners = { partial: [], final: [], error: [] };
   const emit = (ev, d) => listeners[ev].slice().forEach(fn => fn(d));
   let running = false, timers = [];
   const d = () => pr.dictation;
   const status = () => ({ available: true, onDevice: !!d().onDevice, locale: 'fr-FR', speech: d().speech, microphone: d().microphone });
-  const finalPayload = () => ({ text: d().final, onDevice: !!d().onDevice,
-    segments: d().final.split(' ').map((t, i) => ({ text: t, confidence: 0.9, timestamp: i * 0.4, duration: 0.3 })) });
+  // finals : textes rendus par les stop() successifs (dictée pas à pas), sinon final à chaque fois
+  const finalPayload = () => { const f = Array.isArray(d().finals) && d().finals.length ? d().finals.shift() : d().final;
+    return { text: f, onDevice: !!d().onDevice,
+    segments: f.split(' ').filter(Boolean).map((t, i) => ({ text: t, confidence: 0.9, timestamp: i * 0.4, duration: 0.3 })) }; };
   const dictation = {
     addListener: (ev, fn) => { listeners[ev].push(fn);
       return Promise.resolve({ remove: () => { listeners[ev] = listeners[ev].filter(f => f !== fn); } }); },

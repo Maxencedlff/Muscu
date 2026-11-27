@@ -243,7 +243,7 @@ function routeTitle(route, isRoot) {
     programmes: 'Programme', settings: 'Réglages', 'settings-design': 'Design', guide: 'Guide', account: 'Compte', session: 'Séance', summary: 'Bilan',
     'history-detail': 'Séance', 'stats-ex': 'Exercice', 'stats-overview': 'Vue d\'ensemble', recaps: 'Récaps', recap: 'Récap',
     'body-measures': 'Mensurations', 'photo-vault': 'Coffre', 'body-measure': bodyMeasureLabel(routeParams(route)[0]) || 'Mesure',
-    'prog-add': 'Ajouter', 'plan-import': routeParams(route)[0] === 'verifier' ? 'Vérifier' : 'Importer', 'prog-info': 'Programme', 'ex-edit': 'Exercice', 'cs-edit': 'Séance perso',
+    'prog-add': 'Ajouter', 'plan-aliases': 'Corrections', 'plan-import': routeParams(route)[0] === 'verifier' ? 'Vérifier' : 'Importer', 'prog-info': 'Programme', 'ex-edit': 'Exercice', 'cs-edit': 'Séance perso',
     friends: tabMeta('friends').label, 'social-profile': socialPerson(routeParams(route)[0])?.username || 'Profil',
     'social-session': 'Séance', 'social-manage': 'Gérer', 'social-rules': 'Règles', 'social-me': 'Mon profil', strava: 'Strava',
     notifications: 'Notifications',

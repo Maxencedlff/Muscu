@@ -169,7 +169,7 @@ function planMatchExercise(raw, learned = null) {
   const none = { name: null, score: 0, how: 'none', raw: text };
   if (!/[a-zà-ÿ]{2,}/i.test(text)) return none;
   if (learned) {
-    for (const v of planMatchVariants(text)) { const lk = planAliasKey(v); if (lk && learned[lk]) return { name: learned[lk], score: 1, how: 'learned', raw: text }; }
+    for (const v of planMatchVariants(text)) { const lk = planAliasKey(v); if (lk && Object.hasOwn(learned, lk) && typeof learned[lk] === 'string') return { name: learned[lk], score: 1, how: 'learned', raw: text }; }
   }
   if (PARSE_MATCH_CACHE.has(text)) return { ...PARSE_MATCH_CACHE.get(text) };
   const r = planMatchLibrary(text, none);
@@ -214,6 +214,18 @@ function planMatchLibrary(text, none) {
   }
   if (!best || best.score < PARSE_MATCH_MIN) return { ...none, guess: best && best.score >= 0.45 ? best.name : null };
   return { name: best.name, score: Math.round(Math.min(0.94, best.score) * 100) / 100, how: 'fuzzy', raw: text };
+}
+
+// Matériel écrit dans la ligne et matériel de la fiche reconnue (« Tirage horizontal machine » lu comme « Tirage
+// horizontal câble ») : un matériel écrit que la fiche n'a pas, quand la fiche en nomme un autre, fait passer la ligne
+// en « à vérifier » (planGrade, js/data/plan-parser.js). Une fiche sans matériel dans son nom (« Dips ») ne compte pas
+const PARSE_EQUIP = [['machine', /\bmachines?\b/], ['cable', /\bcables?\b|\bpoulies?\b|\bvis a vis\b/], ['barre', /\bbarres?\b|\bbarbell\b|\bez\b/],
+  ['halteres', /\bhalteres?\b|\bdumbbells?\b/], ['smith', /\bsmith\b/], ['kettlebell', /\bkettlebells?\b|\bkb\b/], ['elastique', /\belastiques?\b|\bbands?\b/]];
+const planEquipOf = text => { const k = planMatchKey(text); return PARSE_EQUIP.filter(([, re]) => re.test(k)).map(([id]) => id); };
+function planEquipMismatch(raw, name) {
+  if (!raw || !name) return false;
+  const said = planEquipOf(raw), has = planEquipOf(name);
+  return has.length > 0 && said.some(e => !has.includes(e));
 }
 
 // Vocabulaire donné à la dictée (contextualStrings de SFSpeechRecognizer, 300 mots au plus côté pont) : step 'exercice'

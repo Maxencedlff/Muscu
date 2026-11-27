@@ -8,6 +8,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fixtures import *  # noqa
+from fake_plan_reader import FAKE_PLAN_READER
 
 LOT = 'import_programme'
 R = Results(LOT)
@@ -143,57 +144,97 @@ def t_pdf(bench):
             R.check(not page.errors, f'{dev} PDF : aucune erreur JS {page.errors}')
 
 
-# Faux pont de lecture (js/platform/plan-reader.js, branche import-natif) : même forme de réponses que le vrai
-FAKE_READER = """window.PlanReader = {
-  available: true,
-  sources: async () => ({ photos: true, camera: true, scan: true }),
-  pick: async (source, o) => { window.__pick = { source, words: (o.customWords || []).length };
-    const w = (text, x, y) => ({ text, box: { x, y, w: text.length * 0.012, h: 0.02 } });
-    return { ok: true, source, pages: [{ width: 1000, height: 1400, lines: [
-      { text: 'Lundi - Pecs', box: { x: 0.05, y: 0.05, w: 0.2, h: 0.02 }, words: [] },
-      { text: 'Dévelopé couche 4x1O', box: { x: 0.05, y: 0.1, w: 0.4, h: 0.02 }, words: [w('Dévelopé', 0.05, 0.1), w('couche', 0.16, 0.1), w('4x1O', 0.3, 0.1)] },
-      { text: 'Ecarté poulie 3x15 repos 1min', box: { x: 0.05, y: 0.14, w: 0.5, h: 0.02 }, words: [] } ] }] }; },
-  readFile: async () => ({ ok: false, reason: 'failed', message: 'La lecture a échoué, réessaie' }),
-  dictation: { available: true,
-    start: async o => { window.__dict = (window.__dict || 0) + 1; return { ok: true, onDevice: true }; },
-    stop: async () => ({ ok: true, text: ['développé couché', '4 séries de 8 repos 2 minutes'][(window.__dict - 1) % 2], segments: [] }),
-    cancel: async () => ({ ok: true }) },
-};"""
+# Modules natifs simulés (tests/fake_plan_reader.py) : le vrai pont js/platform/plan-reader.js les lit, comme sur l'iPhone
+def _w(text, x, y):
+    return {'text': text, 'box': {'x': x, 'y': y, 'w': len(text) * 0.012, 'h': 0.02}}
+
+
+NOISY_PAGE = {'width': 1000, 'height': 1400, 'text': '', 'lines': [
+    {'text': 'Lundi - Pecs', 'confidence': 0.9, 'box': {'x': 0.05, 'y': 0.05, 'w': 0.2, 'h': 0.02}, 'words': []},
+    {'text': 'Dévelopé couche 4x1O', 'confidence': 0.8, 'box': {'x': 0.05, 'y': 0.1, 'w': 0.4, 'h': 0.02},
+     'words': [_w('Dévelopé', 0.05, 0.1), _w('couche', 0.16, 0.1), _w('4x1O', 0.3, 0.1)]},
+    {'text': 'Ecarté poulie 3x15 repos 1min', 'confidence': 0.8, 'box': {'x': 0.05, 'y': 0.14, 'w': 0.5, 'h': 0.02}, 'words': []}]}
+BLANK_PAGE = {'width': 1000, 'height': 1400, 'text': '', 'lines': []}
+
+
+def open_native(bench, theme, opts):
+    """Page de l'app iOS simulée, modules de lecture et de dictée présents (réglages __pr de fake_plan_reader.py)."""
+    ctx = bench.page('webkit', 'iPhone 13', theme)
+    page = ctx.__enter__()
+    page.add_init_script('window.__pr = %s;' % json.dumps(opts, ensure_ascii=False))
+    page.add_init_script(FAKE_PLAN_READER)
+    page.route('https://{ota.mdlf.app,mdlf-ota.vercel.app}/**', lambda route: route.abort())
+    seed(page, theme, None)
+    skip_questions(page)
+    open_paste(page)
+    return ctx, page
+
+
+def dictate_steps(page, n_confirm):
+    """Dicter › Pas à pas, puis n_confirm fois « Suivant »."""
+    page.click('[data-action="pimp-dictate"]')
+    page.wait_for_selector('.ios-dialog')
+    page.locator('.ios-dialog button', has_text='Pas à pas').click()
+    page.wait_for_selector('#pimpDict')
+    settle(page)
+    for _ in range(n_confirm):
+        page.click('.sheet-root:not(.sheet-root--out) .sheet__btn--confirm')
+        settle(page)
 
 
 def t_photo_dictee(bench):
-    """Avec le module de lecture de l'iPhone : « Photo », « Scanner » et « Dicter » proposés ; photo bruitée comprise,
-    dictée pas à pas (exercice puis séries). Sans module (navigateur) : seulement Coller et Choisir un fichier."""
+    """Avec les modules de l'iPhone : « Photo », « Scanner » et « Dicter » en haut ; scan de deux pages avec « Page N
+    sur M » ; photo bruitée comprise ; dictée pas à pas (réponse vide redemandée, Annuler abandonne tout).
+    Sans module (navigateur) : seulement Coller et Choisir un fichier."""
     with bench.page('webkit', 'iPhone 13', 'dark') as page:
         seed(page, 'dark', None)
         skip_questions(page)
         open_paste(page)
         R.check(page.locator('[data-action="pimp-photo"], [data-action="pimp-dictate"]').count() == 0, 'sans module : ni Photo ni Dicter')
     for theme in ('dark', 'light'):
-        with bench.page('webkit', 'iPhone 13', theme) as page:
-            page.add_init_script(FAKE_READER)
-            seed(page, theme, None)
-            skip_questions(page)
-            open_paste(page)
+        opts = {'pages': [NOISY_PAGE, BLANK_PAGE], 'pageDelay': 500,
+                'dictation': {'onDevice': True, 'speech': 'authorized', 'microphone': 'authorized', 'partials': ['développé'],
+                              'final': '', 'finals': ['développé couché', '4 séries de 8 repos 2 minutes']}}
+        ctx, page = open_native(bench, theme, opts)
+        try:
+            page.wait_for_selector('[data-action="pimp-dictate"]')
+            settle(page)
             acts = [page.locator(f'[data-action="{a}"]').count() for a in ('pimp-photo', 'pimp-scan', 'pimp-dictate', 'pimp-file')]
             R.check(acts == [1, 1, 1, 1], f'{theme} module : Photo, Scanner, Dicter, Fichier {acts}')
+            # Photo, Scanner et Dicter en haut, au-dessus de la zone de texte, visibles sans défiler (audit m7)
+            tops = page.evaluate("""() => ['pimp-photo', 'pimp-scan', 'pimp-dictate'].map(a => document.querySelector(`[data-action="${a}"]`).getBoundingClientRect().bottom)
+                .concat([document.querySelector('#pimpText').getBoundingClientRect().top, innerHeight])""")
+            R.check(max(tops[:3]) <= tops[3] and max(tops[:3]) <= tops[4], f'{theme} Photo, Scanner, Dicter au-dessus du texte et à l\'écran {tops}')
+            foot = page.locator('.view:not(.view--out) .group-foot').last.inner_text()
+            R.check('sans être envoyés' in foot and 'corrections' in foot, f'{theme} ce qui part, dit en clair : « {foot} »')
+            check_layout(page, theme, 'texte à coller, module')
             shot(page, LOT, f'coller-module-iPhone_13-{theme}')
             page.click('[data-action="pimp-scan"]')
+            page.wait_for_function("document.querySelector('#pimpProgress')?.textContent === 'Page 1 sur 2'", timeout=5000)
+            if theme == 'dark':
+                shot(page, LOT, 'lecture-pages-iPhone_13-dark')
             page.wait_for_selector('.pimp-row')
             settle(page)
+            R.check(page.evaluate('__pr.progress') == [[0, 2], [1, 2], [2, 2]], f'{theme} scan : progression {page.evaluate("__pr.progress")}')
+            R.check(page.locator('.sheet-root:not(.sheet-root--out)').count() == 0, f'{theme} scan : feuille de lecture fermée')
             rows = page.locator('.pimp-row .cell__title').all_inner_texts()
             subs = page.locator('.pimp-row .cell__sub.num').all_inner_texts()
             R.check(rows == ['Développé couché barre', 'Écarté poulie vis-à-vis'], f'{theme} scan bruité : {rows}')
             R.check(subs[:1] == ['4 × 10'], f'{theme} scan : « 4x1O » lu 4 × 10 {subs}')
-            R.check(page.evaluate('window.__pick.source') == 'scan' and page.evaluate('window.__pick.words') > 100, 'scan : vocabulaire de la bibliothèque donné à Vision')
+            pick = [c for c in page.evaluate('__pr.calls') if c[1] == 'pick'][-1][2]
+            R.check(pick['source'] == 'scan' and len(pick['customWords']) > 100, 'scan : vocabulaire de la bibliothèque donné à Vision')
             if theme == 'dark':
+                # Annuler pendant la lecture : cancelRead, aucun écran Vérifier
                 page.click('[data-action="pimp-edit-text"]')
-                page.wait_for_selector('[data-action="pimp-dictate"]')
-                page.click('[data-action="pimp-dictate"]')
-                page.wait_for_selector('.ios-dialog')
-                page.locator('.ios-dialog button', has_text='Pas à pas').click()
-                page.wait_for_selector('#pimpDict')
-                settle(page)
+                page.wait_for_selector('[data-action="pimp-scan"]')
+                page.click('[data-action="pimp-scan"]')
+                page.wait_for_function("document.querySelector('#pimpProgress')?.textContent === 'Page 1 sur 2'", timeout=5000)
+                page.click('.sheet-root:not(.sheet-root--out) .sheet__btn--cancel')
+                page.wait_for_timeout(1300)
+                R.check(any(c[1] == 'cancelRead' for c in page.evaluate('__pr.calls')) and page.locator('#pimpText').count() == 1,
+                        'scan : Annuler arrête la lecture')
+                # Dictée pas à pas : exercice puis séries
+                dictate_steps(page, 0)
                 R.check(page.locator('.sheet-root:not(.sheet-root--out) .sheet__title').inner_text() == 'Quel exercice ?', 'dictée guidée : 1re question')
                 shot(page, LOT, 'dictee-guidee-iPhone_13-dark')
                 page.click('.sheet-root:not(.sheet-root--out) .sheet__btn--confirm')
@@ -206,7 +247,76 @@ def t_photo_dictee(bench):
                 rows = page.locator('.pimp-row .cell__title').all_inner_texts()
                 subs = page.locator('.pimp-row .cell__sub.num').all_inner_texts()
                 R.check(rows == ['Développé couché barre'] and subs[:1] == ['4 × 8 · repos 2:00'], f'dictée guidée : {rows} {subs}')
+                # Réponse vide : la même question revient, rien ne se décale
+                page.evaluate("__pr.dictation.finals = ['', 'tirage vertical', '3 séries de 12']")
+                page.click('[data-action="pimp-edit-text"]')
+                page.wait_for_selector('[data-action="pimp-dictate"]')
+                dictate_steps(page, 1)
+                R.check(page.locator('.sheet-root:not(.sheet-root--out) .sheet__title').inner_text() == 'Quel exercice ?', 'dictée : réponse vide, même question')
+                page.click('.sheet-root:not(.sheet-root--out) .sheet__btn--confirm')
+                page.locator('.sheet-root:not(.sheet-root--out) .sheet__title', has_text='Combien de séries').wait_for()
+                page.click('.sheet-root:not(.sheet-root--out) .sheet__btn--confirm')
+                page.locator('.sheet-root:not(.sheet-root--out) [data-action="pimp-dict-end"]').wait_for()
+                page.click('.sheet-root:not(.sheet-root--out) [data-action="pimp-dict-end"]')
+                page.wait_for_selector('.pimp-row')
+                settle(page)
+                rows = page.locator('.pimp-row .cell__title').all_inner_texts()
+                subs = page.locator('.pimp-row .cell__sub.num').all_inner_texts()
+                R.check(rows == ['Tirage vertical prise large'] and subs[:1] == ['3 × 12'], f'dictée après réponse vide : {rows} {subs}')
+                # Annuler : toute la dictée est abandonnée, l'écran ne change pas
+                page.evaluate("__pr.dictation.finals = ['squat', '5 séries de 5']")
+                page.click('[data-action="pimp-edit-text"]')
+                page.wait_for_selector('[data-action="pimp-dictate"]')
+                dictate_steps(page, 1)
+                page.locator('.sheet-root:not(.sheet-root--out) .sheet__title', has_text='Combien de séries').wait_for()
+                page.click('.sheet-root:not(.sheet-root--out) .sheet__btn--cancel')
+                settle(page)
+                R.check(page.locator('#pimpText').count() == 1 and page.locator('.pimp-row').count() == 0, 'dictée : Annuler abandonne tout')
             R.check(not page.errors, f'{theme} module : aucune erreur JS {page.errors}')
+        finally:
+            ctx.__exit__(None, None, None)
 
 
-run_main(R, [t_import_texte], once=[t_corriger_enregistrer, t_pdf, t_photo_dictee])
+def t_limites_reglages(bench):
+    """Texte trop long : « Programme incomplet » dit à l'écran ; matériel changé = à vérifier ; Réglages › Corrections
+    retenues liste et oublie (pierre tombale) ; dictée sans reconnaissance hors ligne : Dicter n'est pas proposé."""
+    with bench.page('webkit', 'iPhone 13', 'light') as page:
+        seed(page, 'light', None)
+        skip_questions(page)
+        open_paste(page)
+        long_plan = 'Push\n' + '\n'.join(f'Squat {i % 5 + 1}x5 repos 2 min, note du coach {i}' for i in range(700))
+        read_plan(page, long_plan)
+        cut = page.locator('.pimp-cut').inner_text() if page.locator('.pimp-cut').count() else ''
+        R.check('Programme incomplet' in cut and '20' in cut, f'texte trop long dit : « {cut} »')
+        page.click('[data-action="pimp-edit-text"]')
+        read_plan(page, 'Pull\nTirage horizontal machine 3x10\nWeighted dips 3x8')
+        R.check(page.locator('.pimp-row--check', has_text='Tirage horizontal').count() == 1, 'matériel changé : à vérifier')
+        subs = page.locator('.pimp-row', has_text='Weighted dips').locator('.cell__sub.num').inner_text()
+        R.check('lesté' in subs, f'lest gardé : {subs}')
+        shot(page, LOT, 'verifier-materiel-iPhone_13-light')
+        page.evaluate("planLearnAlias('DC inc', 'Développé incliné barre'); planLearnAlias('tirage machine assis', 'Rowing machine'); save()")
+        page.evaluate("routeTo('settings')")
+        page.wait_for_selector('[data-action="go-plan-aliases"]')
+        page.click('[data-action="go-plan-aliases"]')
+        page.wait_for_selector('[data-action="pimp-alias"]')
+        settle(page)
+        R.check(page.locator('[data-action="pimp-alias"]').count() == 2, 'Corrections retenues : 2 lignes')
+        check_layout(page, 'réglages', 'corrections retenues')
+        shot(page, LOT, 'corrections-retenues-iPhone_13-light')
+        page.locator('[data-action="pimp-alias"]').first.click()
+        page.locator('.ios-dialog button', has_text='Oublier cette correction').click()
+        settle(page)
+        d = json.loads(ls(page, 'ppl_v2'))
+        R.check(len(d.get('planAliases', {})) == 1 and len(d.get('planAliasesAt', {})) == 2, f'oubliée, pierre tombale datée {d.get("planAliasesAt")}')
+        R.check(not page.errors, f'limites et réglages : aucune erreur JS {page.errors}')
+    ctx, page = open_native(bench, 'dark', {'dictation': {'onDevice': False, 'speech': 'authorized', 'microphone': 'authorized', 'partials': [], 'final': ''}})
+    try:
+        page.wait_for_selector('[data-action="pimp-photo"]')
+        page.wait_for_timeout(400)
+        R.check(page.locator('[data-action="pimp-dictate"]').count() == 0, 'sans dictée hors ligne : Dicter absent')
+        R.check(not page.errors, f'hors ligne : aucune erreur JS {page.errors}')
+    finally:
+        ctx.__exit__(None, None, None)
+
+
+run_main(R, [t_import_texte], once=[t_corriger_enregistrer, t_pdf, t_photo_dictee, t_limites_reglages])

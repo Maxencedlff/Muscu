@@ -49,6 +49,19 @@ def o_lecture(bench):
         R.check(r['ok'] and r['pageCount'] == 1 and r['hasTextLayer'] is False, f'PDF scanné lu {r.get("reason")}')
         last = page.evaluate('__pr.calls.at(-1)')
         R.check(last[1] == 'readPdfScan' and last[2]['maxPages'] == 3 and last[2]['base64'] == 'JVBERi0xLjQ=', f'base64 sans en-tête {last}')
+        # Progression page par page, puis annulation avant la page suivante
+        r = page.evaluate("""async () => {
+          __pr.pages = [__pr.pages[0], __pr.pages[0], __pr.pages[0]]; __pr.pageDelay = 60;
+          const seen = [];
+          const done = await PlanReader.pick('scan', { onProgress: p => seen.push([p.done, p.total]) });
+          const seen2 = [];
+          const run = PlanReader.pick('scan', { onProgress: p => { seen2.push(p.done); if (p.done === 1) PlanReader.cancelRead(); } });
+          const cut = await run;
+          __pr.pageDelay = 0;
+          return { ok: done.ok, n: done.pages.length, seen, cut: cut.reason, seen2 };
+        }""")
+        R.check(r['ok'] and r['n'] == 3 and r['seen'] == [[0, 3], [1, 3], [2, 3], [3, 3]], f'progression page N sur M {r}')
+        R.check(r['cut'] == 'canceled' and max(r['seen2']) < 3, f'annulée avant la fin {r}')
         R.check(not page.errors, f'aucune erreur JS {page.errors[:2]}')
     finally:
         ctx.__exit__(None, None, None)
@@ -97,7 +110,7 @@ def o_sans_module(bench):
     ctx, page = open_app(bench, shell=False)
     try:
         r = page.evaluate("Promise.all([PlanReader.pick('photos'), PlanReader.dictation.start(), PlanReader.sources()])")
-        R.check(r[0] == {'ok': False, 'reason': 'web', 'message': "Disponible dans l'app iPhone"} and r[1]['reason'] == 'web', f'repli web {r[:2]}')
+        R.check(r[0] == {'ok': False, 'reason': 'web', 'message': "Disponible dans l'app iPhone et iPad"} and r[1]['reason'] == 'web', f'repli web {r[:2]}')
         R.check(r[2] == {'photos': False, 'camera': False, 'scan': False}, 'aucune source dans le navigateur')
         R.check(not page.errors, f'aucune erreur JS {page.errors[:2]}')
     finally:
