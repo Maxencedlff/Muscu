@@ -35,3 +35,7 @@ body.light .view--grouped .cell.pimp-row--check, body.light .view--grouped .cell
 .pimp-dict { min-height: 3.2em; margin: 8px 0 12px; color: var(--label); font-size: var(--fs-body); line-height: 1.4; }
 .pimp-view .pimp-sources { margin-bottom: 8px; }
 .pimp-cut .cell__title { font-weight: 600; }
+/* Aide de l'IA (docs/IMPORT_IA.md) : bouton plein quand le moteur hésite, sinon un lien neutre, jamais orange */
+.pimp-ai-more { margin: 8px var(--gutter) 0; text-align: center; }
+.pimp-ai-link { min-height: 44px; padding: 10px 12px; color: var(--label2); font-size: var(--fs-subhead); text-decoration: underline; text-underline-offset: 3px; background: none; border: 0; }
+.pimp-ai-done { color: var(--label); }

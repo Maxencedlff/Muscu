@@ -57,3 +57,8 @@ verify_jwt = false
 # Remontée des erreurs de l'app (docs/ERREURS_PROD.md) : appel anonyme, aucun jeton lu ; corps validé et
 # limite de fréquence dans le code, adresse IP jamais gardée
 verify_jwt = false
+
+[functions.plan-import-ai]
+# Import d'un programme aidé par l'IA (docs/IMPORT_IA.md) : même choix que delete-account, jeton vérifié dans le code
+# (caller, _shared/auth-guard.js), 401 sinon ; secret ANTHROPIC_API_KEY, jamais dans le dépôt
+verify_jwt = false

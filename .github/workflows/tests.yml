@@ -8,7 +8,7 @@ name: Tests
 #     1180 et 820 px, sombre et clair, plus sa version construite (dist-coach/) avec le vrai supabase-js, le mode coach
 #     grand écran de l'app sur iPad (Chromium et WebKit, docs/COACH_IPAD.md) et la mise en page tablette de tous les
 #     écrans de l'app (docs/IPAD.md) ;
-#  3. edge : les 13 fonctions Edge (supabase/functions) compilées par Deno (deno check, dépendances figées
+#  3. edge : les 15 fonctions Edge (supabase/functions) compilées par Deno (deno check, dépendances figées
 #     par supabase/functions/deno.lock) et appelées pour de vrai par tests/deno (refus d'entrée, sans réseau) ;
 #  4. deploy : sur main seulement, et seulement si 1, 2 et 3 sont verts, publication de web-public/ sur
 #     https://mdlf.app (Cloudflare Pages, projet mdlf-web), puis copie de secours sur le projet Vercel « muscu »
@@ -94,6 +94,8 @@ jobs:
         run: bash tests/sql/erreurs_prod_rollback_test.sh
       - name: Retour arrière de la séance publique avec rôle et rang des blocs (préparée, pas appliquée)
         run: bash tests/sql/seance_publique_blocs_rollback_test.sh
+      - name: Retour arrière de l'import aidé par l'IA (quotas, dépense, cache ; préparé, pas appliqué)
+        run: bash tests/sql/import_ia_rollback_test.sh
       - name: Contenu web de l'app iOS
         run: npm ci && npm run web:build
       - name: Lint (ESLint, erreurs réelles)
@@ -273,7 +275,7 @@ jobs:
       - name: Tests de comportement des fonctions Edge (deno test)
         env:
           MDLF_EDGE_TESTS: '1'   # les index.ts importés ne lancent pas Deno.serve (aucun port ouvert)
-          EDGE_ENV: MDLF_EDGE_TESTS,SUPABASE_URL,SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,SUPABASE_SECRET_KEYS,SUPABASE_PUBLISHABLE_KEYS,PUSH_CRON_SECRET,PHOTOS_PURGE_SECRET,APNS_KEY_P8,APNS_KEY_ID,APNS_TEAM_ID,APNS_TOPIC,RESEND_API_KEY,APPLE_PRIVATE_KEY,APPLE_KEY_ID,APPLE_TEAM_ID,APPLE_CLIENT_ID,APPLE_IAP_KEY_ID,APPLE_IAP_PRIVATE_KEY,APPLE_ISSUER_ID,STRAVA_CLIENT_ID,STRAVA_CLIENT_SECRET,STRAVA_TOKEN_KEY,STRAVA_RETURN_URL
+          EDGE_ENV: MDLF_EDGE_TESTS,SUPABASE_URL,SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,SUPABASE_SECRET_KEYS,SUPABASE_PUBLISHABLE_KEYS,PUSH_CRON_SECRET,PHOTOS_PURGE_SECRET,APNS_KEY_P8,APNS_KEY_ID,APNS_TEAM_ID,APNS_TOPIC,RESEND_API_KEY,APPLE_PRIVATE_KEY,APPLE_KEY_ID,APPLE_TEAM_ID,APPLE_CLIENT_ID,APPLE_IAP_KEY_ID,APPLE_IAP_PRIVATE_KEY,APPLE_ISSUER_ID,STRAVA_CLIENT_ID,STRAVA_CLIENT_SECRET,STRAVA_TOKEN_KEY,STRAVA_RETURN_URL,ANTHROPIC_API_KEY,ANTHROPIC_BASE_URL,ANTHROPIC_LOG,ANTHROPIC_CUSTOM_HEADERS,ANTHROPIC_WEBHOOK_SIGNING_KEY,ANTHROPIC_OPEN_TELEMETRY,ANTHROPIC_OPEN_TELEMETRY_PROPAGATION,ANTHROPIC_OPEN_TELEMETRY_TRACES_CONTENT_MODE,ANTHROPIC_OPEN_TELEMETRY_TRACES_MAX_CONTENT_BYTES
         run: deno test --config supabase/functions/deno.json --frozen --allow-env="$EDGE_ENV" tests/deno
 
   deploy:

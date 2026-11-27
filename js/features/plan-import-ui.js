@@ -6,7 +6,8 @@
 //  gris, jamais en orange, réservé aux boutons). Un toucher sur une ligne : changer l'exercice, les séries et reps,
 //  ou la retirer. Chaque exercice corrigé est retenu (js/data/plan-aliases.js) pour le prochain import.
 //  Accès : Programme › Ajouter un programme, et la fiche d'un élève (coach). Logique : js/data/plan-*.js ;
-//  lecture d'un PDF : js/features/plan-pdf.js.
+//  lecture d'un PDF : js/features/plan-pdf.js. Renfort de l'IA (docs/IMPORT_IA.md) : « Lire avec l'aide de l'IA »,
+//  proposé quand le moteur hésite (js/data/plan-ai.js), appel à la fonction serveur plan-import-ai.
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
@@ -16,7 +17,7 @@ const PIMP_FILE_MAX = 15 * 1024 * 1024;
 let pimp = null;
 
 function pimpState(student = null) {
-  if (!pimp || pimp.student !== student) pimp = { text: '', draft: null, name: '', student, learn: {}, source: 'texte' };
+  if (!pimp || pimp.student !== student) pimp = { text: '', draft: null, name: '', student, learn: {}, source: 'texte', image: null, ai: null };
   return pimp;
 }
 function openPlanImport(student = null) {
@@ -78,7 +79,7 @@ function renderPimpText(student) {
 // texte sont lus sur l'appareil ; avec un compte, le programme enregistré et les corrections y sont copiés
 function pimpPrivacyText() {
   const what = pimpReader() ? (pimpDictation() ? 'La photo, la voix et le texte' : 'La photo et le texte') : 'Le texte';
-  return `${what} sont lus sur ${thisPhone()}, sans être envoyés. ${typeof account !== 'undefined' && account.user ? 'Le programme enregistré et tes corrections sont copiés sur ton compte.' : 'Avec un compte, le programme enregistré et tes corrections y sont copiés.'}`;
+  return `${what} sont lus sur ${thisPhone()}, sans être envoyés (sauf si tu demandes l'aide de l'IA, ensuite). ${typeof account !== 'undefined' && account.user ? 'Le programme enregistré et tes corrections sont copiés sur ton compte.' : 'Avec un compte, le programme enregistré et tes corrections y sont copiés.'}`;
 }
 
 // ── Écran 2 : Vérifier l'import ──────────────────────────────
@@ -105,7 +106,9 @@ function pimpPrescText(p) {
 function pimpWhyText(it) {
   if (it.level === 'unknown') return it.guess ? `Pas dans la bibliothèque. Peut-être ${it.guess} ?` : 'Pas dans la bibliothèque : touche pour choisir';
   const w = it.why || [];
+  if (w.includes('illisible')) return 'Ligne mal lue : vérifie-la';
   if (w.includes('nom')) return 'Nom proche : vérifie l\'exercice';
+  if (w.includes('nombre')) return 'Un nombre n\'est pas dans ta ligne : vérifie';
   if (w.includes('matériel')) return 'Matériel différent de ta ligne : vérifie l\'exercice';
   if (w.includes('séries')) return 'Nombre de séries non lu : 3 par défaut';
   if (w.includes('reps')) return 'Reps non lues';
@@ -116,7 +119,7 @@ function pimpRowHtml(it) {
   const lvl = PIMP_LEVEL[it.level];
   const why = pimpWhyText(it);
   const name = it.name || it.raw || 'Exercice';
-  const label = `${name}${presc ? `, ${presc}` : ''}${lvl ? `, ${lvl}` : ''}. Ligne : ${it.src.trim()}`;
+  const label = `${name}${presc ? `, ${presc}` : ''}${lvl ? `, ${lvl}` : ''}${it.ai ? ', lu avec l\'aide de l\'IA' : ''}. Ligne : ${it.src.trim()}`;
   return `
     <button class="cell cell--nav pimp-row${it.level !== 'sure' ? ` pimp-row--${it.level}` : ''}" data-action="pimp-line" data-id="${esc(it.id)}" aria-label="${esc(label)}">
       <span class="cell__body">
@@ -124,6 +127,7 @@ function pimpRowHtml(it) {
         <span class="cell__title">${it.ss ? `<span class="pimp-ss" aria-hidden="true">${esc(it.ssTag || '')}</span>` : ''}${esc(name)}</span>
         ${presc ? `<span class="cell__sub num">${esc(presc)}</span>` : ''}
         ${lvl ? `<span class="cell__sub pimp-why">${esc(lvl)}${why ? ` · ${esc(why)}` : ''}</span>` : ''}
+        ${it.ai && !lvl ? '<span class="cell__sub">Lu avec l\'aide de l\'IA</span>' : ''}
       </span>
       ${icon('chevron.right', 16)}
     </button>`;
@@ -153,6 +157,7 @@ function renderPimpReview(student) {
       ${navBar({ title: 'Vérifier l\'import' })}
       <div class="scr">
         <p class="pimp-lead" role="status">${esc(summary)}${items.length ? ' Touche une ligne pour la corriger.' : ''}</p>
+        ${pimpAiHtml(st, 'top')}
         ${cut ? `<div class="group pimp-cut"><div class="cell"><span class="cell__body"><span class="cell__title">Programme incomplet</span><span class="cell__sub">${esc(cut)}</span></span></div></div>` : ''}
         <div class="group">
           <button class="cell cell--nav" data-action="pimp-name">
@@ -166,9 +171,10 @@ function renderPimpReview(student) {
         <div class="group pimp-notes">${notes.slice(0, 30).map(n => `<div class="cell"><span class="cell__body"><span class="cell__sub">${esc(clipText(n, 160))}</span></span></div>`).join('')}</div>
         <div class="group-foot">Titres, conseils et échauffement ne deviennent pas des exercices. Ajoute un exercice oublié ensuite, dans la séance.</div>` : ''}
         <div class="prog-info__actions">
-          <button class="btn btn--primary btn--full" data-action="pimp-save" ${items.length ? '' : 'disabled'}>Enregistrer le programme</button>
+          <button class="btn ${pimpAiProposed(st) ? 'btn--secondary' : 'btn--primary'} btn--full" data-action="pimp-save" ${items.length ? '' : 'disabled'}>Enregistrer le programme</button>
           <button class="btn btn--secondary btn--full" data-action="pimp-edit-text">Modifier le texte</button>
         </div>
+        ${pimpAiHtml(st, 'bottom')}
         <div class="group-foot">${st.student ? `Ajouté à tes programmes, prêt à envoyer à ${esc(personName(coachStudent(st.student)))}. Tes séances ne changent pas.` : 'Le programme s\'ajoute à Mes programmes.'} Tes corrections sont retenues pour le prochain import (Réglages › Programmes › Corrections retenues).</div>
       </div>
     </div>`;
@@ -198,6 +204,8 @@ function pimpRead(text, source = 'texte', { pagesRead = 0, pageCount = 0 } = {})
   st.draft = planParse(st.text, { learned: planLearnedAliases() });
   st.name = '';
   st.learn = {};
+  st.ai = null;
+  if (source !== 'photo-fichier') st.image = null;
   const route = makeRoute('plan-import', 'verifier', ...(st.student ? [st.student] : []));
   if (routeName(currentRoute()) === 'plan-import' && routeParams(currentRoute())[0] === 'verifier') render(); else navigate(route);
 }
@@ -272,6 +280,8 @@ function pimpSave() {
   data.programmes[id] = pd;
   addMyProgramme(id);
   let learned = 0;
+  // Les exercices choisis par l'IA et gardés par le coach : appris par le moteur pour le prochain import
+  st.learn = { ...planAiLearnable(st.draft), ...st.learn };
   Object.entries(st.learn).forEach(([raw, nm]) => { if (planLearnAlias(raw, nm)) learned++; });
   // Programme actif jamais fait (le PPL d'office) et import pour soi : le programme importé devient l'actif
   const untouched = !st.student && !isUserProg(data.activeProgramme) && !(data.history || []).some(h => h.programme === data.activeProgramme);
@@ -304,7 +314,7 @@ function pimpChooseFile() {
       // Image (capture d'écran, photo enregistrée) : lue par Vision
       if (/^image\//.test(file.type) && pimpReader()) {
         const r = await pimpReading(onProgress => PlanReader.readFile(file, { customWords: planDictationWords('exercice'), onProgress }), true);
-        if (r.ok) pimpRead(planTextFromPages(r.pages), 'photo'); else if (r.message) showToast(r.message, { error: r.reason !== 'canceled' });
+        if (r.ok) { pimpRead(planTextFromPages(r.pages), 'photo-fichier'); pimp.image = file; } else if (r.message) showToast(r.message, { error: r.reason !== 'canceled' });
         return;
       }
       if (isPdf) {
@@ -456,6 +466,7 @@ registerActions({
     if (v) { s.label = v; render(); }
   },
   'pimp-save': () => pimpSave(),
+  'pimp-ai': () => pimpAskAi(),
 });
 
 // ── Réglages › Corrections retenues ─────────────────────────

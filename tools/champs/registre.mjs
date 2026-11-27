@@ -102,6 +102,7 @@ export const REGISTRE = [
     exemption: { longueur: 'coupé à PIMP_TEXT_MAX (20 000) à la lecture, et dit à l\'écran « Vérifier l\'import » : un maxlength couperait un collage en silence (audit M2)' } },
   { cle: 'features/plan-import-ui.js#pimpSearch', nom: 'Importer un programme : recherche dans la bibliothèque', genre: 'recherche', serveur: null },
   { cle: 'features/plan-import-ui.js:createElement:file', nom: 'Importer un programme : fichier PDF, texte ou CSV', genre: 'fichier' },
+  { cle: 'features/plan-import-ai-ui.js:createElement:file', nom: 'Importer un programme : photo envoyée à l\'IA (accord à chaque fois, réduite à 1600 px)', genre: 'fichier' },
   { cle: 'features/plan-import-ui.js:askText:Séries et reps', nom: 'Importer un programme : séries et reps d\'une ligne', genre: 'code',
     preuve: ['planHasWork('], vide: 'refuse', serveur: null },
   { cle: 'features/plan-import-ui.js:askText:Nom du programme', nom: 'Importer un programme : nom du programme', genre: 'texte', vide: 'refuse',

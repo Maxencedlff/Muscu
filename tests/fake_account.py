@@ -1505,6 +1505,12 @@ FAKE_ACCOUNT = r"""
         functions: { invoke: async (fn, { body } = {}) => {
           log('invoke', fn, JSON.stringify(body || {}));
           const fail = (status, b) => ({ data: null, error: { name: 'FunctionsHttpError', message: 'Edge Function returned a non-2xx status code', context: { status, json: async () => b } } });
+          // plan-import-ai (import aidé par l'IA, docs/IMPORT_IA.md) : fausse fonction posée par le test (window.__fakePlanAi),
+          // jamais d'appel à Anthropic ; sans elle : 404 (fonction pas déployée)
+          if (fn === 'plan-import-ai') {
+            if (!sb.session) return fail(401, { error: 'auth' });
+            return window.__fakePlanAi ? window.__fakePlanAi(body, fail) : fail(404, { code: 'NOT_FOUND', message: 'Requested function was not found' });
+          }
           // coach-web-orphan (site du coach) : compte tout neuf (Google ou Apple seul, moins de 10 min), sans profil ni rôle
           // de coach, effacé ; sinon gardé. sb.fail.orphan : 'offline' (réseau), 'missing' (fonction pas déployée), 'kept'
           if (fn === 'coach-web-orphan') {

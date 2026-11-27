@@ -91,6 +91,7 @@ const SCRIPTS = [
   'js/data/plan-match.js',
   'js/data/plan-table.js',
   'js/data/plan-parser.js',
+  'js/data/plan-ai.js',
   'js/data/import-measures.js',
   'js/data/progress-photos.js',
   'js/data/photo-vault.js',
@@ -2382,6 +2383,8 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 (await import('./unilateral.mjs')).default({ test, run, reset, assert, sameJSON });
 // ── Import d'un programme : grammaire, reconnaissance, tableaux, corpus (tests dans plan-import.mjs) ──
 (await import('./plan-import.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
+// ── Import aidé par l'IA : règles de plan-import-ai et renfort dans l'app (tests dans plan-import-ai.mjs) ──
+(await import('./plan-import-ai.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
 
 // ── Import depuis Hevy et Strong (tests dans import-csv.mjs) ──
 (await import('./import-csv.mjs')).default({ test, run, reset, assert, app, sameJSON, ROOT });
