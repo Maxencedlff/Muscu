@@ -1,0 +1,168 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d06-coach-tu-vas-faire__eddyfrenchfrance-215",
+  "ms" : 8004,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0,
+      "duration" : 0.14999999999999999,
+      "text" : "pour lundi",
+      "timestamp" : 0.23999999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.35999999999999999,
+      "text" : "serait réglé, plus",
+      "timestamp" : 0.39000000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.14999999999999999,
+      "text" : "quatre, séries",
+      "timestamp" : 0.78000000000000003
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 1.05
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "5",
+      "timestamp" : 1.0800000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.17999999999999999,
+      "text" : ",80",
+      "timestamp" : 1.1699999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "kg",
+      "timestamp" : 1.47
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "en",
+      "timestamp" : 1.5
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.27000000000000002,
+      "text" : "mètres en chaîne sur",
+      "timestamp" : 1.5600000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "marcher",
+      "timestamp" : 1.8600000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "avec",
+      "timestamp" : 2.1600000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "un",
+      "timestamp" : 2.1899999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "air",
+      "timestamp" : 2.25
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "trois",
+      "timestamp" : 2.3700000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "séries",
+      "timestamp" : 2.4300000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 2.52
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "12",
+      "timestamp" : 2.5499999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "par",
+      "timestamp" : 2.6699999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.089999999999999997,
+      "text" : "an,",
+      "timestamp" : 2.7000000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "et",
+      "timestamp" : 2.79
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "après",
+      "timestamp" : 2.8500000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "buteur",
+      "timestamp" : 2.9100000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.20999999999999999,
+      "text" : "33",
+      "timestamp" : 3.1800000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "mois",
+      "timestamp" : 3.3900000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "une",
+      "timestamp" : 4.0800000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "minute",
+      "timestamp" : 4.2000000000000002
+    }
+  ],
+  "text" : "Alors pour lundi serait réglé, plus quatre, séries de 5,80 kg en mètres en chaîne sur marcher avec un air trois séries de 12 par an, et après buteur 33 mois une minute",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

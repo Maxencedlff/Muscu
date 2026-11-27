@@ -1,0 +1,114 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d12-jambes-drop-tempo__eddyfrenchfrance-215",
+  "ms" : 5038,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0,
+      "duration" : 0.17999999999999999,
+      "text" : "Lampe",
+      "timestamp" : 0
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.20999999999999999,
+      "text" : "Elodia,",
+      "timestamp" : 0.17999999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.20999999999999999,
+      "text" : "117",
+      "timestamp" : 0.39000000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "quatre",
+      "timestamp" : 0.75
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.14999999999999999,
+      "text" : "série 12",
+      "timestamp" : 0.81000000000000005
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "avec",
+      "timestamp" : 0.95999999999999996
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "1",
+      "timestamp" : 1.1100000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.63,
+      "text" : "04",
+      "timestamp" : 1.1699999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "3",
+      "timestamp" : 1.8600000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "0",
+      "timestamp" : 2.1899999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "1",
+      "timestamp" : 2.25
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.029999999999999999,
+      "text" : "10",
+      "timestamp" : 2.3399999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "la",
+      "timestamp" : 2.3700000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "lecture",
+      "timestamp" : 2.52
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "la",
+      "timestamp" : 2.6099999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "trois",
+      "timestamp" : 2.7599999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "12",
+      "timestamp" : 2.79
+    }
+  ],
+  "text" : "Lampe Elodia, 117 quatre série 12 avec 10430110 la lecture la trois 12",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

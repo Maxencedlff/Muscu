@@ -1,0 +1,113 @@
+{
+ "id": "img-01-tableau-craie-emom",
+ "category": "manuscrit",
+ "description": "Tableau noir de box photographié de biais. Échauffement noté en optional ; « 10 JUMPING MU » lu comme jumping muscle-ups (lecture incertaine, « MU » ressemble à « NU ») ; « 3 ROUNDS » donne 3 séries par poste ; l'EMOM 12 tourne sur 3 postes, le nombre de séries par poste n'est pas écrit et n'est donc pas noté ; les noms coupés par le cadre restent tels quels. « SIT UPS » donne Crunch, « AM. SWINGS » (american swings) donne Swing kettlebell.",
+ "source_id": "img-01-tableau-craie-emom",
+ "text": "|WARM UP|\nTABATA:\nSU\nPUSH UP PLANK ROT.\n3/3 PER.STR.\n10 BURPEES\n12 GLUTE BRIDGE\n12 REVERSE LUNGES\n|STRENGHT|\n5X6 BENCH\n|WOD|\n3 ROUNDS.\n10 JUMPING MU\n20 AM. SWINGS\n30 SIT UPS\n|EMOM 12|\n① 6 DB THRUS\n② 20 PUSH UPS -\n③ DB SNATCH",
+ "expected": {
+  "title": null,
+  "sessions": [
+   {
+    "label": "WARM UP",
+    "exercises": [
+     {
+      "line": "SU",
+      "name": "Corde à sauter",
+      "optional": true
+     },
+     {
+      "line": "PUSH UP PLANK ROT.",
+      "name": null,
+      "raw": "Push up plank rotation",
+      "optional": true
+     },
+     {
+      "line": "10 BURPEES",
+      "name": "Burpees",
+      "repMin": 10,
+      "repMax": 10,
+      "optional": true
+     },
+     {
+      "line": "12 GLUTE BRIDGE",
+      "name": "Pont fessier",
+      "repMin": 12,
+      "repMax": 12,
+      "optional": true
+     },
+     {
+      "line": "12 REVERSE LUNGES",
+      "name": "Fentes",
+      "repMin": 12,
+      "repMax": 12,
+      "optional": true
+     }
+    ]
+   },
+   {
+    "label": "STRENGHT",
+    "exercises": [
+     {
+      "line": "5X6 BENCH",
+      "name": "Développé couché barre",
+      "sets": 5,
+      "repMin": 6,
+      "repMax": 6
+     }
+    ]
+   },
+   {
+    "label": "WOD",
+    "exercises": [
+     {
+      "line": "10 JUMPING MU",
+      "name": null,
+      "raw": "Jumping muscle-up",
+      "sets": 3,
+      "repMin": 10,
+      "repMax": 10
+     },
+     {
+      "line": "20 AM. SWINGS",
+      "name": "Swing kettlebell",
+      "sets": 3,
+      "repMin": 20,
+      "repMax": 20
+     },
+     {
+      "line": "30 SIT UPS",
+      "name": "Crunch",
+      "sets": 3,
+      "repMin": 30,
+      "repMax": 30
+     }
+    ]
+   },
+   {
+    "label": "EMOM 12",
+    "exercises": [
+     {
+      "line": "① 6 DB THRUS",
+      "name": null,
+      "raw": "DB thrusters",
+      "repMin": 6,
+      "repMax": 6
+     },
+     {
+      "line": "② 20 PUSH UPS",
+      "name": "Pompes",
+      "repMin": 20,
+      "repMax": 20
+     },
+     {
+      "line": "③ DB SNATCH",
+      "name": null,
+      "raw": "DB snatch"
+     }
+    ]
+   }
+  ]
+ },
+ "file": "img-01-tableau-craie-emom.jpg",
+ "langue": "en"
+}

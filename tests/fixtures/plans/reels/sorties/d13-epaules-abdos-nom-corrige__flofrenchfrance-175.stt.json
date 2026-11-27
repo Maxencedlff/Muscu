@@ -1,0 +1,150 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d13-epaules-abdos-nom-corrige__flofrenchfrance-175",
+  "ms" : 6993,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0.22500000000000001,
+      "duration" : 0.81000000000000005,
+      "text" : "Les",
+      "timestamp" : 0
+    },
+    {
+      "confidence" : 0.38600000000000001,
+      "duration" : 0.29999999999999999,
+      "text" : "abdos",
+      "timestamp" : 0.81000000000000005
+    },
+    {
+      "confidence" : 0.315,
+      "duration" : 0.51000000000000001,
+      "text" : "développé",
+      "timestamp" : 1.1100000000000001
+    },
+    {
+      "confidence" : 0.26700000000000002,
+      "duration" : 0.51000000000000001,
+      "text" : "Arnaldo",
+      "timestamp" : 1.6200000000000001
+    },
+    {
+      "confidence" : 0.023,
+      "duration" : 1.0800000000000001,
+      "text" : "dans développement primaire",
+      "timestamp" : 2.1299999999999999
+    },
+    {
+      "confidence" : 0.43099999999999999,
+      "duration" : 0.059999999999999998,
+      "text" : "à",
+      "timestamp" : 3.21
+    },
+    {
+      "confidence" : 0.41399999999999998,
+      "duration" : 0.12,
+      "text" : "la",
+      "timestamp" : 3.27
+    },
+    {
+      "confidence" : 0.112,
+      "duration" : 0.23999999999999999,
+      "text" : "base,",
+      "timestamp" : 3.3900000000000001
+    },
+    {
+      "confidence" : 0.39500000000000002,
+      "duration" : 0.63,
+      "text" : "série",
+      "timestamp" : 3.6299999999999999
+    },
+    {
+      "confidence" : 0.36399999999999999,
+      "duration" : 0.17999999999999999,
+      "text" : "de",
+      "timestamp" : 4.2599999999999998
+    },
+    {
+      "confidence" : 0.53200000000000003,
+      "duration" : 0.71999999999999997,
+      "text" : "élévation",
+      "timestamp" : 4.5599999999999996
+    },
+    {
+      "confidence" : 0.39900000000000002,
+      "duration" : 0.47999999999999998,
+      "text" : "frontale",
+      "timestamp" : 5.2800000000000002
+    },
+    {
+      "confidence" : 0.68999999999999995,
+      "duration" : 0.27000000000000002,
+      "text" : "trois",
+      "timestamp" : 5.7599999999999998
+    },
+    {
+      "confidence" : 0.36199999999999999,
+      "duration" : 0.23999999999999999,
+      "text" : "fois",
+      "timestamp" : 6.0300000000000002
+    },
+    {
+      "confidence" : 0.27300000000000002,
+      "duration" : 0.27000000000000002,
+      "text" : "d'autres",
+      "timestamp" : 6.2699999999999996
+    },
+    {
+      "confidence" : 0.38800000000000001,
+      "duration" : 0.35999999999999999,
+      "text" : "rouge",
+      "timestamp" : 6.54
+    },
+    {
+      "confidence" : 0.027,
+      "duration" : 0.75,
+      "text" : "à la trois",
+      "timestamp" : 6.9000000000000004
+    },
+    {
+      "confidence" : 0.76400000000000001,
+      "duration" : 0.33000000000000002,
+      "text" : "séries",
+      "timestamp" : 7.6500000000000004
+    },
+    {
+      "confidence" : 0.56499999999999995,
+      "duration" : 0.089999999999999997,
+      "text" : "de",
+      "timestamp" : 7.9800000000000004
+    },
+    {
+      "confidence" : 0.002,
+      "duration" : 1.3500000000000001,
+      "text" : "15 1\/2 trois",
+      "timestamp" : 8.0700000000000003
+    },
+    {
+      "confidence" : 0.65000000000000002,
+      "duration" : 0.33000000000000002,
+      "text" : "séries",
+      "timestamp" : 9.4199999999999999
+    },
+    {
+      "confidence" : 0.53300000000000003,
+      "duration" : 0.12,
+      "text" : "de",
+      "timestamp" : 9.75
+    },
+    {
+      "confidence" : 0.218,
+      "duration" : 0.45000000000000001,
+      "text" : "12",
+      "timestamp" : 9.8699999999999992
+    }
+  ],
+  "text" : "Les abdos développé Arnaldo dans développement primaire à la base, série de élévation frontale trois fois d'autres rouge à la trois séries de 15 1\/2 trois séries de 12",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

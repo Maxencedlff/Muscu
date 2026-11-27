@@ -1,0 +1,50 @@
+{
+ "id": "img-15-capture-appli-fitbod",
+ "category": "capture",
+ "description": "Capture d'appli en mode guidé (ligne nom puis ligne « N SETS • M REPS »). Le circuit de 3 exercices est un tri-set (ss A). Le superset est coupé : seul Bicycle Crunch est visible, sans lettre. « Air Squats » donne Squat poids du corps. Les pourcentages et l'écran de droite ne sont pas des exercices.",
+ "source_id": "img-15-capture-appli-fitbod",
+ "text": "HOME GYM >\nFull Body Workout\n100%\t95%\t90%\t87%\t80%\n3 EXERCISE CIRCUIT\nHip Thrust\n4 SETS • 6 REPS\nAir Squats\n4 SETS • 8 REPS\nPush Up\n4 SETS • 6 REPS\nSUPERSET\nBicycle Crunch\n5 SETS • 10 REPS\n9:41\n2\tDAYS SINCE YOUR LAST WORKOUT\n6\tFRESH MUSCLE GROUPS\nRECOVERY\tWORKOUT\tLOG\tSTART WORKOUT",
+ "expected": {
+  "title": "Full Body Workout",
+  "sessions": [
+   {
+    "label": null,
+    "exercises": [
+     {
+      "line": "Hip Thrust",
+      "name": "Hip thrust",
+      "sets": 4,
+      "repMin": 6,
+      "repMax": 6,
+      "ss": "A"
+     },
+     {
+      "line": "Air Squats",
+      "name": "Squat poids du corps",
+      "sets": 4,
+      "repMin": 8,
+      "repMax": 8,
+      "ss": "A"
+     },
+     {
+      "line": "Push Up",
+      "name": "Pompes",
+      "sets": 4,
+      "repMin": 6,
+      "repMax": 6,
+      "ss": "A"
+     },
+     {
+      "line": "Bicycle Crunch",
+      "name": "Crunch vélo",
+      "sets": 5,
+      "repMin": 10,
+      "repMax": 10
+     }
+    ]
+   }
+  ]
+ },
+ "file": "img-15-capture-appli-fitbod.jpg",
+ "langue": "en"
+}

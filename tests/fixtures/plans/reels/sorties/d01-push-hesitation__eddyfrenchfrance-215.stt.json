@@ -1,0 +1,174 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d01-push-hesitation__eddyfrenchfrance-215",
+  "ms" : 6683,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0,
+      "duration" : 0.39000000000000001,
+      "text" : "on commande",
+      "timestamp" : 0.23999999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "par",
+      "timestamp" : 0.63
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.17999999999999999,
+      "text" : "le développement",
+      "timestamp" : 0.81000000000000005
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "couché",
+      "timestamp" : 0.98999999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "là",
+      "timestamp" : 1.0800000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.059999999999999998,
+      "text" : "là-bas,",
+      "timestamp" : 1.2
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.14999999999999999,
+      "text" : "quatre séries",
+      "timestamp" : 1.26
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 1.4099999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.12,
+      "text" : "ligne avec",
+      "timestamp" : 1.47
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "Domi",
+      "timestamp" : 1.6200000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.12,
+      "text" : "reco,",
+      "timestamp" : 1.8300000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "on",
+      "timestamp" : 1.95
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "avait",
+      "timestamp" : 2.0099999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "développé",
+      "timestamp" : 2.1299999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.089999999999999997,
+      "text" : "linéaire,",
+      "timestamp" : 2.46
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "trois",
+      "timestamp" : 2.5499999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "séries",
+      "timestamp" : 2.6400000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 2.7000000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "10",
+      "timestamp" : 2.73
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.14999999999999999,
+      "text" : "au 12",
+      "timestamp" : 2.7599999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.089999999999999997,
+      "text" : "pardon",
+      "timestamp" : 2.9100000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.27000000000000002,
+      "text" : "élévation",
+      "timestamp" : 3
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.23999999999999999,
+      "text" : "latérale",
+      "timestamp" : 3.4199999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "95",
+      "timestamp" : 3.6600000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.51000000000000001,
+      "text" : "trois séries",
+      "timestamp" : 3.7200000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "au",
+      "timestamp" : 4.29
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "max",
+      "timestamp" : 4.3499999999999996
+    }
+  ],
+  "text" : "Alors on commande par le développement couché là là-bas, quatre séries de ligne avec Domi reco, on avait développé linéaire, trois séries de 10 au 12 pardon élévation latérale 95 trois séries au max",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

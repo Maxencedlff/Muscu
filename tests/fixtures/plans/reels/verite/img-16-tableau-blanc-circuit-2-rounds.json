@@ -1,0 +1,52 @@
+{
+ "id": "img-16-tableau-blanc-circuit-2-rounds",
+ "category": "manuscrit",
+ "description": "Circuit « 2 Rounds, 2:00 each station » : chaque poste vaut 2 séries de 120 s. « 20/14 » et « 24/16 » sont les charges homme/femme ; on note 24 kg pour les kettlebells (unité habituelle des KB), pas les med ball / wall ball (livres). « Rest » est une station de repos, pas un exercice. Scores du bas ignorés.",
+ "source_id": "img-16-tableau-blanc-circuit-2-rounds",
+ "text": "MONDAY\n2 Rounds\n2:00 each station\nDouble Unders\nMed Ball V-Ups\t20/14\nKB Swings\t24/16\nCalorie Row\nWall Balls\t20/14\nRest\nNOOPUR 319\tSTANA 3??\nJenn 244 Rx\tHarvey 372 Rx",
+ "expected": {
+  "title": null,
+  "sessions": [
+   {
+    "label": "MONDAY",
+    "exercises": [
+     {
+      "line": "Double Unders",
+      "name": "Corde à sauter",
+      "sets": 2,
+      "seconds": 120
+     },
+     {
+      "line": "Med Ball V-Ups",
+      "name": null,
+      "raw": "Med ball V-ups",
+      "sets": 2,
+      "seconds": 120
+     },
+     {
+      "line": "KB Swings",
+      "name": "Swing kettlebell",
+      "sets": 2,
+      "seconds": 120,
+      "load": 24
+     },
+     {
+      "line": "Calorie Row",
+      "name": "Rameur",
+      "sets": 2,
+      "seconds": 120
+     },
+     {
+      "line": "Wall Balls",
+      "name": null,
+      "raw": "Wall ball",
+      "sets": 2,
+      "seconds": 120
+     }
+    ]
+   }
+  ]
+ },
+ "file": "img-16-tableau-blanc-circuit-2-rounds.jpg",
+ "langue": "en"
+}

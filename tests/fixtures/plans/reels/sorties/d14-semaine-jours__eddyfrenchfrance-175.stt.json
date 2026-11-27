@@ -1,0 +1,138 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d14-semaine-jours__eddyfrenchfrance-175",
+  "ms" : 5600,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0,
+      "duration" : 0.35999999999999999,
+      "text" : "Lundi,",
+      "timestamp" : 0
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "j'ai",
+      "timestamp" : 0.35999999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "développé",
+      "timestamp" : 0.63
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "contre",
+      "timestamp" : 0.66000000000000003
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "Gilbert",
+      "timestamp" : 0.87
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "88",
+      "timestamp" : 1.3200000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : ",",
+      "timestamp" : 1.3799999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "3",
+      "timestamp" : 1.53
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "fois",
+      "timestamp" : 1.6200000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : ",",
+      "timestamp" : 1.8600000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "fraction",
+      "timestamp" : 2.1899999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "4",
+      "timestamp" : 2.3999999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.089999999999999997,
+      "text" : "×",
+      "timestamp" : 2.5499999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.41999999999999998,
+      "text" : "4",
+      "timestamp" : 2.6400000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "×",
+      "timestamp" : 3.21
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.12,
+      "text" : "8 mercredi,",
+      "timestamp" : 3.2999999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.20999999999999999,
+      "text" : "repos, quatre",
+      "timestamp" : 3.4199999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.089999999999999997,
+      "text" : "fois",
+      "timestamp" : 4.5
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.45000000000000001,
+      "text" : "mollet, 4",
+      "timestamp" : 4.5899999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "×",
+      "timestamp" : 5.1900000000000004
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.029999999999999999,
+      "text" : "15",
+      "timestamp" : 5.2800000000000002
+    }
+  ],
+  "text" : "Lundi, j'ai développé contre Gilbert 88,3 fois, fraction 4 × 4 × 8 mercredi, repos, quatre fois mollet, 4 × 15",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

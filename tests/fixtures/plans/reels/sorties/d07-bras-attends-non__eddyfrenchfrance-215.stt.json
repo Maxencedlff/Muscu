@@ -1,0 +1,108 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d07-bras-attends-non__eddyfrenchfrance-215",
+  "ms" : 5679,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0,
+      "duration" : 0.75,
+      "text" : "B. Bar",
+      "timestamp" : 0
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "90",
+      "timestamp" : 1.02
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.089999999999999997,
+      "text" : "trois",
+      "timestamp" : 1.1399999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "du",
+      "timestamp" : 1.26
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.029999999999999999,
+      "text" : "bar au",
+      "timestamp" : 1.4399999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.14999999999999999,
+      "text" : "fond,",
+      "timestamp" : 1.47
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "trois",
+      "timestamp" : 1.6200000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.059999999999999998,
+      "text" : "coutures",
+      "timestamp" : 1.8600000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.17999999999999999,
+      "text" : "cuisine, 3",
+      "timestamp" : 1.9199999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "×",
+      "timestamp" : 2.1299999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.17999999999999999,
+      "text" : "12 extension",
+      "timestamp" : 2.25
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.20999999999999999,
+      "text" : "de trois",
+      "timestamp" : 2.4300000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.20999999999999999,
+      "text" : "séries de",
+      "timestamp" : 2.7599999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "15",
+      "timestamp" : 3
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "une",
+      "timestamp" : 3.1200000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 3.3900000000000001,
+      "text" : "minute.",
+      "timestamp" : 3.3300000000000001
+    }
+  ],
+  "text" : "B. Bar 90 trois du bar au fond, trois coutures cuisine, 3 × 12 extension de trois séries de 15 une minute.",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

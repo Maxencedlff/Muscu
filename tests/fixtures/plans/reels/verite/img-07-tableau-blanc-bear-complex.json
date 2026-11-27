@@ -1,0 +1,62 @@
+{
+ "id": "img-07-tableau-blanc-bear-complex",
+ "category": "manuscrit",
+ "description": "Bear complex : une rep = les 5 mouvements enchaînés, 7 reps par tour, 5 tours. Chaque mouvement est noté 5 séries de 7 dans le même enchaînement (ss A). « Push Press » apparaît deux fois et est hors bibliothèque ; « Power Clean » aussi.",
+ "source_id": "img-07-tableau-blanc-bear-complex",
+ "text": "Bear Complex\n5 Rounds\n1 Rd = 7 Reps\nPower Clean\nFront Squat\nPush Press\nBack Squat\nPush Press",
+ "expected": {
+  "title": "Bear Complex",
+  "sessions": [
+   {
+    "label": null,
+    "exercises": [
+     {
+      "line": "Power Clean",
+      "name": null,
+      "raw": "Power clean",
+      "sets": 5,
+      "repMin": 7,
+      "repMax": 7,
+      "ss": "A"
+     },
+     {
+      "line": "Front Squat",
+      "name": "Squat avant",
+      "sets": 5,
+      "repMin": 7,
+      "repMax": 7,
+      "ss": "A"
+     },
+     {
+      "line": "Push Press",
+      "name": null,
+      "raw": "Push press",
+      "sets": 5,
+      "repMin": 7,
+      "repMax": 7,
+      "ss": "A"
+     },
+     {
+      "line": "Back Squat",
+      "name": "Squat barre",
+      "sets": 5,
+      "repMin": 7,
+      "repMax": 7,
+      "ss": "A"
+     },
+     {
+      "line": "Push Press",
+      "name": null,
+      "raw": "Push press",
+      "sets": 5,
+      "repMin": 7,
+      "repMax": 7,
+      "ss": "A"
+     }
+    ]
+   }
+  ]
+ },
+ "file": "img-07-tableau-blanc-bear-complex.jpg",
+ "langue": "en"
+}

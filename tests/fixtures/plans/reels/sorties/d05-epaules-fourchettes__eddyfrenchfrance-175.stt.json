@@ -1,0 +1,186 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d05-epaules-fourchettes__eddyfrenchfrance-175",
+  "ms" : 5397,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0,
+      "duration" : 0.71999999999999997,
+      "text" : "Paulo,",
+      "timestamp" : 0
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "développement",
+      "timestamp" : 0.71999999999999997
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.14999999999999999,
+      "text" : "minéral,",
+      "timestamp" : 1.05
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.14999999999999999,
+      "text" : "R.",
+      "timestamp" : 1.2
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.12,
+      "text" : "3,",
+      "timestamp" : 1.3500000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "séries",
+      "timestamp" : 1.47
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 1.5900000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "huit",
+      "timestamp" : 1.6499999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "à",
+      "timestamp" : 1.71
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "12",
+      "timestamp" : 1.77
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "recours",
+      "timestamp" : 1.98
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "une",
+      "timestamp" : 2.0699999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "minute",
+      "timestamp" : 2.1899999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.33000000000000002,
+      "text" : "30. Élévations",
+      "timestamp" : 2.2799999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "latérales",
+      "timestamp" : 2.6099999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "quatre",
+      "timestamp" : 3.0299999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "séries",
+      "timestamp" : 3.21
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 3.27
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "12",
+      "timestamp" : 3.3300000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.45000000000000001,
+      "text" : "oiseaux,",
+      "timestamp" : 3.3599999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.20999999999999999,
+      "text" : "trois séries,",
+      "timestamp" : 3.8100000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.29999999999999999,
+      "text" : "trois",
+      "timestamp" : 4.0199999999999996
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "pulls",
+      "timestamp" : 4.4100000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "trois",
+      "timestamp" : 4.5899999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.47999999999999998,
+      "text" : "l'",
+      "timestamp" : 4.6799999999999997
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "épaule",
+      "timestamp" : 5.2800000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "4",
+      "timestamp" : 5.4299999999999997
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "×",
+      "timestamp" : 5.5199999999999996
+    },
+    {
+      "confidence" : 0,
+      "duration" : 6.0599999999999996,
+      "text" : "12",
+      "timestamp" : 5.5800000000000001
+    }
+  ],
+  "text" : "Paulo, développement minéral, R.3, séries de huit à 12 recours une minute 30. Élévations latérales quatre séries de 12 oiseaux, trois séries, trois pulls trois l'épaule 4 × 12",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

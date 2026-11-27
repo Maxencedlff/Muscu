@@ -1,0 +1,24 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d11-dos-euh-partout__eddyfrenchfrance-215",
+  "ms" : 3287,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0.002,
+      "duration" : 3.3599999999999999,
+      "text" : "Tirage 43",
+      "timestamp" : 0
+    },
+    {
+      "confidence" : 0,
+      "duration" : 3.2999999999999998,
+      "text" : "3 12, voilà c'est tout",
+      "timestamp" : 3.3599999999999999
+    }
+  ],
+  "text" : "Tirage 433 12, voilà c'est tout",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

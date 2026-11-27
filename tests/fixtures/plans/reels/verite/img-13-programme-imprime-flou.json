@@ -1,0 +1,47 @@
+{
+ "id": "img-13-programme-imprime-flou",
+ "category": "imprime",
+ "description": "Feuille de coach (blocs Reactive / Resistance, exercices 1A, 2A, 2B, tempo, une colonne par semaine). Lecture très incertaine hors ligne 1A : « 7 X 5 » (semaine 1) se lit mal, « 3x10/s » = 3x10 par côté pour 2A ; la cellule semaine 1 de 2B est floue (3x10 supposé). Colonne par semaine : on retient la semaine 1. Tempo « 201 » rendu « 2-0-1 », « 102 » rendu « 1-0-2 ». 2A/2B enchaînés (ss A). Vérité ambiguë : à pondérer.",
+ "source_id": "img-13-programme-imprime-flou",
+ "text": "DAY 1\nReactive\nExercise\tTempo\tWeek 1\tWeek 2\n1A) Football Bar board Press\t201\t7 X 5\t7 X 3\n2A) Alternating Incline DB Press\t201\t3x10/s\t3x10/s\n2B) Low Cable Row\t102\t3x10\t3x10\nResistance",
+ "expected": {
+  "title": null,
+  "sessions": [
+   {
+    "label": "DAY 1",
+    "exercises": [
+     {
+      "line": "1A) Football Bar board Press",
+      "name": null,
+      "raw": "Football bar board press",
+      "sets": 7,
+      "repMin": 5,
+      "repMax": 5,
+      "tempo": "2-0-1"
+     },
+     {
+      "line": "2A) Alternating Incline DB Press",
+      "name": "Développé incliné haltères",
+      "sets": 3,
+      "repMin": 10,
+      "repMax": 10,
+      "tempo": "2-0-1",
+      "uni": true,
+      "ss": "A"
+     },
+     {
+      "line": "2B) Low Cable Row",
+      "name": "Tirage horizontal câble",
+      "sets": 3,
+      "repMin": 10,
+      "repMax": 10,
+      "tempo": "1-0-2",
+      "ss": "A"
+     }
+    ]
+   }
+  ]
+ },
+ "file": "img-13-programme-imprime-flou.jpg",
+ "langue": "en"
+}

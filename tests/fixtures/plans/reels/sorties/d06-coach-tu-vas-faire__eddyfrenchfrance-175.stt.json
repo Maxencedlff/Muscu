@@ -1,0 +1,222 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d06-coach-tu-vas-faire__eddyfrenchfrance-175",
+  "ms" : 7356,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "le",
+      "timestamp" : 0.39000000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "lundi",
+      "timestamp" : 0.54000000000000004
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "tu",
+      "timestamp" : 0.63
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "vas",
+      "timestamp" : 0.75
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "faire",
+      "timestamp" : 0.78000000000000003
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "du",
+      "timestamp" : 0.95999999999999996
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "quatre",
+      "timestamp" : 1.1100000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "séries",
+      "timestamp" : 1.47
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 1.5900000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "19",
+      "timestamp" : 1.74
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "avec",
+      "timestamp" : 1.8
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "80",
+      "timestamp" : 2.04
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.089999999999999997,
+      "text" : "kg.",
+      "timestamp" : 2.2200000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "Ensuite",
+      "timestamp" : 2.3100000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "la",
+      "timestamp" : 2.5800000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "chaîne",
+      "timestamp" : 2.7000000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "sur",
+      "timestamp" : 2.79
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "marcher",
+      "timestamp" : 3.0600000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "avec",
+      "timestamp" : 3.2999999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "haltères",
+      "timestamp" : 3.48
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "trois",
+      "timestamp" : 3.75
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "séries",
+      "timestamp" : 3.8700000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 3.9300000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "douche",
+      "timestamp" : 3.9900000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "par",
+      "timestamp" : 4.1100000000000003
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.20999999999999999,
+      "text" : "jambe, et",
+      "timestamp" : 4.1399999999999997
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "après",
+      "timestamp" : 4.3499999999999996
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "le",
+      "timestamp" : 4.5599999999999996
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.089999999999999997,
+      "text" : "fait de",
+      "timestamp" : 4.6200000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "la",
+      "timestamp" : 4.71
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "machine",
+      "timestamp" : 5.04
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "trois",
+      "timestamp" : 5.2800000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.23999999999999999,
+      "text" : "et demi",
+      "timestamp" : 5.4000000000000004
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.71999999999999997,
+      "text" : "3 × 1",
+      "timestamp" : 5.7000000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 7.0199999999999996,
+      "text" : "minute.",
+      "timestamp" : 6.4199999999999999
+    }
+  ],
+  "text" : "Alors le lundi tu vas faire du quatre séries de 19 avec 80 kg. Ensuite la chaîne sur marcher avec haltères trois séries de douche par jambe, et après le fait de la machine trois et demi 3 × 1 minute.",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

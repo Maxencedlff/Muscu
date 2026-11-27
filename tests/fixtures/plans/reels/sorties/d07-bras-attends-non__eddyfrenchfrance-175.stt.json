@@ -1,0 +1,78 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d07-bras-attends-non__eddyfrenchfrance-175",
+  "ms" : 6978,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0.042000000000000003,
+      "duration" : 1.3799999999999999,
+      "text" : "Bratu,",
+      "timestamp" : 0
+    },
+    {
+      "confidence" : 0.106,
+      "duration" : 0.78000000000000003,
+      "text" : "bar,",
+      "timestamp" : 1.3799999999999999
+    },
+    {
+      "confidence" : 0.441,
+      "duration" : 1.1100000000000001,
+      "text" : "90",
+      "timestamp" : 2.1600000000000001
+    },
+    {
+      "confidence" : 0.001,
+      "duration" : 3.0600000000000001,
+      "text" : "trois bars auront 3 ×",
+      "timestamp" : 3.27
+    },
+    {
+      "confidence" : 0.42599999999999999,
+      "duration" : 0.54000000000000004,
+      "text" : "3",
+      "timestamp" : 6.3300000000000001
+    },
+    {
+      "confidence" : 0.59399999999999997,
+      "duration" : 0.20999999999999999,
+      "text" : "×",
+      "timestamp" : 6.8700000000000001
+    },
+    {
+      "confidence" : 0.60899999999999999,
+      "duration" : 0.20999999999999999,
+      "text" : "12",
+      "timestamp" : 7.0800000000000001
+    },
+    {
+      "confidence" : 0.14399999999999999,
+      "duration" : 1.5600000000000001,
+      "text" : "extensions",
+      "timestamp" : 7.29
+    },
+    {
+      "confidence" : 0.222,
+      "duration" : 0.029999999999999999,
+      "text" : "de",
+      "timestamp" : 8.8499999999999996
+    },
+    {
+      "confidence" : 0.017000000000000001,
+      "duration" : 1.05,
+      "text" : "séries de",
+      "timestamp" : 8.8800000000000008
+    },
+    {
+      "confidence" : 0.099000000000000005,
+      "duration" : 0.71999999999999997,
+      "text" : "une minute",
+      "timestamp" : 9.9299999999999997
+    }
+  ],
+  "text" : "Bratu, bar, 90 trois bars auront 3 × 3 × 12 extensions de séries de une minute",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

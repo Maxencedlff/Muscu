@@ -1,0 +1,58 @@
+{
+ "id": "img-06-tableau-blanc-front-squat-burpees",
+ "category": "manuscrit",
+ "description": "Front squat « 3 reps every 3 minutes » sans nombre de séries ; « approx 75-80% » est une fourchette, pct non noté. « DB Burpees » est hors bibliothèque (Burpees avec haltères) ; « 45/30 » = haltères en livres, non noté. Les courses n'ont que des distances. Les scores du bas ne sont pas des exercices.",
+ "source_id": "img-06-tableau-blanc-front-squat-burpees",
+ "text": "MONDAY\nFront Squat\n3 Reps Every 3 Minutes\nIncrease to approx 75-80%\n10 DB Burpees\t45/30\nRun 240m\n20 DB Burpees\nRun 400m\n30 DB Burpees\nRun 800m\nMARK 14:23 Rx\tTom 14:20\tJenn 13:21\nHenry 13:23",
+ "expected": {
+  "title": null,
+  "sessions": [
+   {
+    "label": "MONDAY",
+    "exercises": [
+     {
+      "line": "Front Squat",
+      "name": "Squat avant",
+      "repMin": 3,
+      "repMax": 3
+     },
+     {
+      "line": "10 DB Burpees",
+      "name": null,
+      "raw": "DB burpees",
+      "repMin": 10,
+      "repMax": 10
+     },
+     {
+      "line": "Run 240m",
+      "name": "Course à pied"
+     },
+     {
+      "line": "20 DB Burpees",
+      "name": null,
+      "raw": "DB burpees",
+      "repMin": 20,
+      "repMax": 20
+     },
+     {
+      "line": "Run 400m",
+      "name": "Course à pied"
+     },
+     {
+      "line": "30 DB Burpees",
+      "name": null,
+      "raw": "DB burpees",
+      "repMin": 30,
+      "repMax": 30
+     },
+     {
+      "line": "Run 800m",
+      "name": "Course à pied"
+     }
+    ]
+   }
+  ]
+ },
+ "file": "img-06-tableau-blanc-front-squat-burpees.jpg",
+ "langue": "en"
+}

@@ -1,0 +1,71 @@
+{
+ "id": "img-17-capture-appli-gym-buddy",
+ "category": "capture",
+ "description": "Capture d'appli mélangeant anglais et espagnol (Mancuerna, Barra Completa, Rutinas). Reps sans nombre de séries. « 5 kg / 11.02 lb » donne load 5 ; « Mancuerna 2.5kg/2.5kg » donne 2.5 ; « 2.5kg/5lb/3lb » (barre + disques) est ambigu, non noté. « Dumbbell Incline » rangé dans Biceps donne Curl incliné ; « Oposite ABS » (genou-coude croisés) donne Crunch vélo ; « Chin-up » Tractions supination. La course est facultative (6 minutes).",
+ "source_id": "img-17-capture-appli-gym-buddy",
+ "text": "TELCEL 3G\t10:44 a.m.\nBack\tBicep\tTipo\tEditar\nSide-To-Side Pullup\tBiceps\n8 reps\nNeck Flexion\tNeck\n5 kg / 11.02 lb,15 reps\nChin-up\tBiceps\n8 reps\nDumbbell Incline\tBiceps\nMancuerna 2.5kg/2.5kg, 8 reps\nOposite ABS\tAbdominals\nKnee right - Elbow left, Knee left - Elbow right, 20 reps\nLunges\tLegs\nBarra Completa 2.5kg/5lb/3lb, 8 reps\nPull-Up\tBack\n12 reps\nRunning\tCardio\n6 minutes with weight\nRutinas\tEjercicios\tHistoria\tBody Calc\tEmail Datos",
+ "expected": {
+  "title": null,
+  "sessions": [
+   {
+    "label": "Bicep",
+    "exercises": [
+     {
+      "line": "Side-To-Side Pullup",
+      "name": null,
+      "raw": "Side-to-side pull-up",
+      "repMin": 8,
+      "repMax": 8
+     },
+     {
+      "line": "Neck Flexion",
+      "name": null,
+      "raw": "Neck flexion",
+      "repMin": 15,
+      "repMax": 15,
+      "load": 5
+     },
+     {
+      "line": "Chin-up",
+      "name": "Tractions supination",
+      "repMin": 8,
+      "repMax": 8
+     },
+     {
+      "line": "Dumbbell Incline",
+      "name": "Curl incliné",
+      "repMin": 8,
+      "repMax": 8,
+      "load": 2.5
+     },
+     {
+      "line": "Oposite ABS",
+      "name": "Crunch vélo",
+      "repMin": 20,
+      "repMax": 20
+     },
+     {
+      "line": "Lunges",
+      "name": "Fentes",
+      "repMin": 8,
+      "repMax": 8
+     },
+     {
+      "line": "Pull-Up",
+      "name": "Tractions pronation",
+      "repMin": 12,
+      "repMax": 12
+     },
+     {
+      "line": "Running",
+      "name": "Course à pied",
+      "seconds": 360,
+      "optional": true
+     }
+    ]
+   }
+  ]
+ },
+ "file": "img-17-capture-appli-gym-buddy.jpg",
+ "langue": "en"
+}

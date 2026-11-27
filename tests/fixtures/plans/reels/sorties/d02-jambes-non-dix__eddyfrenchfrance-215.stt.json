@@ -1,0 +1,114 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d02-jambes-non-dix__eddyfrenchfrance-215",
+  "ms" : 6275,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "squat",
+      "timestamp" : 0.59999999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.20999999999999999,
+      "text" : "sur l'extérieur de",
+      "timestamp" : 0.66000000000000003
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "3",
+      "timestamp" : 0.87
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.14999999999999999,
+      "text" : "0",
+      "timestamp" : 1.1399999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.089999999999999997,
+      "text" : "8,",
+      "timestamp" : 1.3500000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.029999999999999999,
+      "text" : "presque",
+      "timestamp" : 1.4399999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "la",
+      "timestamp" : 1.47
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.20999999999999999,
+      "text" : "84 série",
+      "timestamp" : 1.5600000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 1.8300000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.089999999999999997,
+      "text" : "12,",
+      "timestamp" : 1.8899999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "on",
+      "timestamp" : 1.98
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "dirait",
+      "timestamp" : 2.04
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "la",
+      "timestamp" : 2.0699999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "cure",
+      "timestamp" : 2.25
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.35999999999999999,
+      "text" : "trois mollets, debout,",
+      "timestamp" : 2.3999999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.089999999999999997,
+      "text" : "debout, quatre",
+      "timestamp" : 2.7599999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "série",
+      "timestamp" : 2.9700000000000002
+    }
+  ],
+  "text" : "Le squat sur l'extérieur de 308, presque la 84 série de 12, on dirait la cure trois mollets, debout, debout, quatre série",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

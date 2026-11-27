@@ -1,0 +1,138 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d10-maison-kettlebell__flofrenchfrance-175",
+  "ms" : 6110,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0.27800000000000002,
+      "duration" : 0.12,
+      "text" : "À",
+      "timestamp" : 0
+    },
+    {
+      "confidence" : 0.73499999999999999,
+      "duration" : 0.12,
+      "text" : "la",
+      "timestamp" : 0.12
+    },
+    {
+      "confidence" : 0.77200000000000002,
+      "duration" : 0.39000000000000001,
+      "text" : "maison",
+      "timestamp" : 0.23999999999999999
+    },
+    {
+      "confidence" : 0.81899999999999995,
+      "duration" : 0.33000000000000002,
+      "text" : "avec",
+      "timestamp" : 0.63
+    },
+    {
+      "confidence" : 0.65400000000000003,
+      "duration" : 0.35999999999999999,
+      "text" : "laquelle",
+      "timestamp" : 0.95999999999999996
+    },
+    {
+      "confidence" : 0.064000000000000001,
+      "duration" : 1.2,
+      "text" : "le série",
+      "timestamp" : 1.3200000000000001
+    },
+    {
+      "confidence" : 0.438,
+      "duration" : 0.059999999999999998,
+      "text" : "de",
+      "timestamp" : 2.52
+    },
+    {
+      "confidence" : 0.048000000000000001,
+      "duration" : 0.75,
+      "text" : "15 trois",
+      "timestamp" : 2.5800000000000001
+    },
+    {
+      "confidence" : 0.34100000000000003,
+      "duration" : 0.23999999999999999,
+      "text" : "gobelet",
+      "timestamp" : 3.3300000000000001
+    },
+    {
+      "confidence" : 0.44800000000000001,
+      "duration" : 0.35999999999999999,
+      "text" : "à",
+      "timestamp" : 3.5699999999999998
+    },
+    {
+      "confidence" : 0.33000000000000002,
+      "duration" : 0.45000000000000001,
+      "text" : "laquelle",
+      "timestamp" : 3.9300000000000002
+    },
+    {
+      "confidence" : 0.33600000000000002,
+      "duration" : 0.059999999999999998,
+      "text" : "le",
+      "timestamp" : 4.3799999999999999
+    },
+    {
+      "confidence" : 0.40400000000000003,
+      "duration" : 0.20999999999999999,
+      "text" : "quatre",
+      "timestamp" : 4.4400000000000004
+    },
+    {
+      "confidence" : 0.47199999999999998,
+      "duration" : 0.41999999999999998,
+      "text" : "roi",
+      "timestamp" : 4.6500000000000004
+    },
+    {
+      "confidence" : 0.254,
+      "duration" : 0.17999999999999999,
+      "text" : "août",
+      "timestamp" : 5.0700000000000003
+    },
+    {
+      "confidence" : 0.501,
+      "duration" : 0.17999999999999999,
+      "text" : "pour",
+      "timestamp" : 5.25
+    },
+    {
+      "confidence" : 0.69699999999999995,
+      "duration" : 0.39000000000000001,
+      "text" : "quatre",
+      "timestamp" : 5.4299999999999997
+    },
+    {
+      "confidence" : 0.037999999999999999,
+      "duration" : 1.3500000000000001,
+      "text" : "séries, 20 3",
+      "timestamp" : 5.8200000000000003
+    },
+    {
+      "confidence" : 0.432,
+      "duration" : 0.20999999999999999,
+      "text" : "×",
+      "timestamp" : 7.1699999999999999
+    },
+    {
+      "confidence" : 0.23200000000000001,
+      "duration" : 0.14999999999999999,
+      "text" : "10",
+      "timestamp" : 7.3799999999999999
+    },
+    {
+      "confidence" : 0.14599999999999999,
+      "duration" : 1.3500000000000001,
+      "text" : "secondes",
+      "timestamp" : 7.5300000000000002
+    }
+  ],
+  "text" : "À la maison avec laquelle le série de 15 trois gobelet à laquelle le quatre roi août pour quatre séries, 20 3 × 10 secondes",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

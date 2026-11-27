@@ -1,0 +1,228 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d15-dos-en-fait-plutot__eddyfrenchfrance-175",
+  "ms" : 6076,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "le",
+      "timestamp" : 0.29999999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "programme",
+      "timestamp" : 0.51000000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "pour",
+      "timestamp" : 0.66000000000000003
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "vendredi",
+      "timestamp" : 0.81000000000000005
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "la",
+      "timestamp" : 0.90000000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.029999999999999999,
+      "text" : "ringard",
+      "timestamp" : 1.3500000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "c'est",
+      "timestamp" : 1.3799999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "quatre",
+      "timestamp" : 1.53
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "séries",
+      "timestamp" : 1.74
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 1.8
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "huit",
+      "timestamp" : 1.8600000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "à",
+      "timestamp" : 1.95
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "10",
+      "timestamp" : 2.0099999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "avec",
+      "timestamp" : 2.1899999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "deux",
+      "timestamp" : 2.3100000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "minutes",
+      "timestamp" : 2.3999999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "30",
+      "timestamp" : 2.5499999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 2.6699999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.20999999999999999,
+      "text" : "repos",
+      "timestamp" : 2.79
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.39000000000000001,
+      "text" : "mirage vertical prise",
+      "timestamp" : 3
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.35999999999999999,
+      "text" : "large de",
+      "timestamp" : 3.3900000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "quatre",
+      "timestamp" : 3.8700000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "séries",
+      "timestamp" : 4.0800000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 4.1699999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "1",
+      "timestamp" : 4.2000000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "20",
+      "timestamp" : 4.4100000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.14999999999999999,
+      "text" : "mais plutôt",
+      "timestamp" : 4.4699999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "trois",
+      "timestamp" : 4.6200000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "séries",
+      "timestamp" : 4.9500000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.059999999999999998,
+      "text" : "le",
+      "timestamp" : 5.0099999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.56999999999999995,
+      "text" : "marteau trois 12 terminé",
+      "timestamp" : 5.5199999999999996
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "pull",
+      "timestamp" : 6.4500000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "quatre",
+      "timestamp" : 6.5999999999999996
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "séries",
+      "timestamp" : 6.8099999999999996
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 6.9000000000000004
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "15",
+      "timestamp" : 7.0199999999999996
+    }
+  ],
+  "text" : "Bon le programme pour vendredi la ringard c'est quatre séries de huit à 10 avec deux minutes 30 de repos mirage vertical prise large de quatre séries de 120 mais plutôt trois séries le marteau trois 12 terminé pull quatre séries de 15",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

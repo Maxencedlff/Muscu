@@ -1,0 +1,210 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d15-dos-en-fait-plutot__eddyfrenchfrance-215",
+  "ms" : 7085,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "le",
+      "timestamp" : 0.27000000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "programme",
+      "timestamp" : 0.33000000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "pour",
+      "timestamp" : 0.39000000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "vendredi",
+      "timestamp" : 0.54000000000000004
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "c'est",
+      "timestamp" : 0.68999999999999995
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "le",
+      "timestamp" : 0.71999999999999997
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "mardi",
+      "timestamp" : 0.87
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "4",
+      "timestamp" : 0.90000000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "février",
+      "timestamp" : 1.1100000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.059999999999999998,
+      "text" : "de 10",
+      "timestamp" : 1.1399999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "à",
+      "timestamp" : 1.2
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "10",
+      "timestamp" : 1.3200000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "avec",
+      "timestamp" : 1.4099999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "deux",
+      "timestamp" : 1.47
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "minutes",
+      "timestamp" : 1.5
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "30",
+      "timestamp" : 1.5900000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.93000000000000005,
+      "text" : "de rencontre médicale, quatre séries",
+      "timestamp" : 1.6799999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 2.6400000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "sixième",
+      "timestamp" : 2.6699999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.059999999999999998,
+      "text" : "est plutôt",
+      "timestamp" : 2.8500000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.27000000000000002,
+      "text" : "plutôt trois séries ensuite",
+      "timestamp" : 2.9100000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "sur",
+      "timestamp" : 3.1800000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "le",
+      "timestamp" : 3.3900000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "marteau",
+      "timestamp" : 3.48
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "trois",
+      "timestamp" : 3.54
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.14999999999999999,
+      "text" : "mois 12 ils",
+      "timestamp" : 3.5699999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "vont",
+      "timestamp" : 3.7799999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "terminer",
+      "timestamp" : 3.8399999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "par",
+      "timestamp" : 3.96
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "quatre",
+      "timestamp" : 4.1399999999999997
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "séries",
+      "timestamp" : 4.29
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 4.3499999999999996
+    },
+    {
+      "confidence" : 0,
+      "duration" : 4.5,
+      "text" : "15",
+      "timestamp" : 4.4400000000000004
+    }
+  ],
+  "text" : "Bon le programme pour vendredi c'est le mardi 4 février de 10 à 10 avec deux minutes 30 de rencontre médicale, quatre séries de sixième est plutôt plutôt trois séries ensuite sur le marteau trois mois 12 ils vont terminer par quatre séries de 15",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

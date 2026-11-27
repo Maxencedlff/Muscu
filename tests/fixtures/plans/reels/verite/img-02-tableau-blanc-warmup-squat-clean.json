@@ -1,0 +1,60 @@
+{
+ "id": "img-02-tableau-blanc-warmup-squat-clean",
+ "category": "manuscrit",
+ "description": "Tableau blanc en extérieur, deux colonnes. Échauffement en optional (« Burgener Warmup » est un échauffement générique, pas un exercice) ; « 10/10 lateral bounds » = 10 par côté ; « 4 on the minute, 12 minutes » donne 12 séries de 4. Le titre de la colonne de droite est aussi le nom de l'exercice, d'où label null.",
+ "source_id": "img-02-tableau-blanc-warmup-squat-clean",
+ "text": "Warmup\n10 divebombers\n10/10 lateral bounds\n1 min hollow hold\n400 m run\nBurgener Warmup\tHang Squat Cleans\n\t4 on the minute\n\t12 minutes",
+ "expected": {
+  "title": null,
+  "sessions": [
+   {
+    "label": "Warmup",
+    "exercises": [
+     {
+      "line": "10 divebombers",
+      "name": null,
+      "raw": "Divebombers",
+      "repMin": 10,
+      "repMax": 10,
+      "optional": true
+     },
+     {
+      "line": "10/10 lateral bounds",
+      "name": null,
+      "raw": "Lateral bounds",
+      "repMin": 10,
+      "repMax": 10,
+      "uni": true,
+      "optional": true
+     },
+     {
+      "line": "1 min hollow hold",
+      "name": "Gainage creux",
+      "seconds": 60,
+      "optional": true
+     },
+     {
+      "line": "400 m run",
+      "name": "Course à pied",
+      "optional": true
+     }
+    ]
+   },
+   {
+    "label": null,
+    "exercises": [
+     {
+      "line": "\tHang Squat Cleans",
+      "name": null,
+      "raw": "Hang squat clean",
+      "sets": 12,
+      "repMin": 4,
+      "repMax": 4
+     }
+    ]
+   }
+  ]
+ },
+ "file": "img-02-tableau-blanc-warmup-squat-clean.jpg",
+ "langue": "en"
+}

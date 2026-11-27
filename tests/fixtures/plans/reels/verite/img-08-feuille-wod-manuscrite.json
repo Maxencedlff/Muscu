@@ -1,0 +1,86 @@
+{
+ "id": "img-08-feuille-wod-manuscrite",
+ "category": "manuscrit",
+ "description": "WOD daté du 3/18 noté sur une feuille : trois blocs de deux exercices répétés 3 fois (accolade « >x3 » à droite), séparés par des 400 m. Chaque paire est un enchaînement (ss A, B, C) de 3 séries. « 24 KG » donne la charge du kettlebell ; « 20LB » et « 20\" » (hauteur de box) ne sont pas des kg. « 20:45 » est le temps réalisé.",
+ "source_id": "img-08-feuille-wod-manuscrite",
+ "text": "3/18\tRUN 400M\n10 WALLBALL\t20LB\n10 KB SWING\t24 KG\t>x3\nRUN 400M\n10 PUSHUPS\t>x3\n10 PISTOLS\nRUN 400M\n10 TOES TO BAR\t>x3\n10 BOX JUMPS\t20\"\nRUN 400M\n20:45",
+ "expected": {
+  "title": null,
+  "sessions": [
+   {
+    "label": null,
+    "exercises": [
+     {
+      "line": "3/18\tRUN 400M",
+      "name": "Course à pied"
+     },
+     {
+      "line": "10 WALLBALL",
+      "name": null,
+      "raw": "Wall ball",
+      "sets": 3,
+      "repMin": 10,
+      "repMax": 10,
+      "ss": "A"
+     },
+     {
+      "line": "10 KB SWING",
+      "name": "Swing kettlebell",
+      "sets": 3,
+      "repMin": 10,
+      "repMax": 10,
+      "load": 24,
+      "ss": "A"
+     },
+     {
+      "line": "RUN 400M",
+      "name": "Course à pied"
+     },
+     {
+      "line": "10 PUSHUPS",
+      "name": "Pompes",
+      "sets": 3,
+      "repMin": 10,
+      "repMax": 10,
+      "ss": "B"
+     },
+     {
+      "line": "10 PISTOLS",
+      "name": "Pistol squat",
+      "sets": 3,
+      "repMin": 10,
+      "repMax": 10,
+      "ss": "B"
+     },
+     {
+      "line": "RUN 400M",
+      "name": "Course à pied"
+     },
+     {
+      "line": "10 TOES TO BAR",
+      "name": "Toes to bar",
+      "sets": 3,
+      "repMin": 10,
+      "repMax": 10,
+      "ss": "C"
+     },
+     {
+      "line": "10 BOX JUMPS",
+      "name": null,
+      "raw": "Box jumps",
+      "sets": 3,
+      "repMin": 10,
+      "repMax": 10,
+      "ss": "C"
+     },
+     {
+      "line": "RUN 400M",
+      "name": "Course à pied"
+     }
+    ]
+   }
+  ]
+ },
+ "file": "img-08-feuille-wod-manuscrite.jpg",
+ "langue": "en"
+}

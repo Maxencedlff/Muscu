@@ -20,7 +20,7 @@ on:
       - 'tools/plan-corpus/**'
       - 'tests/fixtures/plans/reels/verite/**'
       - 'tests/fixtures/plans/reels/fichiers/**'
-      - 'tests/fixtures/plans/reels/dictees/**'
+      - 'tests/fixtures/plans/reels/dictees-scripts/**'
       - '.github/workflows/corpus-reel.yml'
 
 permissions:
@@ -65,8 +65,12 @@ jobs:
           say -v '?' | grep -E 'fr_(FR|CA|BE|CH)' | tee work/voix.txt || true
           # Voix françaises de France d'abord ; trois variantes par script : voix 1 normale, voix 2 normale, voix 1 rapide
           # (bash 3 de macOS : pas de mapfile)
+          # Voix « classiques » d'abord (Thomas, Amélie : les plus naturelles livrées avec macOS) ; Eddy et Flo
+          # (synthèse Eloquence, plus robotique) mesurées lors d'un premier passage, sorties gardées
           VOICES=()
-          while IFS= read -r v; do [ -n "$v" ] && VOICES+=("$v"); done < <(grep 'fr_FR' work/voix.txt | sed -E 's/ +fr_FR.*//; s/ +$//' | head -2)
+          for want in Thomas Amélie Jacques; do grep -q "^$want " work/voix.txt && VOICES+=("$want"); done
+          [ ${#VOICES[@]} -gt 2 ] && VOICES=("${VOICES[0]}" "${VOICES[1]}")
+          [ ${#VOICES[@]} -eq 0 ] && while IFS= read -r v; do [ -n "$v" ] && VOICES+=("$v"); done < <(grep 'fr_FR' work/voix.txt | sed -E 's/ +fr_FR.*//; s/ +$//' | head -2)
           if [ ${#VOICES[@]} -eq 0 ]; then
             while IFS= read -r v; do [ -n "$v" ] && VOICES+=("$v"); done < <(sed -E 's/ +fr_[A-Z]{2}.*//; s/ +$//' work/voix.txt | head -2)
           fi

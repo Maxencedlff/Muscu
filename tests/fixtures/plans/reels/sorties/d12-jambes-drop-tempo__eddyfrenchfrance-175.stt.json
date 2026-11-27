@@ -1,0 +1,180 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d12-jambes-drop-tempo__eddyfrenchfrance-175",
+  "ms" : 5045,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0,
+      "duration" : 0.14999999999999999,
+      "text" : "de jeudi",
+      "timestamp" : 0.23999999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.45000000000000001,
+      "text" : "extension,",
+      "timestamp" : 0.39000000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.12,
+      "text" : "quadri, quatre",
+      "timestamp" : 0.83999999999999997
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "séries",
+      "timestamp" : 1.3500000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 1.4399999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "12",
+      "timestamp" : 1.53
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "avec",
+      "timestamp" : 1.5900000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "1",
+      "timestamp" : 1.74
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "0",
+      "timestamp" : 1.8
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "7",
+      "timestamp" : 1.98
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.12,
+      "text" : "la",
+      "timestamp" : 2.0099999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "dernière",
+      "timestamp" : 2.2200000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "fête",
+      "timestamp" : 2.3999999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 2.4300000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "la",
+      "timestamp" : 2.5499999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.14999999999999999,
+      "text" : "cuisse,",
+      "timestamp" : 2.6400000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "quatre",
+      "timestamp" : 2.79
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "séries",
+      "timestamp" : 2.9700000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 3.0600000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "10e",
+      "timestamp" : 3.1200000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.14999999999999999,
+      "text" : "fois 3",
+      "timestamp" : 3.2999999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "0",
+      "timestamp" : 3.4500000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "1",
+      "timestamp" : 3.54
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "0",
+      "timestamp" : 3.7799999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "lecture",
+      "timestamp" : 3.8999999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "la",
+      "timestamp" : 4.1399999999999997
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "trois",
+      "timestamp" : 4.2000000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "12",
+      "timestamp" : 4.5899999999999999
+    }
+  ],
+  "text" : "J'ai de jeudi extension, quadri, quatre séries de 12 avec 107 la dernière fête de la cuisse, quatre séries de 10e fois 3010 lecture la trois 12",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

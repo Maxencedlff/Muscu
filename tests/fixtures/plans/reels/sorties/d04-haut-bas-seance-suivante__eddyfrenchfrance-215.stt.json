@@ -1,0 +1,60 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d04-haut-bas-seance-suivante__eddyfrenchfrance-215",
+  "ms" : 5139,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0,
+      "duration" : 1.6200000000000001,
+      "text" : "séance développé 90 Is Tropical dollars 90,",
+      "timestamp" : 0.27000000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "développer",
+      "timestamp" : 1.8899999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.17999999999999999,
+      "text" : "militaire,",
+      "timestamp" : 2.0699999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "3",
+      "timestamp" : 2.25
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.39000000000000001,
+      "text" : "\/10,",
+      "timestamp" : 2.2799999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "\/24",
+      "timestamp" : 2.6699999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.45000000000000001,
+      "text" : "fois, terre,",
+      "timestamp" : 3.1499999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 5.2800000000000002,
+      "text" : "trois bulgare trois fois par jambe",
+      "timestamp" : 3.6000000000000001
+    }
+  ],
+  "text" : "Première séance développé 90 Is Tropical dollars 90, développer militaire, 3\/10,\/24 fois, terre, trois bulgare trois fois par jambe",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

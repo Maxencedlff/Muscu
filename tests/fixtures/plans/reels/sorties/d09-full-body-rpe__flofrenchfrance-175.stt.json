@@ -1,0 +1,114 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d09-full-body-rpe__flofrenchfrance-175",
+  "ms" : 5777,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0.21099999999999999,
+      "duration" : 0.54000000000000004,
+      "text" : "Body",
+      "timestamp" : 0
+    },
+    {
+      "confidence" : 0.42999999999999999,
+      "duration" : 0.059999999999999998,
+      "text" : "de",
+      "timestamp" : 0.54000000000000004
+    },
+    {
+      "confidence" : 0.378,
+      "duration" : 0.59999999999999998,
+      "text" : "mercredi,",
+      "timestamp" : 0.59999999999999998
+    },
+    {
+      "confidence" : 0.79800000000000004,
+      "duration" : 0.33000000000000002,
+      "text" : "3",
+      "timestamp" : 1.2
+    },
+    {
+      "confidence" : 0.247,
+      "duration" : 0.87,
+      "text" : "mars trois série",
+      "timestamp" : 1.53
+    },
+    {
+      "confidence" : 0.017999999999999999,
+      "duration" : 1.95,
+      "text" : "de série contre trois",
+      "timestamp" : 2.3999999999999999
+    },
+    {
+      "confidence" : 0.71699999999999997,
+      "duration" : 0.41999999999999998,
+      "text" : "série",
+      "timestamp" : 4.3499999999999996
+    },
+    {
+      "confidence" : 0.19800000000000001,
+      "duration" : 0.83999999999999997,
+      "text" : "série",
+      "timestamp" : 5.0099999999999998
+    },
+    {
+      "confidence" : 0.115,
+      "duration" : 0.78000000000000003,
+      "text" : "Angleterre, boîte",
+      "timestamp" : 5.8499999999999996
+    },
+    {
+      "confidence" : 0.52500000000000002,
+      "duration" : 0.20999999999999999,
+      "text" : "trois",
+      "timestamp" : 6.6299999999999999
+    },
+    {
+      "confidence" : 0.77200000000000002,
+      "duration" : 0.33000000000000002,
+      "text" : "série",
+      "timestamp" : 6.8399999999999999
+    },
+    {
+      "confidence" : 0.69899999999999995,
+      "duration" : 0.14999999999999999,
+      "text" : "de",
+      "timestamp" : 7.1699999999999999
+    },
+    {
+      "confidence" : 0.115,
+      "duration" : 0.95999999999999996,
+      "text" : "histoire",
+      "timestamp" : 7.3200000000000003
+    },
+    {
+      "confidence" : 0.48899999999999999,
+      "duration" : 0.27000000000000002,
+      "text" : "3",
+      "timestamp" : 8.2799999999999994
+    },
+    {
+      "confidence" : 0.63,
+      "duration" : 0.23999999999999999,
+      "text" : "×",
+      "timestamp" : 8.5500000000000007
+    },
+    {
+      "confidence" : 0.378,
+      "duration" : 0.75,
+      "text" : "45",
+      "timestamp" : 8.7899999999999991
+    },
+    {
+      "confidence" : 0.376,
+      "duration" : 0.90000000000000002,
+      "text" : "secondes",
+      "timestamp" : 9.5399999999999991
+    }
+  ],
+  "text" : "Body de mercredi, 3 mars trois série de série contre trois série série Angleterre, boîte trois série de histoire 3 × 45 secondes",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

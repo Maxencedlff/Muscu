@@ -1,0 +1,49 @@
+{
+ "id": "img-18-capture-tweet-leg-day",
+ "category": "capture",
+ "description": "Tweet : exercices en hashtags, retours à la ligne au milieu d'un exercice (« squat / 5x6 »). `line` = début du fragment. « #Rests 90 secs » est une consigne générale de repos : non attachée. « Singleleg squat » et « Stepups » sans matériel précisé : hors bibliothèque. Pseudo, date et lieu ne sont pas des exercices.",
+ "source_id": "img-18-capture-tweet-leg-day",
+ "text": "YouGotSquared\n@YouGotSquared\n#Squats 4x8. #Singleleg squat\n5x6. #Stepups 5x5. #Deadlift 5x8.\n#Rests 90 secs #stretch 90 secs\neach muscle i workedout #legday\n#WOD #fit\n2014-08-04, 4:13 PM from Ottawa, Ottawa",
+ "expected": {
+  "title": null,
+  "sessions": [
+   {
+    "label": null,
+    "exercises": [
+     {
+      "line": "#Squats 4x8",
+      "name": "Squat barre",
+      "sets": 4,
+      "repMin": 8,
+      "repMax": 8
+     },
+     {
+      "line": "#Singleleg squat",
+      "name": null,
+      "raw": "Single leg squat",
+      "sets": 5,
+      "repMin": 6,
+      "repMax": 6
+     },
+     {
+      "line": "#Stepups 5x5",
+      "name": null,
+      "raw": "Step-ups",
+      "sets": 5,
+      "repMin": 5,
+      "repMax": 5
+     },
+     {
+      "line": "#Deadlift 5x8",
+      "name": "Soulevé de terre",
+      "sets": 5,
+      "repMin": 8,
+      "repMax": 8
+     }
+    ]
+   }
+  ]
+ },
+ "file": "img-18-capture-tweet-leg-day.jpg",
+ "langue": "en"
+}

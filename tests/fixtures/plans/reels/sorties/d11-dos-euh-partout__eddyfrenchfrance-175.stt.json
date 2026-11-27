@@ -1,0 +1,108 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d11-dos-euh-partout__eddyfrenchfrance-175",
+  "ms" : 5012,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "c'est",
+      "timestamp" : 0.29999999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 1.5,
+      "text" : "saoule, trois séries de trois",
+      "timestamp" : 0.51000000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.20999999999999999,
+      "text" : "minutes après",
+      "timestamp" : 2.1000000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "qui",
+      "timestamp" : 2.3999999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "râle",
+      "timestamp" : 2.7000000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.12,
+      "text" : "vertical,",
+      "timestamp" : 2.9399999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "sérieux",
+      "timestamp" : 3.0600000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "quatre",
+      "timestamp" : 3.4500000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "fois",
+      "timestamp" : 3.6000000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.33000000000000002,
+      "text" : "plus long",
+      "timestamp" : 3.75
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.17999999999999999,
+      "text" : "à",
+      "timestamp" : 4.0800000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.33000000000000002,
+      "text" : "la boum",
+      "timestamp" : 4.2599999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.089999999999999997,
+      "text" : "3 ×",
+      "timestamp" : 4.5899999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.12,
+      "text" : "12, voilà",
+      "timestamp" : 4.7999999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "c'est",
+      "timestamp" : 4.9199999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "tout",
+      "timestamp" : 5.1299999999999999
+    }
+  ],
+  "text" : "Donc c'est saoule, trois séries de trois minutes après qui râle vertical, sérieux quatre fois plus long à la boum 3 × 12, voilà c'est tout",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

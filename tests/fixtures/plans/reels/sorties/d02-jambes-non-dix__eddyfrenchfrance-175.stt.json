@@ -1,0 +1,174 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d02-jambes-non-dix__eddyfrenchfrance-175",
+  "ms" : 5525,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0,
+      "duration" : 0.59999999999999998,
+      "text" : "Jambon,",
+      "timestamp" : 0
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "on",
+      "timestamp" : 0.59999999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "fait",
+      "timestamp" : 0.68999999999999995
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "le",
+      "timestamp" : 0.78000000000000003
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "squat",
+      "timestamp" : 0.93000000000000005
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 0.98999999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.41999999999999998,
+      "text" : "service repos,",
+      "timestamp" : 1.3200000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.17999999999999999,
+      "text" : "trois minutes",
+      "timestamp" : 1.74
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "38",
+      "timestamp" : 1.9199999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.12,
+      "text" : "presse la",
+      "timestamp" : 2.1899999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.17999999999999999,
+      "text" : "cuisse,",
+      "timestamp" : 2.3999999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "quatre",
+      "timestamp" : 2.5800000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "série",
+      "timestamp" : 2.73
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 2.8799999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.12,
+      "text" : "12,",
+      "timestamp" : 2.9399999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "on",
+      "timestamp" : 3.0600000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "dirait",
+      "timestamp" : 3.1499999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "que",
+      "timestamp" : 3.2400000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "lui",
+      "timestamp" : 3.3300000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "il",
+      "timestamp" : 3.3900000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "a",
+      "timestamp" : 3.4500000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "eu",
+      "timestamp" : 3.5099999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.27000000000000002,
+      "text" : "trois quarts et",
+      "timestamp" : 3.75
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "les",
+      "timestamp" : 4.1100000000000003
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.12,
+      "text" : "mollets d'un",
+      "timestamp" : 4.2300000000000004
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "book",
+      "timestamp" : 4.3499999999999996
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.14999999999999999,
+      "text" : "quatre séries",
+      "timestamp" : 4.5
+    }
+  ],
+  "text" : "Jambon, on fait le squat de service repos, trois minutes 38 presse la cuisse, quatre série de 12, on dirait que lui il a eu trois quarts et les mollets d'un book quatre séries",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

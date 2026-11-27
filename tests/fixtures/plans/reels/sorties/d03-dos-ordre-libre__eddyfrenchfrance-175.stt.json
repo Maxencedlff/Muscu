@@ -1,0 +1,138 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d03-dos-ordre-libre__eddyfrenchfrance-175",
+  "ms" : 4973,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0,
+      "duration" : 0.68999999999999995,
+      "text" : "Le traction",
+      "timestamp" : 0
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "entre",
+      "timestamp" : 0.81000000000000005
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.54000000000000004,
+      "text" : "action, quatre séries",
+      "timestamp" : 0.90000000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "jusqu'à",
+      "timestamp" : 1.5900000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "l'",
+      "timestamp" : 1.6499999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "échec",
+      "timestamp" : 1.77
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.12,
+      "text" : "ensuite du rowing",
+      "timestamp" : 1.95
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "bar",
+      "timestamp" : 2.0699999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "répétition",
+      "timestamp" : 2.2799999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "sur",
+      "timestamp" : 2.8799999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "quatre",
+      "timestamp" : 2.9700000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "séries",
+      "timestamp" : 3.21
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "après",
+      "timestamp" : 3.3900000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.71999999999999997,
+      "text" : "tirage horizontale à la commune,",
+      "timestamp" : 3.4199999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.029999999999999999,
+      "text" : "12",
+      "timestamp" : 4.1399999999999997
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.14999999999999999,
+      "text" : "sur",
+      "timestamp" : 4.29
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "trois",
+      "timestamp" : 4.5300000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "séries",
+      "timestamp" : 4.7400000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.33000000000000002,
+      "text" : "marteau,",
+      "timestamp" : 5.0700000000000003
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "trois",
+      "timestamp" : 5.4000000000000004
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "séries",
+      "timestamp" : 5.6699999999999999
+    }
+  ],
+  "text" : "Le traction entre action, quatre séries jusqu'à l'échec ensuite du rowing bar répétition sur quatre séries après tirage horizontale à la commune, 12 sur trois séries marteau, trois séries",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

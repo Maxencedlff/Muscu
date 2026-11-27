@@ -1,0 +1,73 @@
+{
+ "id": "img-04-tableau-blanc-hero-wod-kandahar",
+ "category": "manuscrit",
+ "description": "Hero WOD « for time » : une seule série de 36 reps par mouvement, deux 400 m de course. Charges en livres (95/65, 185/135 homme/femme) : non notées car le champ load est en kg. « Burpee pull ups », « push press », « box jumps » et « tyre flips » sont hors bibliothèque. Deux lignes « 400M RUN » identiques.",
+ "source_id": "img-04-tableau-blanc-hero-wod-kandahar",
+ "text": "ALL HEROES\n• 400M RUN\n36 BURPEE PULL UPS\n36 PUSH PRESS\t95/65\n36 BOX JUMPS\n36 DEADLIFTS\t185/135\n36 RING DIPS\n36 TOES 2 BAR\n36 TYRE FLIPS\n• 400M RUN\nFINISH!!",
+ "expected": {
+  "title": "ALL HEROES",
+  "sessions": [
+   {
+    "label": null,
+    "exercises": [
+     {
+      "line": "• 400M RUN",
+      "name": "Course à pied"
+     },
+     {
+      "line": "36 BURPEE PULL UPS",
+      "name": null,
+      "raw": "Burpee pull-ups",
+      "repMin": 36,
+      "repMax": 36
+     },
+     {
+      "line": "36 PUSH PRESS",
+      "name": null,
+      "raw": "Push press",
+      "repMin": 36,
+      "repMax": 36
+     },
+     {
+      "line": "36 BOX JUMPS",
+      "name": null,
+      "raw": "Box jumps",
+      "repMin": 36,
+      "repMax": 36
+     },
+     {
+      "line": "36 DEADLIFTS",
+      "name": "Soulevé de terre",
+      "repMin": 36,
+      "repMax": 36
+     },
+     {
+      "line": "36 RING DIPS",
+      "name": "Dips",
+      "repMin": 36,
+      "repMax": 36
+     },
+     {
+      "line": "36 TOES 2 BAR",
+      "name": "Toes to bar",
+      "repMin": 36,
+      "repMax": 36
+     },
+     {
+      "line": "36 TYRE FLIPS",
+      "name": null,
+      "raw": "Tyre flips",
+      "repMin": 36,
+      "repMax": 36
+     },
+     {
+      "line": "• 400M RUN",
+      "name": "Course à pied"
+     }
+    ]
+   }
+  ]
+ },
+ "file": "img-04-tableau-blanc-hero-wod-kandahar.jpg",
+ "langue": "en"
+}

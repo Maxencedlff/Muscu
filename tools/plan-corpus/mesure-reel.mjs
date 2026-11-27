@@ -49,7 +49,7 @@ export function loadReal() {
   }
   return docs;
 }
-export const loadDictations = () => jsonIn(path.join(REELS, 'dictees')).map(readJson);
+export const loadDictations = () => jsonIn(path.join(REELS, 'dictees-scripts')).map(readJson);
 
 // Fichier d'un document : versionné d'abord, sinon le dossier local
 function docFile(d) {
@@ -139,21 +139,26 @@ export function measureReal() {
     b.exRate = b.exOk / Math.max(1, b.lines);
     b.prRate = b.prOk / Math.max(1, b.lines);
   }
-  // Erreurs les plus fréquentes sur les vraies lectures (Vision, SFSpeech, whisper), avec un exemple
-  const fam = new Map();
-  for (const c of cases.filter(x => ['vision', 'pdfjs', 'sfspeech'].includes(x.source))) {
-    for (const e of c.errors) {
-      for (const w of e.why) {
-        const k = errorFamily(w);
-        const f = fam.get(k) || { family: k, n: 0, ex: null, docs: new Set() };
-        f.n++; f.docs.add(c.id);
-        if (!f.ex) f.ex = { id: c.id, source: c.source, line: e.line, why: e.why.join(' ; ') };
-        fam.set(k, f);
+  // Erreurs les plus fréquentes, avec un exemple : sur les vraies lectures (Apple Vision, pdf.js de l'app, SFSpeech,
+  // whisper ; pas Tesseract, simple approximation) et sur le texte parfait (le moteur seul)
+  const topOf = list => {
+    const fam = new Map();
+    for (const c of list) {
+      for (const e of c.errors) {
+        for (const w of e.why) {
+          const k = errorFamily(w);
+          const f = fam.get(k) || { family: k, n: 0, ex: null, docs: new Set() };
+          f.n++; f.docs.add(c.id);
+          if (!f.ex || (f.ex.source !== 'vision' && c.source === 'vision')) f.ex = { id: c.id, source: c.source, line: e.line, why: e.why.join(' ; ') };
+          fam.set(k, f);
+        }
       }
     }
-  }
-  const top = [...fam.values()].sort((a, b) => b.n - a.n).slice(0, 10).map(f => ({ ...f, docs: f.docs.size }));
-  return { docs, dictations, cases, by, top, missing };
+    return [...fam.values()].sort((x, y) => y.n - x.n).slice(0, 10).map(f => ({ ...f, docs: f.docs.size }));
+  };
+  const top = topOf(cases.filter(x => ['vision', 'pdfjs', 'sfspeech', 'whisper'].includes(x.source)));
+  const topEngine = topOf(cases.filter(x => x.source === 'texte'));
+  return { docs, dictations, cases, by, top, topEngine, missing };
 }
 
 // ── Préparation (machine macOS) ────────────────────────────
@@ -193,13 +198,17 @@ function table(r, md) {
   const out = [];
   if (md) {
     out.push(`| ${head.join(' | ')} |`, `|${head.map(() => '---').join('|')}|`, ...body.map(x => `| ${x.join(' | ')} |`));
-    out.push('', '**Erreurs les plus fréquentes (Apple Vision, pdf.js, SFSpeechRecognizer)**', '', '| # | Erreur | Fois | Docs | Exemple |', '|---|---|---|---|---|');
-    r.top.forEach((t, i) => out.push(`| ${i + 1} | ${t.family} | ${t.n} | ${t.docs} | ${t.ex.id} (${SOURCE[t.ex.source]}) : « ${String(t.ex.line).slice(0, 60).replace(/\|/g, '/')} » → ${t.ex.why.replace(/\|/g, '/')} |`));
+    for (const [title, list] of [['Erreurs les plus fréquentes : vraies lectures (Apple Vision, pdf.js, SFSpeech, whisper)', r.top], ['Erreurs les plus fréquentes : moteur seul (texte parfait)', r.topEngine]]) {
+      out.push('', `**${title}**`, '', '| # | Erreur | Fois | Docs | Exemple |', '|---|---|---|---|---|');
+      list.forEach((t, i) => out.push(`| ${i + 1} | ${t.family} | ${t.n} | ${t.docs} | ${t.ex.id} (${SOURCE[t.ex.source]}) : « ${String(t.ex.line).slice(0, 60).replace(/[|\t]/g, ' ')} » → ${t.ex.why.replace(/[|\t]/g, ' ')} |`));
+    }
   } else {
     const w = head.map((h, i) => Math.max(h.length, ...body.map(x => String(x[i]).length)));
     out.push(head.map((h, i) => h.padEnd(w[i])).join('  '), ...body.map(x => x.map((v, i) => (i < 2 ? String(v).padEnd(w[i]) : String(v).padStart(w[i]))).join('  ')));
-    out.push('', 'Erreurs les plus fréquentes (Apple Vision, pdf.js, SFSpeechRecognizer) :');
-    r.top.forEach((t, i) => out.push(`${String(i + 1).padStart(2)}. ${t.family} : ${t.n} fois, ${t.docs} docs\n    ex. ${t.ex.id} (${SOURCE[t.ex.source]}) « ${String(t.ex.line).slice(0, 70)} » → ${t.ex.why}`));
+    for (const [title, list] of [['vraies lectures (Apple Vision, pdf.js, SFSpeech, whisper)', r.top], ['moteur seul (texte parfait)', r.topEngine]]) {
+      out.push('', `Erreurs les plus fréquentes, ${title} :`);
+      list.forEach((t, i) => out.push(`${String(i + 1).padStart(2)}. ${t.family} : ${t.n} fois, ${t.docs} docs\n    ex. ${t.ex.id} (${SOURCE[t.ex.source]}) « ${String(t.ex.line).slice(0, 70).replace(/\t/g, ' ')} » → ${t.ex.why}`));
+    }
   }
   const local = r.docs.filter(d => d.where === 'local');
   out.push('', `Documents : ${r.docs.length} (${r.docs.length - local.length} versionnés, ${local.length} locaux non libres) ; dictées : ${r.dictations.length} scripts.`);
@@ -210,7 +219,7 @@ function table(r, md) {
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]) && !prepare()) {
   const r = measureReal();
-  if (argv.includes('--json')) { console.log(JSON.stringify({ by: r.by, top: r.top, cases: r.cases.map(({ text, ...c }) => c) }, null, 1)); process.exit(0); }
+  if (argv.includes('--json')) { console.log(JSON.stringify({ by: r.by, top: r.top, topEngine: r.topEngine, cases: r.cases.map(c => ({ ...c, text: undefined })) }, null, 1)); process.exit(0); }
   console.log(table(r, argv.includes('--markdown')));
   if (argv.includes('--erreurs')) {
     for (const c of r.cases.filter(x => x.errors.length && x.source !== 'texte')) {

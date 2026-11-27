@@ -1,0 +1,174 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d02-jambes-non-dix__flofrenchfrance-175",
+  "ms" : 4626,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0.023,
+      "duration" : 0.83999999999999997,
+      "text" : "Jambon,",
+      "timestamp" : 0.12
+    },
+    {
+      "confidence" : 0.28599999999999998,
+      "duration" : 0.14999999999999999,
+      "text" : "fais",
+      "timestamp" : 0.95999999999999996
+    },
+    {
+      "confidence" : 0.253,
+      "duration" : 0.14999999999999999,
+      "text" : "-le",
+      "timestamp" : 1.1100000000000001
+    },
+    {
+      "confidence" : 0.024,
+      "duration" : 0.98999999999999999,
+      "text" : "toi Siri",
+      "timestamp" : 1.26
+    },
+    {
+      "confidence" : 0.45000000000000001,
+      "duration" : 0.089999999999999997,
+      "text" : "de",
+      "timestamp" : 2.25
+    },
+    {
+      "confidence" : 0.047,
+      "duration" : 0.90000000000000002,
+      "text" : "Cédric repos trois",
+      "timestamp" : 2.3399999999999999
+    },
+    {
+      "confidence" : 0.77100000000000002,
+      "duration" : 0.29999999999999999,
+      "text" : "minutes.",
+      "timestamp" : 3.2400000000000002
+    },
+    {
+      "confidence" : 0.78100000000000003,
+      "duration" : 0.51000000000000001,
+      "text" : "Ensuite",
+      "timestamp" : 3.54
+    },
+    {
+      "confidence" : 0.66700000000000004,
+      "duration" : 0.23999999999999999,
+      "text" : "presse",
+      "timestamp" : 4.0499999999999998
+    },
+    {
+      "confidence" : 0.39500000000000002,
+      "duration" : 0.089999999999999997,
+      "text" : "ça",
+      "timestamp" : 4.29
+    },
+    {
+      "confidence" : 0.40699999999999997,
+      "duration" : 0.39000000000000001,
+      "text" : "cuit",
+      "timestamp" : 4.3799999999999999
+    },
+    {
+      "confidence" : 0.82599999999999996,
+      "duration" : 0.35999999999999999,
+      "text" : "quatre",
+      "timestamp" : 4.7699999999999996
+    },
+    {
+      "confidence" : 0.70999999999999996,
+      "duration" : 0.29999999999999999,
+      "text" : "séries",
+      "timestamp" : 5.1299999999999999
+    },
+    {
+      "confidence" : 0.67300000000000004,
+      "duration" : 0.089999999999999997,
+      "text" : "de",
+      "timestamp" : 5.4299999999999997
+    },
+    {
+      "confidence" : 0.38200000000000001,
+      "duration" : 0.68999999999999995,
+      "text" : "12",
+      "timestamp" : 5.5199999999999996
+    },
+    {
+      "confidence" : 0.46800000000000003,
+      "duration" : 0.27000000000000002,
+      "text" : "puis",
+      "timestamp" : 6.21
+    },
+    {
+      "confidence" : 0.30599999999999999,
+      "duration" : 0.14999999999999999,
+      "text" : "la",
+      "timestamp" : 6.4800000000000004
+    },
+    {
+      "confidence" : 0.20300000000000001,
+      "duration" : 0.33000000000000002,
+      "text" : "cure",
+      "timestamp" : 6.6299999999999999
+    },
+    {
+      "confidence" : 0.629,
+      "duration" : 0.29999999999999999,
+      "text" : "3",
+      "timestamp" : 6.96
+    },
+    {
+      "confidence" : 0.81499999999999995,
+      "duration" : 0.23999999999999999,
+      "text" : "×",
+      "timestamp" : 7.2599999999999998
+    },
+    {
+      "confidence" : 0.72799999999999998,
+      "duration" : 0.27000000000000002,
+      "text" : "15",
+      "timestamp" : 7.5
+    },
+    {
+      "confidence" : 0.49299999999999999,
+      "duration" : 0.17999999999999999,
+      "text" : "les",
+      "timestamp" : 7.7699999999999996
+    },
+    {
+      "confidence" : 0.31900000000000001,
+      "duration" : 0.27000000000000002,
+      "text" : "mollets",
+      "timestamp" : 7.9500000000000002
+    },
+    {
+      "confidence" : 0.20300000000000001,
+      "duration" : 0.27000000000000002,
+      "text" : "de",
+      "timestamp" : 8.2200000000000006
+    },
+    {
+      "confidence" : 0.36199999999999999,
+      "duration" : 0.39000000000000001,
+      "text" : "quatre",
+      "timestamp" : 8.4900000000000002
+    },
+    {
+      "confidence" : 0.79400000000000004,
+      "duration" : 0.33000000000000002,
+      "text" : "séries",
+      "timestamp" : 8.8800000000000008
+    },
+    {
+      "confidence" : 0.19900000000000001,
+      "duration" : 0.75,
+      "text" : "demain.",
+      "timestamp" : 9.2100000000000009
+    }
+  ],
+  "text" : "Jambon, fais-le toi Siri de Cédric repos trois minutes. Ensuite presse ça cuit quatre séries de 12 puis la cure 3 × 15 les mollets de quatre séries demain.",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

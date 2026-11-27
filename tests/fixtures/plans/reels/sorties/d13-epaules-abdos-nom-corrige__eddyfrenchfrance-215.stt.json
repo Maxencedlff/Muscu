@@ -1,0 +1,150 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d13-epaules-abdos-nom-corrige__eddyfrenchfrance-215",
+  "ms" : 5206,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "Paul",
+      "timestamp" : 0.29999999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "et",
+      "timestamp" : 0.39000000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "Abdul",
+      "timestamp" : 0.47999999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "développé",
+      "timestamp" : 0.66000000000000003
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "Ronaldo",
+      "timestamp" : 0.78000000000000003
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.33000000000000002,
+      "text" : "R.",
+      "timestamp" : 0.81000000000000005
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.33000000000000002,
+      "text" : "Là-bas",
+      "timestamp" : 1.1399999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.51000000000000001,
+      "text" : "de frontale,",
+      "timestamp" : 1.47
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "3",
+      "timestamp" : 1.98
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "×",
+      "timestamp" : 2.04
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "12",
+      "timestamp" : 2.1299999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.029999999999999999,
+      "text" : "rouge",
+      "timestamp" : 2.2200000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.089999999999999997,
+      "text" : "à la",
+      "timestamp" : 2.25
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.12,
+      "text" : "police 3,",
+      "timestamp" : 2.3399999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.089999999999999997,
+      "text" : "3",
+      "timestamp" : 2.46
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "séries",
+      "timestamp" : 2.5499999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 2.6400000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.029999999999999999,
+      "text" : "15 de",
+      "timestamp" : 2.6699999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.29999999999999999,
+      "text" : "jantes,",
+      "timestamp" : 2.7000000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "trois",
+      "timestamp" : 3
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "séries",
+      "timestamp" : 3.0899999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 3.21
+    },
+    {
+      "confidence" : 0,
+      "duration" : 3.3300000000000001,
+      "text" : "12.",
+      "timestamp" : 3.27
+    }
+  ],
+  "text" : "C'est Paul et Abdul développé Ronaldo R. Là-bas de frontale, 3 × 12 rouge à la police 3,3 séries de 15 de jantes, trois séries de 12.",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

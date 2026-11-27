@@ -1,0 +1,168 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d11-dos-euh-partout__flofrenchfrance-175",
+  "ms" : 5158,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0.25800000000000001,
+      "duration" : 1.3799999999999999,
+      "text" : "Donc",
+      "timestamp" : 0
+    },
+    {
+      "confidence" : 0.54900000000000004,
+      "duration" : 0.83999999999999997,
+      "text" : "trois",
+      "timestamp" : 1.3799999999999999
+    },
+    {
+      "confidence" : 0.501,
+      "duration" : 0.33000000000000002,
+      "text" : "séries",
+      "timestamp" : 2.2200000000000002
+    },
+    {
+      "confidence" : 0.57999999999999996,
+      "duration" : 0.20999999999999999,
+      "text" : "deux",
+      "timestamp" : 2.5499999999999998
+    },
+    {
+      "confidence" : 0.56999999999999995,
+      "duration" : 0.39000000000000001,
+      "text" : "Cédric",
+      "timestamp" : 2.7599999999999998
+    },
+    {
+      "confidence" : 0.438,
+      "duration" : 0.27000000000000002,
+      "text" : "pour",
+      "timestamp" : 3.1499999999999999
+    },
+    {
+      "confidence" : 0.318,
+      "duration" : 0.089999999999999997,
+      "text" : "eux",
+      "timestamp" : 3.4199999999999999
+    },
+    {
+      "confidence" : 0.50700000000000001,
+      "duration" : 0.29999999999999999,
+      "text" : "trois",
+      "timestamp" : 3.5099999999999998
+    },
+    {
+      "confidence" : 0.879,
+      "duration" : 0.35999999999999999,
+      "text" : "minutes",
+      "timestamp" : 3.8100000000000001
+    },
+    {
+      "confidence" : 0.84899999999999998,
+      "duration" : 0.41999999999999998,
+      "text" : "après",
+      "timestamp" : 4.1699999999999999
+    },
+    {
+      "confidence" : 0.56399999999999995,
+      "duration" : 0.12,
+      "text" : "le",
+      "timestamp" : 4.5899999999999999
+    },
+    {
+      "confidence" : 0.38700000000000001,
+      "duration" : 0.39000000000000001,
+      "text" : "tirage",
+      "timestamp" : 4.71
+    },
+    {
+      "confidence" : 0.33100000000000002,
+      "duration" : 0.51000000000000001,
+      "text" : "vertical",
+      "timestamp" : 5.0999999999999996
+    },
+    {
+      "confidence" : 0.105,
+      "duration" : 0.81000000000000005,
+      "text" : "prix Siri",
+      "timestamp" : 5.6100000000000003
+    },
+    {
+      "confidence" : 0.77000000000000002,
+      "duration" : 0.39000000000000001,
+      "text" : "quatre",
+      "timestamp" : 6.4199999999999999
+    },
+    {
+      "confidence" : 0.48599999999999999,
+      "duration" : 0.41999999999999998,
+      "text" : "fois",
+      "timestamp" : 6.8099999999999996
+    },
+    {
+      "confidence" : 0.012,
+      "duration" : 0.95999999999999996,
+      "text" : "le prix",
+      "timestamp" : 7.2300000000000004
+    },
+    {
+      "confidence" : 0.35899999999999999,
+      "duration" : 0.089999999999999997,
+      "text" : "à",
+      "timestamp" : 8.1899999999999995
+    },
+    {
+      "confidence" : 0.48499999999999999,
+      "duration" : 0.12,
+      "text" : "la",
+      "timestamp" : 8.2799999999999994
+    },
+    {
+      "confidence" : 0.26900000000000002,
+      "duration" : 0.27000000000000002,
+      "text" : "commis",
+      "timestamp" : 8.4000000000000004
+    },
+    {
+      "confidence" : 0.65100000000000002,
+      "duration" : 0.29999999999999999,
+      "text" : "3",
+      "timestamp" : 8.6699999999999999
+    },
+    {
+      "confidence" : 0.76000000000000001,
+      "duration" : 0.23999999999999999,
+      "text" : "×",
+      "timestamp" : 8.9700000000000006
+    },
+    {
+      "confidence" : 0.51800000000000002,
+      "duration" : 0.27000000000000002,
+      "text" : "12,",
+      "timestamp" : 9.2100000000000009
+    },
+    {
+      "confidence" : 0.64100000000000001,
+      "duration" : 0.20999999999999999,
+      "text" : "voilà",
+      "timestamp" : 9.4800000000000004
+    },
+    {
+      "confidence" : 0.223,
+      "duration" : 0.059999999999999998,
+      "text" : "la",
+      "timestamp" : 9.6899999999999995
+    },
+    {
+      "confidence" : 0.037999999999999999,
+      "duration" : 0.56999999999999995,
+      "text" : "tête",
+      "timestamp" : 9.75
+    }
+  ],
+  "text" : "Donc trois séries deux Cédric pour eux trois minutes après le tirage vertical prix Siri quatre fois le prix à la commis 3 × 12, voilà la tête",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

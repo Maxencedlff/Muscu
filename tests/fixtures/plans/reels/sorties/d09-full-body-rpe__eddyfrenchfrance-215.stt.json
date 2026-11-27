@@ -1,0 +1,96 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d09-full-body-rpe__eddyfrenchfrance-215",
+  "ms" : 5011,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0,
+      "duration" : 0.33000000000000002,
+      "text" : "Le",
+      "timestamp" : 0
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "mercredi",
+      "timestamp" : 0.41999999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "3",
+      "timestamp" : 0.56999999999999995
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.059999999999999998,
+      "text" : "mars, la",
+      "timestamp" : 0.68999999999999995
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "série",
+      "timestamp" : 0.81000000000000005
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 0.90000000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.63,
+      "text" : "Carrie",
+      "timestamp" : 0.95999999999999996
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 1.5900000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.45000000000000001,
+      "text" : "samedi à Winter, un",
+      "timestamp" : 1.6200000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.27000000000000002,
+      "text" : "bras, la série de guitare",
+      "timestamp" : 2.1299999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.35999999999999999,
+      "text" : "Dragana,",
+      "timestamp" : 2.3999999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "3",
+      "timestamp" : 2.7599999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.27000000000000002,
+      "text" : "× 40, 45",
+      "timestamp" : 2.79
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "secondes",
+      "timestamp" : 3.2400000000000002
+    }
+  ],
+  "text" : "Le mercredi 3 mars, la série de Carrie de samedi à Winter, un bras, la série de guitare Dragana, 3 × 40, 45 secondes",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

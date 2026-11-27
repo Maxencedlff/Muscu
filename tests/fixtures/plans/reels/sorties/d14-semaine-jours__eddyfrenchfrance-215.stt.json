@@ -1,0 +1,102 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d14-semaine-jours__eddyfrenchfrance-215",
+  "ms" : 5639,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0,
+      "duration" : 0.23999999999999999,
+      "text" : "Lundi,",
+      "timestamp" : 0
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "puis-je",
+      "timestamp" : 0.23999999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "développer",
+      "timestamp" : 0.33000000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "les",
+      "timestamp" : 0.47999999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "bars",
+      "timestamp" : 0.51000000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.27000000000000002,
+      "text" : "88",
+      "timestamp" : 0.71999999999999997
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.029999999999999999,
+      "text" : "trois",
+      "timestamp" : 0.98999999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.66000000000000003,
+      "text" : ", fraction 86",
+      "timestamp" : 1.02
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "Robar",
+      "timestamp" : 1.71
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.17999999999999999,
+      "text" : "quatre 90.",
+      "timestamp" : 1.95
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.029999999999999999,
+      "text" : "Quatre mercredi",
+      "timestamp" : 2.1299999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.39000000000000001,
+      "text" : "recours 3\/4",
+      "timestamp" : 2.2799999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "\/90",
+      "timestamp" : 2.6699999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "ou",
+      "timestamp" : 2.9399999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 3.6600000000000001,
+      "text" : "95.",
+      "timestamp" : 3.1800000000000002
+    }
+  ],
+  "text" : "Lundi, puis-je développer les bars 88 trois, fraction 86 Robar quatre 90. Quatre mercredi recours 3\/4\/90 ou 95.",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

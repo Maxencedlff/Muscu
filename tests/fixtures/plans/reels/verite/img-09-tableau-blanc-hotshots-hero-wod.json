@@ -1,0 +1,46 @@
+{
+ "id": "img-09-tableau-blanc-hotshots-hero-wod",
+ "category": "manuscrit",
+ "description": "Hero WOD « 6 RFT » (6 rounds for time) : chaque mouvement vaut 6 séries de ses reps. Zéros barrés écrits « Ø ». Charges en livres (135#/95#) non notées. « JB's Play time », « Shirts AM/2 » sont des notes. « AIRSQUATS » donne Squat poids du corps, « PULL UPS » Tractions pronation.",
+ "source_id": "img-09-tableau-blanc-hotshots-hero-wod",
+ "text": "JB's Play time\nHOTSHOTS19-HERO WOD\n6 RFT\n3Ø-AIRSQUATS\n19-POWER CLEANS @ 135#/95#\n(SCALE WEIGHT)\n7-PULL UPS (SCALE W BAND)\n4ØØM RUN\nShirts\nAM/2",
+ "expected": {
+  "title": "HOTSHOTS19-HERO WOD",
+  "sessions": [
+   {
+    "label": null,
+    "exercises": [
+     {
+      "line": "3Ø-AIRSQUATS",
+      "name": "Squat poids du corps",
+      "sets": 6,
+      "repMin": 30,
+      "repMax": 30
+     },
+     {
+      "line": "19-POWER CLEANS",
+      "name": null,
+      "raw": "Power clean",
+      "sets": 6,
+      "repMin": 19,
+      "repMax": 19
+     },
+     {
+      "line": "7-PULL UPS",
+      "name": "Tractions pronation",
+      "sets": 6,
+      "repMin": 7,
+      "repMax": 7
+     },
+     {
+      "line": "4ØØM RUN",
+      "name": "Course à pied",
+      "sets": 6
+     }
+    ]
+   }
+  ]
+ },
+ "file": "img-09-tableau-blanc-hotshots-hero-wod.jpg",
+ "langue": "en"
+}

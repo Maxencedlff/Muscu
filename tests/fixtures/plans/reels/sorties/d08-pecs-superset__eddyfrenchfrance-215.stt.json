@@ -1,0 +1,96 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d08-pecs-superset__eddyfrenchfrance-215",
+  "ms" : 3382,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0,
+      "duration" : 0.39000000000000001,
+      "text" : "D'accord,",
+      "timestamp" : 0
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.23999999999999999,
+      "text" : "on a",
+      "timestamp" : 0.39000000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "développé",
+      "timestamp" : 0.75
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.089999999999999997,
+      "text" : "congé à",
+      "timestamp" : 0.81000000000000005
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.059999999999999998,
+      "text" : "l'",
+      "timestamp" : 0.90000000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.029999999999999999,
+      "text" : "heure",
+      "timestamp" : 0.95999999999999996
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "et",
+      "timestamp" : 0.98999999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "les",
+      "timestamp" : 1.05
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "garçons",
+      "timestamp" : 1.0800000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.41999999999999998,
+      "text" : "via quatre",
+      "timestamp" : 1.1699999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.47999999999999998,
+      "text" : "séries de trois",
+      "timestamp" : 1.5900000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "séries",
+      "timestamp" : 2.1299999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "au",
+      "timestamp" : 2.25
+    },
+    {
+      "confidence" : 0,
+      "duration" : 2.52,
+      "text" : "maximum",
+      "timestamp" : 2.3399999999999999
+    }
+  ],
+  "text" : "D'accord, on a développé congé à l'heure et les garçons via quatre séries de trois séries au maximum",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

@@ -1,0 +1,132 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d05-epaules-fourchettes__eddyfrenchfrance-215",
+  "ms" : 6481,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0,
+      "duration" : 0.17999999999999999,
+      "text" : "Paulo,",
+      "timestamp" : 0.23999999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.29999999999999999,
+      "text" : "développement minéral",
+      "timestamp" : 0.41999999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.29999999999999999,
+      "text" : "R3 demie à",
+      "timestamp" : 0.81000000000000005
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "12",
+      "timestamp" : 1.1699999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.27000000000000002,
+      "text" : "minutes,",
+      "timestamp" : 1.2
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.059999999999999998,
+      "text" : "30,",
+      "timestamp" : 1.47
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.35999999999999999,
+      "text" : "latérales,",
+      "timestamp" : 1.53
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "quatre",
+      "timestamp" : 1.8899999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "séries",
+      "timestamp" : 1.98
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 2.0699999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "12",
+      "timestamp" : 2.1299999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "à",
+      "timestamp" : 2.1600000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "15",
+      "timestamp" : 2.1899999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.059999999999999998,
+      "text" : "oiseaux, 3,",
+      "timestamp" : 2.3700000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "3",
+      "timestamp" : 2.4300000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.059999999999999998,
+      "text" : "séries de",
+      "timestamp" : 2.5499999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.33000000000000002,
+      "text" : "15 + 3 ×",
+      "timestamp" : 2.6099999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.47999999999999998,
+      "text" : "40 80",
+      "timestamp" : 3
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "à",
+      "timestamp" : 3.54
+    },
+    {
+      "confidence" : 0,
+      "duration" : 3.6899999999999999,
+      "text" : "12",
+      "timestamp" : 3.6299999999999999
+    }
+  ],
+  "text" : "C'est Paulo, développement minéral R3 demie à 12 minutes, 30, latérales, quatre séries de 12 à 15 oiseaux, 3,3 séries de 15 + 3 × 40 80 à 12",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}
