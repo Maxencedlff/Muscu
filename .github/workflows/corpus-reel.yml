@@ -1,0 +1,140 @@
+# Mesure de l'import de programme sur du réel (docs/IMPORT_PROGRAMME.md, « Mesure sur du réel »)
+# Sur une machine macOS : vraie OCR Apple Vision sur les documents libres du corpus (tests/fixtures/plans/reels/),
+# vraies dictées (voix françaises de macOS) transcrites par SFSpeechRecognizer et, en repli, par whisper.cpp.
+# Les sorties (JSON) sont rendues en artefact ; on les recopie dans tests/fixtures/plans/reels/sorties/ et
+# `node tools/plan-corpus/mesure-reel.mjs` les mesure. Les documents non libres ne passent jamais par ici.
+name: Corpus réel (Vision et dictée)
+
+on:
+  workflow_dispatch:
+    inputs:
+      whisper:
+        description: Transcrire aussi avec whisper.cpp (modèle small, repli gratuit)
+        type: boolean
+        default: true
+  # workflow_dispatch ne se déclenche que depuis la branche par défaut : sur la branche de travail, un push des
+  # seuls fichiers du corpus lance la mesure
+  push:
+    branches: ['corpus-reel']
+    paths:
+      - 'tools/plan-corpus/**'
+      - 'tests/fixtures/plans/reels/verite/**'
+      - 'tests/fixtures/plans/reels/fichiers/**'
+      - 'tests/fixtures/plans/reels/dictees/**'
+      - '.github/workflows/corpus-reel.yml'
+
+permissions:
+  contents: read
+
+# Une seule machine macOS à la fois : les builds iOS des autres branches passent avant
+concurrency:
+  group: corpus-reel
+  cancel-in-progress: true
+
+jobs:
+  reel:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Préparer (vocabulaire de l'app, liste des documents, scripts de dictée)
+        run: |
+          mkdir -p work/sorties work/audio
+          node tools/plan-corpus/mesure-reel.mjs --vocabulaire work
+          node tools/plan-corpus/mesure-reel.mjs --liste-ocr > work/liste-ocr.txt
+          node tools/plan-corpus/mesure-reel.mjs --dictees work/dictees
+          echo "Documents à lire : $(wc -l < work/liste-ocr.txt)"
+          sw_vers
+
+      - name: Construire les outils Swift
+        run: |
+          swiftc -O tools/plan-corpus/vision-ocr.swift -o work/vision-ocr
+          swiftc -O tools/plan-corpus/speech-transcribe.swift -o work/speech-transcribe \
+            -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker tools/plan-corpus/speech-Info.plist
+          codesign -s - -f work/speech-transcribe
+
+      - name: Apple Vision sur les documents
+        run: |
+          if [ -s work/liste-ocr.txt ]; then
+            tr '\n' '\0' < work/liste-ocr.txt | xargs -0 work/vision-ocr --words work/mots-exercice.json --out work/sorties
+          fi
+
+      - name: Synthèse vocale française (say)
+        run: |
+          say -v '?' | grep -E 'fr_(FR|CA|BE|CH)' | tee work/voix.txt || true
+          # Voix françaises de France d'abord ; trois variantes par script : voix 1 normale, voix 2 normale, voix 1 rapide
+          # (bash 3 de macOS : pas de mapfile)
+          VOICES=()
+          while IFS= read -r v; do [ -n "$v" ] && VOICES+=("$v"); done < <(grep 'fr_FR' work/voix.txt | sed -E 's/ +fr_FR.*//; s/ +$//' | head -2)
+          if [ ${#VOICES[@]} -eq 0 ]; then
+            while IFS= read -r v; do [ -n "$v" ] && VOICES+=("$v"); done < <(sed -E 's/ +fr_[A-Z]{2}.*//; s/ +$//' work/voix.txt | head -2)
+          fi
+          [ ${#VOICES[@]} -eq 0 ] && { echo "Aucune voix française"; exit 1; }
+          [ ${#VOICES[@]} -eq 1 ] && VOICES+=("${VOICES[0]}")
+          echo "Voix : ${VOICES[*]}"
+          slug() { echo "$1" | tr -cd '[:alnum:]' | tr '[:upper:]' '[:lower:]'; }
+          for f in work/dictees/*.txt; do
+            id=$(basename "$f" .txt)
+            v1="${VOICES[0]}"; v2="${VOICES[1]}"
+            say -v "$v1" -r 175 --file-format=WAVE --data-format=LEI16@16000 -o "work/audio/${id}__$(slug "$v1")-175.wav" -f "$f"
+            [ "$v2" != "$v1" ] && say -v "$v2" -r 175 --file-format=WAVE --data-format=LEI16@16000 -o "work/audio/${id}__$(slug "$v2")-175.wav" -f "$f"
+            say -v "$v1" -r 215 --file-format=WAVE --data-format=LEI16@16000 -o "work/audio/${id}__$(slug "$v1")-215.wav" -f "$f"
+          done
+          ls work/audio | wc -l
+
+      # La reconnaissance vocale demande une autorisation (fenêtre impossible sur une machine sans écran) : elle est
+      # accordée d'avance dans la base TCC, comme le fait l'image GitHub pour ses propres outils (SIP désactivé sur
+      # ces machines). Plusieurs clients possibles selon le processus que macOS tient pour responsable.
+      - name: Autoriser la reconnaissance vocale (base TCC)
+        continue-on-error: true
+        run: |
+          BIN="$PWD/work/speech-transcribe"
+          NOW=$(date +%s)
+          WORKER=$(ps -axo comm | grep -m1 'Runner.Worker' || true)
+          PROV=$(ps -axo comm | grep -m1 'provisioner' || true)
+          grant() {
+            local db="$1" sudo="$2"
+            for c in "com.mdlf.corpus.speech:0" "$BIN:1" "/bin/bash:1" "/bin/zsh:1" "/bin/sh:1" "${WORKER:-none}:1" "${PROV:-none}:1"; do
+              client="${c%:*}"; type="${c##*:}"
+              [ "$client" = none ] && continue
+              $sudo sqlite3 "$db" "INSERT OR REPLACE INTO access (service, client, client_type, auth_value, auth_reason, auth_version, flags, last_modified) VALUES ('kTCCServiceSpeechRecognition', '$client', $type, 2, 3, 1, 0, $NOW);" \
+                && echo "accordé : $client ($db)" || echo "refusé : $client ($db)"
+            done
+          }
+          grant "$HOME/Library/Application Support/com.apple.TCC/TCC.db" ""
+          grant "/Library/Application Support/com.apple.TCC/TCC.db" "sudo"
+          csrutil status || true
+
+      - name: SFSpeechRecognizer sur les dictées
+        continue-on-error: true
+        run: |
+          work/speech-transcribe --status --words work/mots-tout.json | tee work/sorties/speech-status.json || true
+          # Hors ligne si la machine le sait ; sinon serveurs d'Apple (dit dans chaque sortie : onDevice)
+          work/speech-transcribe --words work/mots-tout.json --allow-server --out work/sorties work/audio/*.wav
+
+      - name: whisper.cpp sur les dictées (repli)
+        if: ${{ github.event_name == 'push' || inputs.whisper }}
+        continue-on-error: true
+        run: |
+          brew install whisper-cpp
+          curl -sSL -o work/ggml-small.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin
+          for f in work/audio/*.wav; do
+            id=$(basename "$f" .wav)
+            whisper-cli -m work/ggml-small.bin -l fr -nt -np -f "$f" -otxt -of "work/whisper-$id" >/dev/null 2>&1 || continue
+            node -e 'const fs=require("fs");const [t,id,o]=process.argv.slice(1);fs.writeFileSync(o,JSON.stringify({id,tool:"whisper.cpp ggml-small, fr",text:fs.readFileSync(t,"utf8").replace(/\s+/g," ").trim()},null,1))' \
+              "work/whisper-$id.txt" "$id" "work/sorties/$id.whisper.json"
+          done
+          ls work/sorties/*.whisper.json | wc -l
+
+      - name: Mesure
+        run: |
+          mkdir -p tests/fixtures/plans/reels/sorties
+          cp work/sorties/*.json tests/fixtures/plans/reels/sorties/ 2>/dev/null || true
+          node tools/plan-corpus/mesure-reel.mjs --markdown | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: corpus-reel-sorties
+          path: work/sorties/
+          retention-days: 14
