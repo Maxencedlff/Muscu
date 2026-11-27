@@ -166,6 +166,13 @@ function pill(action, uid, label, { fill = false, aria = '' } = {}) {
 // Compte coach : l'onglet s'appelle Coach et s'ouvre sur ses élèves (docs/SOCIAL_V2.md). Rôle connu par
 // coach_state, sinon le dernier de l'appareil (coachRole) : le bon libellé dès le lancement.
 function coachTabOn() { return accountAvailable() && !!account.user && coachRole().isCoach; }
+// Nombre de « Mes amis » (demandes reçues, nouveautés du social, ce que mon propre coach m'envoie) : avec celui de
+// « Messages », la somme est la pastille de l'onglet Coach (updateTabBadge, js/ui/navbar.js). Un nombre, une place
+// (juges iPad du 26/11 : pastille 3, Messages 1, sans dire où étaient les 2 autres)
+function friendsSegCountHtml() {
+  const n = socialBadge() + (typeof coachBadgeStudent === 'function' ? coachBadgeStudent() : 0);
+  return n ? ` <span class="seg-count num" aria-hidden="true">${n}</span><span class="visually-hidden">, ${plural(n, 'nouveauté', 'nouveautés')}</span>` : '';
+}
 function friendsTabMeta() { return coachTabOn() ? { label: 'Coach', icon: 'coach' } : { label: 'Social', icon: 'person.2' }; }
 function friendsSeg() { return coachTabOn() ? socialSeg : 'friends'; }
 // Forme de l'onglet : un changement (rôle, segment, état du social) demande un redessin complet
@@ -181,7 +188,7 @@ function renderFriends() {
   // (17/11, validé par Maxence) : toutes les conversations avec ses élèves, sans 6e onglet (iOS le rangerait dans « Plus »)
   const segs = coachTab ? `
         <div class="segmented seg-full social-seg" role="group" aria-label="Afficher">
-          ${[['students', 'Élèves'], ['messages', 'Messages'], ['friends', 'Mes amis']].map(([k, l]) => `<button class="segmented__btn ${seg === k ? 'segmented__btn--active' : ''}" data-action="social-seg" data-seg="${k}" aria-pressed="${seg === k}">${l}${k === 'messages' ? chatSegCountHtml() : ''}</button>`).join('')}
+          ${[['students', 'Élèves'], ['messages', 'Messages'], ['friends', 'Mes amis']].map(([k, l]) => `<button class="segmented__btn ${seg === k ? 'segmented__btn--active' : ''}" data-action="social-seg" data-seg="${k}" aria-pressed="${seg === k}">${l}${k === 'messages' ? chatSegCountHtml() : k === 'friends' ? friendsSegCountHtml() : ''}</button>`).join('')}
         </div>` : '';
   const body = seg === 'students'
     ? `<div id="studentsBody" class="coach-team">${coachTeamHtml()}</div>`
@@ -285,11 +292,13 @@ function enabledBodyHtml() {
   const st = social.state;
   const pending = st?.pending_in || [];
   const requests = pending.length ? `
-        <div class="group-title">Demandes</div>
+        <div class="group-title">Demandes d'ami</div>
         <div class="group">${pending.map(p => personRowHtml(p,
-          pill('social-accept', p.user_id, 'Accepter', { fill: true, aria: `Accepter ${personName(p)}` })
+          pill('social-accept', p.user_id, 'Accepter', { fill: true, aria: `Accepter ${personName(p)} comme ami` })
           + `<button class="social-x" data-action="social-refuse" data-uid="${esc(p.user_id)}" aria-label="${esc(`Refuser ${personName(p)}`)}">${icon('xmark', 14)}</button>`,
-          '')).join('')}</div>` : '';
+          // Déjà mon élève : l'amitié est un lien à part, rien à accepter pour le suivi (juges du 26/11 : on croyait devoir
+          // accepter son élève une deuxième fois)
+          typeof coachStudent === 'function' && coachStudent(p.user_id) ? 'Déjà ton élève · demande d\'ami en plus' : '')).join('')}</div>` : '';
   // Hors ligne : un seul message (panel Apple du 08/11 : « demandes pas à jour » s'ajoutait au bloc « Pas d'Internet »
   // du fil vide, alors qu'aucune demande n'était affichée). Demandes affichées : la note les cite, et le fil aussi
   // s'il a des séances (sa propre note est alors tue) ; sans demande, le fil dit seul ce qu'il en est.

@@ -120,29 +120,30 @@ function progressPlannedOf(uid) {
   return n ? { n, name: cur.progName } : null;
 }
 
-// Séances de la semaine : valeur courte à droite (« 3 sur 4 », « 2 ») et détail dessous
-// (« Prévues : Sèche 4 jours », « 3 d'habitude »)
-function progressSessionsCell(pr, planned, bars = '') {
+// Séances des 7 derniers jours : valeur courte à droite (« 3 sur 4 », « 2 ») et une phrase dessous (« Prévues : Sèche 4
+// jours », « Les 7 jours d'avant : 6 », « 3 d'habitude »). Plus de mini-barres « 0 0 6 6 par 7 jours » : Sophie (coach,
+// 26/11) et deux juges ne les comprenaient pas ; la semaine d'avant est dite en mots.
+function progressSessionsCell(pr, planned, before = null) {
   const value = planned ? `${pr.n7} sur ${planned.n}` : String(pr.n7);
-  const sub = planned ? `Prévues : ${planned.name}` : pr.habit !== null && pr.habit >= 1 ? `${fmtNum(pr.habit)} d'habitude` : '';
-  const spoken = planned ? `${pr.n7} sur ${planned.n} prévues` : value;
+  const sub = planned ? `Prévues : ${planned.name}`
+    : before !== null ? `Les 7 jours d'avant : ${before}`
+    : pr.habit !== null && pr.habit >= 1 ? `${fmtNum(pr.habit)} d'habitude` : '';
+  const spoken = `${plural(pr.n7, 'séance', 'séances')}${planned ? ` sur ${planned.n} prévues, programme ${planned.name}` : ''}${!planned && sub ? `, ${sub}` : ''}`;
   return `
-          <div class="cell progress-week__row" aria-label="${esc(`Séances : ${spoken}${sub && !planned ? `, ${sub}` : planned ? `, programme ${planned.name}` : ''}`)}" role="group">
+          <div class="cell progress-week__row" aria-label="${esc(`7 derniers jours : ${spoken}`)}" role="group">
             <span class="cell__body"><span class="cell__title">Séances</span>${sub ? `<span class="cell__sub">${esc(sub)}</span>` : ''}</span>
-            ${bars}<span class="cell__value num">${esc(value)}</span>
+            <span class="cell__value num">${esc(value)}</span>
           </div>`;
 }
 
-// Ses séances par tranches de 7 jours glissants (aujourd'hui et les 6 jours d'avant, puis les 3 tranches d'avant), comme
-// le signal de la liste : un seul sens de « semaine » partout (panel coach t1). Première page chargée, seulement si elle
-// couvre les 28 jours ; null sinon. Les barres (weekBarsSvg) disent elles-mêmes les nombres à VoiceOver
-function progressWeekCounts(uid) {
+// Séances des 7 jours d'avant (du 13e au 7e jour avant aujourd'hui), comme le signal de la liste : un seul sens de
+// « semaine » partout. Seulement si ses séances reçues couvrent ces 14 jours ; null sinon
+function progressWeekBefore(uid) {
   const f = coachSessions(uid), now = Date.now();
   const oldest = f.rows[f.rows.length - 1]?.doneAt;
-  const covered = f.end || (oldest && new Date(oldest).getTime() <= progressDayStart(now, 27));
+  const covered = f.end || (oldest && new Date(oldest).getTime() <= progressDayStart(now, 13));
   if (!f.rows.length || !covered) return null;
-  const sessions = f.rows.map(r => ({ at: new Date(r.doneAt).getTime() }));
-  return [3, 2, 1, 0].map(k => progressWeekCount(sessions, k, now));
+  return progressWeekCount(f.rows.map(r => ({ at: new Date(r.doneAt).getTime() })), 1, now);
 }
 
 // Fiche d'un élève, sous la carte de tête : « 7 derniers jours » (glissants, panel vague 4 : « Cette semaine » se
@@ -159,12 +160,11 @@ function coachWeekSummaryHtml(uid) {
     ? '<div class="cell"><span class="cell__body"><span class="cell__title">Records</span></span><span class="cell__value">Aucun</span></div>' : '';
   const more = pr.records.length > PROGRESS_SUMMARY_RECORDS
     ? `<div class="cell"><span class="cell__sub">Et ${plural(pr.records.length - PROGRESS_SUMMARY_RECORDS, 'autre record', 'autres records')}, dans ses séances</span></div>` : '';
-  const counts = progressWeekCounts(uid);
-  const sessions = progressSessionsCell(pr, planned, counts ? weekBarsSvg(counts, 'par 7 jours', { rolling: true }) : '');
+  const sessions = progressSessionsCell(pr, planned, progressWeekBefore(uid));
   return `
         <div class="group-title">7 derniers jours</div>
         <div class="group progress-week">${sig}${sessions}${recs}${none}${more}</div>
-        <div class="group-foot">Aujourd'hui et les 6 jours d'avant. Les barres comptent les séances par tranches de 7 jours.</div>`;
+        <div class="group-foot">Aujourd'hui et les 6 jours d'avant.</div>`;
 }
 
 // En tête de Mes élèves : « 7 derniers jours » (glissants, comme le signal de chaque élève), trois chiffres d'un coup d'œil (records battus, élèves à relancer,
@@ -172,15 +172,17 @@ function coachWeekSummaryHtml(uid) {
 // la liste triée en dessous qui mène aux élèves. VoiceOver lit une phrase.
 function coachTeamWeekHtml(students) {
   if (!students?.length) return '';
+  // Rien avant la première lecture de la progression : pas de « 0 record » qui devient « 2 records » (retours de Sophie)
+  if (!progress.loadedAt && progress.available !== false) return '';
   const now = Date.now();
-  const w = teamWeekSummary(students, st => coachStudentProgress(st, now), st => chatUnreadOf(st.user_id));
+  const w = teamWeekSummary(students, st => coachStudentProgress(st, now));
   const tile = (val, lbl, tone) => `<span class="team-week__tile${val ? ` team-week__tile--${tone}` : ''}"><span class="team-week__val num">${val && tone === 'up' ? `${medalSvg(14)} ` : ''}${val}</span> <span class="team-week__lbl">${lbl}</span></span>`;
-  const spoken = `7 derniers jours : ${plural(w.records, 'record', 'records')}, ${plural(w.warn, 'élève', 'élèves')} à relancer, ${plural(w.fresh, 'nouveauté', 'nouveautés')} à lire.`;
+  const spoken = `7 derniers jours : ${plural(w.records, 'record', 'records')}, ${plural(w.warn, 'élève', 'élèves')} à relancer, ${plural(w.fresh, 'séance', 'séances')} à voir.`;
   return `
         <div class="group-title">7 derniers jours</div>
         <div class="team-week" role="img" aria-label="${esc(spoken)}">
           ${tile(w.records, w.records > 1 ? 'records' : 'record', 'up')}
           ${tile(w.warn, 'à relancer', 'warn')}
-          ${tile(w.fresh, w.fresh > 1 ? 'nouveautés' : 'nouveauté', 'new')}
+          ${tile(w.fresh, w.fresh > 1 ? 'séances à voir' : 'séance à voir', 'new')}
         </div>`;
 }

@@ -52,10 +52,14 @@ function deskNtPlanHtml(r) {
     <a class="btn" href="${base}/new" data-dt="new-for">${deskIcon('plus', 'sm')}Créer un plan</a>
     <button type="button" class="btn" data-nt="send" ${nt.busy ? 'disabled aria-busy="true"' : ''}>${deskIcon('send', 'sm')}Envoyer un de mes plans</button></div>`;
   if (!p) {
-    return `<div class="head nt-head"><div class="grow"><h2 class="ed-t">Plan diète</h2><div class="sub">${esc(`Aucun plan envoyé à ${r.name} pour l'instant.`)}</div></div>${btn}</div>`;
+    return `<div class="head nt-head"><div class="grow"><h2 class="ed-t">Plan de nutrition</h2><div class="sub">${esc(`Aucun plan envoyé à ${r.name} pour l'instant.`)}</div></div>${btn}</div>`;
   }
-  const line = [deskNtPlanLine(p.data), `envoyé le ${fmtDate(p.sentAt, 'short')}`, p.seen ? `vu par ${r.name}` : 'pas encore ouvert'].filter(Boolean).join(' · ');
-  return `<div class="head nt-head"><div class="grow"><h2 class="ed-t">${esc(`Plan « ${p.data.name} »`)}</h2><div class="sub">${esc(line)}</div></div>${btn}</div>
+  const line = [deskNtPlanHead(p.data), `envoyé le ${fmtDate(p.sentAt, 'short')}`, p.seen ? `vu par ${r.name}` : 'pas encore ouvert'].filter(Boolean).join(' · ');
+  // Repas du plan loin de son objectif (plan sur un jour) : dit une fois, avec où le corriger
+  const k = p.data.days?.mode ? null : deskNtDayKcal(p.data);
+  const gapNote = k?.gap ? `${k.gap < 0 ? `Il manque ${fmtNum(-k.gap)} kcal dans les repas pour atteindre l'objectif` : `Les repas dépassent l'objectif de ${fmtNum(k.gap)} kcal`} : « Modifier ce plan » pour les ajuster.` : '';
+  return `<div class="head nt-head"><div class="grow"><h2 class="ed-t">${esc(`Plan « ${p.data.name} »`)}</h2><div class="sub" id="nt-plan-line">${esc(line)}</div></div>${btn}</div>
+    ${gapNote ? `<p class="gfoot pg-note warn" id="nt-plan-gap">${esc(gapNote)}</p>` : ''}
     ${nt.via === 'doc' ? `<p class="gfoot pg-note">${esc('Plan lu sur ton compte : le serveur ne rend pas encore la version envoyée (mise à jour à venir).')}</p>` : ''}
     ${p.data.consigne ? `<p class="gfoot pg-note">${esc(`Consigne : « ${p.data.consigne} »`)}</p>` : ''}`;
 }
@@ -94,22 +98,29 @@ function deskNtHtml(r, d) {
     : meals.length ? `<ul class="group" aria-labelledby="h-nt-day">${meals.map(m => `<li><div class="row nt-meal"><span class="${m.ok ? 'green' : 'faint'} nt-ck" aria-hidden="true">${m.ok ? deskIcon('check') : '…'}</span>
         <span class="grow"><b>${esc(m.name)}</b>${m.items ? `<span class="t2 blk">${esc(m.items)}</span>` : ''}</span>${m.kcal !== null ? `<span class="v num">${esc(fmtNum(m.kcal))} kcal</span>` : ''}<span class="v nt-st ${m.ok ? 'green' : 'warn'}">${m.ok ? 'Coché' : 'Pas coché'}</span></div></li>`).join('')}</ul>`
       : '<div class="group"><div class="row"><span class="grow muted">Eau ou sel notés, sans repas cochés.</span></div></div>';
-  const left = `<div class="nt-main">${wk}${strip}<h3 class="gh gap" id="h-nt-day">${esc(head)}</h3>${mealsHtml}
+  // Deux chiffres, chacun nommé : ce que prévoit le plan pour les repas cochés, ce que l'élève a noté (aliments
+  // remplacés ou ajoutés compris, que le coach ne voit pas)
+  const ck = x ? deskNtCheckedKcal(meals) : null;
+  const eatGap = ck && x.kcal > 0 && Math.abs(x.kcal - ck.kcal) > ck.kcal * 0.1 ? x.kcal - ck.kcal : null;
+  const ckHtml = ck ? `<div class="gfoot" id="nt-ck-kcal"><b>${esc(`Repas cochés : ${fmtNum(ck.kcal)} kcal prévus par ton plan.`)}</b>${eatGap !== null
+    ? ` ${esc(`${r.name} a noté ${fmtNum(x.kcal)} kcal ce jour-là, ${fmtNum(Math.abs(eatGap))} de ${eatGap > 0 ? 'plus' : 'moins'} : des aliments remplacés ou ${eatGap > 0 ? 'ajoutés' : 'retirés'}.`)}` : ''}</div>` : '';
+  const left = `<div class="nt-main">${wk}${strip}<h3 class="gh gap" id="h-nt-day">${esc(head)}</h3>${mealsHtml}${ckHtml}
     <div class="gfoot">${esc(`${r.name} coche les repas de ton plan. Tu ne vois ni les aliments remplacés ni les heures.`)}</div></div>`;
   const macros = deskNtMacros(x);
   const gap = x ? dietShareGap(x) : null;
-  const dayPanel = x ? `<section class="gblock" aria-labelledby="h-nt-mac"><h3 class="gh" id="h-nt-mac">${esc(title)}</h3><ul class="group mac" aria-labelledby="h-nt-mac">
+  const unit = m => (m.unit === 'g' ? ' g' : ' kcal');
+  const dayPanel = x ? `<section class="gblock" aria-labelledby="h-nt-mac"><h3 class="gh" id="h-nt-mac">${esc(`${title} : noté par ${r.name}`)}</h3><ul class="group mac" aria-labelledby="h-nt-mac">
       ${macros.map(m => `<li><div class="row blk-row"><div class="mac-l"><span class="grow">${esc(m.label)}${m.key === 'kcal' && gap !== null ? ` <span class="muted sm-t">${esc(`${gap > 0 ? '+' : gap < 0 ? '−' : '±'}${Math.abs(gap)} %`)}</span>` : m.pct !== null ? ` <span class="muted sm-t">${m.pct} %</span>` : ''}</span>
-        <span class="num"><span class="strong">${esc(fmtNum(m.v))}${m.unit === 'g' ? ' g' : ''}</span>${m.goal ? ` <span class="muted">sur ${esc(fmtNum(m.goal))}${m.unit === 'g' ? ' g' : ''}</span>` : ''}</span></div>${m.goal ? deskNtBar(m.pct) : ''}</div></li>`).join('')}
-      <li><div class="row">${deskIcon('water', 'sm')}<span class="grow">Eau</span><span class="v num"><span class="strong">${esc(deskNtL(x.water))}</span>${x.waterGoal ? ` sur ${esc(deskNtL(x.waterGoal))}` : ''}</span></div></li>
-      ${x.salt !== null ? `<li><div class="row"><span class="grow">Sel</span><span class="v num"><span class="strong">${esc(fmtNum(x.salt, 1))} g</span>${x.saltMax ? ` sur ≤ ${esc(fmtNum(x.saltMax, 1))} g` : ''}</span></div></li>` : ''}
+        <span class="num"><span class="strong">${esc(`${fmtNum(m.v)}${unit(m)}`)}</span>${m.goal ? ` <span class="muted">${esc(`objectif ${fmtNum(m.goal)}${unit(m)}`)}</span>` : ''}</span></div>${m.goal ? deskNtBar(m.pct) : ''}</div></li>`).join('')}
+      <li><div class="row">${deskIcon('water', 'sm')}<span class="grow">Eau</span><span class="v num"><span class="strong">${esc(deskNtL(x.water))}</span>${x.waterGoal ? ` <span class="muted">${esc(`objectif ${deskNtL(x.waterGoal)}`)}</span>` : ''}</span></div></li>
+      ${x.salt !== null ? `<li><div class="row"><span class="grow">Sel</span><span class="v num"><span class="strong">${esc(fmtNum(x.salt, 1))} g</span>${x.saltMax ? ` <span class="muted">${esc(`au plus ${fmtNum(x.saltMax, 1)} g`)}</span>` : ''}</span></div></li>` : ''}
     </ul></section>` : '';
   const av = deskNtAverages(days);
   const avPanel = av ? `<section class="gblock" aria-labelledby="h-nt-av"><h3 class="gh" id="h-nt-av">${esc(`Moyenne de la semaine ${deskIsoWeek(firstDay)}`)} <span class="r muted">${esc(plural(av.n, 'jour noté', 'jours notés'))}</span></h3><ul class="group" aria-labelledby="h-nt-av">
-      <li><div class="row"><span class="grow">Calories${av.gap !== null ? ` <span class="muted sm-t">${esc(`${av.gap > 0 ? '+' : av.gap < 0 ? '−' : '±'}${Math.abs(av.gap)} %`)}</span>` : ''}</span><span class="v num"><span class="strong">${esc(fmtNum(av.kcal))}</span>${av.goalKcal ? ` sur ${esc(fmtNum(av.goalKcal))}` : ''}</span></div></li>
-      <li><div class="row"><span class="grow">Protéines${av.goalP ? ` <span class="muted sm-t">${esc(deskNtPctTxt(av.p, av.goalP))}</span>` : ''}</span><span class="v num"><span class="strong">${esc(fmtNum(av.p))} g</span>${av.goalP ? ` sur ${esc(fmtNum(av.goalP))} g` : ''}</span></div></li>
-      ${av.water !== null ? `<li><div class="row"><span class="grow">Eau${av.waterGoal ? ` <span class="muted sm-t">${esc(deskNtPctTxt(av.water, av.waterGoal))}</span>` : ''}</span><span class="v num"><span class="strong">${esc(fmtNum(av.water, 1))} L</span>${av.waterGoal ? ` sur ${esc(fmtNum(av.waterGoal, 1))} L` : ''}</span></div></li>` : ''}
-      ${av.salt !== null ? `<li><div class="row"><span class="grow">Sel</span><span class="v num"><span class="strong">${esc(fmtNum(av.salt, 1))} g</span>${av.saltMax ? ` sur ≤ ${esc(fmtNum(av.saltMax, 1))} g` : ''}</span></div></li>` : ''}
+      <li><div class="row"><span class="grow">Calories${av.gap !== null ? ` <span class="muted sm-t">${esc(`${av.gap > 0 ? '+' : av.gap < 0 ? '−' : '±'}${Math.abs(av.gap)} %`)}</span>` : ''}</span><span class="v num"><span class="strong">${esc(`${fmtNum(av.kcal)} kcal`)}</span>${av.goalKcal ? ` <span class="muted">${esc(`objectif ${fmtNum(av.goalKcal)} kcal`)}</span>` : ''}</span></div></li>
+      <li><div class="row"><span class="grow">Protéines${av.goalP ? ` <span class="muted sm-t">${esc(deskNtPctTxt(av.p, av.goalP))}</span>` : ''}</span><span class="v num"><span class="strong">${esc(fmtNum(av.p))} g</span>${av.goalP ? ` <span class="muted">${esc(`objectif ${fmtNum(av.goalP)} g`)}</span>` : ''}</span></div></li>
+      ${av.water !== null ? `<li><div class="row"><span class="grow">Eau${av.waterGoal ? ` <span class="muted sm-t">${esc(deskNtPctTxt(av.water, av.waterGoal))}</span>` : ''}</span><span class="v num"><span class="strong">${esc(fmtNum(av.water, 1))} L</span>${av.waterGoal ? ` <span class="muted">${esc(`objectif ${fmtNum(av.waterGoal, 1)} L`)}</span>` : ''}</span></div></li>` : ''}
+      ${av.salt !== null ? `<li><div class="row"><span class="grow">Sel</span><span class="v num"><span class="strong">${esc(fmtNum(av.salt, 1))} g</span>${av.saltMax ? ` <span class="muted">${esc(`au plus ${fmtNum(av.saltMax, 1)} g`)}</span>` : ''}</span></div></li>` : ''}
     </ul><div class="gfoot">${esc(`Jour suivi : calories à ±${DIET_SHARE_OK_PCT} % de l'objectif et protéines à ${Math.round(DIET_SHARE_PROT_SHARE * 100)} % au moins. Partiel : jusqu'à ${DIET_SHARE_PART_PCT} % d'écart.`)}</div></section>` : '';
   const write = sel.status !== 'future' ? `<a class="btn tint wide gap-t" href="#/eleve/${encodeURIComponent(r.id)}/messages" data-nt="write" data-v="${sel.day}">${deskIcon('messages', 'sm')}${esc(`Écrire à ${r.name} à propos de ${fmtDate(sel.ts, 'day').split(' ')[0]}`)}</a>` : '';
   return `${plan}<div class="cols nut">${left}<div class="side-panel nt-side">${dayPanel}${avPanel}${write}</div></div>`;
@@ -123,7 +134,7 @@ async function deskNtSend(id) {
   const doc = await deskDoc();
   const ids = doc.data ? coachSendableDiets(doc.data) : [];
   if (!ids.length) {
-    deskToast(doc.kind ? deskErrorText(doc.kind) : 'Aucun plan sur ton compte : « Créer un plan » en prépare un ici, ou dans l\'app iPhone (Programme › Plans de nutrition).');
+    deskToast(doc.kind ? deskErrorText(doc.kind) : 'Aucun plan sur ton compte : « Créer un plan » en prépare un ici, ou dans l\'app (Programme › Plans de nutrition).');
     return;
   }
   const plans = doc.data.dietPlans;

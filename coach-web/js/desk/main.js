@@ -97,6 +97,7 @@ function deskPaint0(html, { focusMain = false, quiet = false } = {}) {
     else el.scrollTop = k.top;
   });
   ms.stick = false; ms.prepend = false;
+  deskTableHints(root);
   if (active && document.getElementById(active)) {
     const el = document.getElementById(active); el.focus({ preventScroll: true });
     if (caret !== null && el.setSelectionRange) el.setSelectionRange(caret, caret);

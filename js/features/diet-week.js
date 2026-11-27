@@ -9,7 +9,7 @@
 //    « Mettre ce jour sur les 7 jours » (confirmation, Annuler). Inspiré d'Everfit (« Copy Day », jours de repos « sans
 //    séance » ou « jours fixes ») ; la copie vers plusieurs jours cochés en plus.
 //  - Envoi (diet-send:ID[:ÉLÈVE]) : aperçu jour par jour (kcal, macros, eau, sel), élèves à cocher, un envoi par élève
-//    par coach_send_programme (même canal, 200 Ko au plus). Le plan reste dans « Mes diètes », modèle réutilisable.
+//    par coach_send_programme (même canal, 200 Ko au plus). Le plan reste dans « Plans de nutrition », modèle réutilisable.
 // ═══════════════════════════════════════════════════════════
 'use strict';
 

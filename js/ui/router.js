@@ -56,6 +56,16 @@ function makeRoute(name, ...params) { return [name, ...params.map(p => encodeURI
 function routeName(route) { return String(route).split(':')[0]; }
 function routeParams(route) { return String(route).split(':').slice(1).map(decodeURIComponent); }
 
+// Programme réglé sans être utilisé (js/data/accessors.js, progFocusId) : celui de la page « programmes:<id> » la plus
+// haute de la pile affichée, et des écrans ouverts depuis elle (séance du programme, exercice, bibliothèque, Envoyer).
+// « programmes » sans paramètre : le programme actif.
+function navProgFocus(n = nav) {
+  const s = n.stacks[n.tab] || [];
+  for (let i = s.length - 1; i > 0; i--) if (routeName(s[i]) === 'programmes') return routeParams(s[i])[0] || null;
+  return null;
+}
+progFocusOf = () => navProgFocus();
+
 function currentRoute(n = nav) { const s = n.stacks[n.tab]; return s[s.length - 1]; }
 // Nom de l'écran affiché ; `view` en est la lecture seule (console, tests)
 function currentView() { return routeName(currentRoute()); }

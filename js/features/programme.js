@@ -102,7 +102,7 @@ function orderSessionsCellHtml(action = 'toggle-prog-order', value = '') {
   return `<button class="cell cell--action" data-action="${action}">${icon('arrow.up.arrow.down', 20)}<span class="cell__body">Ordre des séances</span>${value ? `<span class="cell__value">${value}</span>` : ''}</button>`;
 }
 // Ordre des séances modifiable : programme créé, au moins deux séances
-function canReorderSessions(pid = data.activeProgramme) {
+function canReorderSessions(pid = progFocusId()) {
   return isUserProg(pid) && sessionKeys(pid).length > 1;
 }
 
@@ -116,8 +116,9 @@ function progListIconHtml(name) {
 // « Ajouter une séance », puis l'envoyer, le renommer, le supprimer. On y arrive depuis la liste Programmes (racine de
 // l'onglet), « Changer l'ordre » de l'accueil, ou en activant un programme.
 function renderProgrammes() {
-  const pid  = data.activeProgramme;
+  const pid  = progFocusId();   // l'actif, ou le programme ouvert sans être utilisé (« programmes:<id> », coach)
   const pm   = progMeta(pid);
+  const active = pid === data.activeProgramme;
   // Ligne du mode ordre : la séance ne s'ouvre pas, la poignée ≡ la déplace (js/ui/reorder.js)
   // Tête de file (la séance que l'accueil propose) : « Prochaine » à côté de son nom (panel t1, 17 juges)
   const head = isUserProg(pid) ? nextSessionCat(sessionKeys(pid)) : null;
@@ -147,6 +148,7 @@ function renderProgrammes() {
       ${user ? '' : `<div class="group-foot">Les séances de ce programme sont fixes. Leurs exercices se modifient. Pour composer tes séances, crée un programme.</div>`}`;
   const manage = pid.startsWith('u_') ? `
       <div class="group group--gap">
+        ${active ? '' : `<button class="cell cell--action" data-action="prog-use-me" data-id="${esc(pid)}">${icon('checkmark', 20)}<span>Utiliser pour mes séances</span></button>`}
         <button class="cell cell--nav" data-action="rename-programme">
           <span class="cell__body"><span class="cell__title">Renommer le programme</span></span>
           ${icon('chevron.right', 16)}
@@ -156,17 +158,14 @@ function renderProgrammes() {
 
   return `
     <div class="view programmes view--grouped">
-      ${navBar({ title: esc(pm.name), large: true, sub: '<p class="prog-info__note prog-page__state">Programme actif</p>',
+      ${navBar({ title: esc(pm.name), large: true, sub: `<p class="prog-info__note prog-page__state">${active ? 'Programme actif' : esc(progNotActiveText(pid))}</p>`,
         // Mode ordre : OK en haut à droite, le retour masqué le temps du réglage (comme le mode Modifier d'iOS, panel t1)
         ...(editing ? { left: '<span aria-hidden="true"></span>', right: '<button class="navbar__text navbar__text--bold" data-action="toggle-prog-order">OK</button>' } : {}) })}
       <div class="scr">
-        ${coachEditorConsigneHtml(data.activeProgramme)}
+        ${coachEditorConsigneHtml(pid)}
         ${sessions}
         ${editing ? '' : `
-        <div class="group group--gap">
-          <button class="cell cell--action" data-action="share-programme">${icon('square.and.arrow.up', 20)}<span>Envoyer ce programme</span></button>
-        </div>
-        <div class="group-foot">Envoie les séances et les exercices par message. Tes charges et ton historique ne partent pas.</div>
+        ${progSendHtml(pid)}
         ${manage}`}
       </div>
     </div>`;
@@ -343,6 +342,8 @@ function renderProgInfo(id) {
 function renderUserProgInfo(id) {
   const pm = progMeta(id), keys = sessionKeys(id), exs = programmeExercises(id);
   const levels = exs.length ? programmeLevels(exs) : {};
+  // Coach : un de ses programmes qu'il envoie se règle sans devenir le sien (le programme d'un élève)
+  const forOthers = typeof coachRole === 'function' && coachRole().isCoach && coachSendableProgrammes().includes(id);
   const rows = keys.map(k => `
     <div class="cell prog-sess">
       ${catBadge(sessionMeta(k, id).color)}
@@ -356,8 +357,9 @@ function renderUserProgInfo(id) {
         <p class="prog-info__note">${coachFromLine(id) || 'Déjà dans tes programmes'}</p>
         <div class="prog-info__actions prog-info__actions--top">
           <button class="btn btn--primary prog-info__btn" data-action="prog-info-use" data-id="${esc(id)}">Utiliser ce programme</button>
+          ${forOthers ? `<button class="btn btn--secondary prog-info__btn" data-action="prog-open-page" data-id="${esc(id)}">Modifier sans l'utiliser</button>` : ''}
         </div>
-        <div class="group-foot">Une fois actif, tu règles ici ses séances, leur ordre et ses exercices.</div>
+        <div class="group-foot">${forOthers ? 'Pour le programme d\'un élève : « Modifier sans l\'utiliser » garde tes propres séances.' : 'Une fois actif, tu règles ici ses séances, leur ordre et ses exercices.'}</div>
         ${Object.keys(levels).length ? `<div class="group group--pad prog-info__map">
           ${bodyMapHtml(levels, { captions: true, label: `Muscles travaillés par ${esc(pm.name)}` })}
         </div>` : ''}
@@ -413,6 +415,104 @@ function showActiveProgramme() {
   navCommit(next, 'push', 'replace');
 }
 
+// ── Programme créé pour soi ou pour un élève ────────────────
+// Retours de Sophie (coach, 26/11) : le programme créé pour son élève devenait son « Programme actif » et remplaçait
+// son propre entraînement à l'accueil. Un programme n'est désormais activé que si on le demande (« Pour moi »,
+// « Utiliser ce programme », « Utiliser pour mes séances »). Les autres s'ouvrent dans leur page sans être utilisés
+// (route « programmes:<id> », progFocusId de js/data/accessors.js).
+
+// Nouveau programme perso : séances d'un programme intégré (copie) ou aucune. Rien n'est activé. → id
+function createProgramme(name, start) {
+  const id = 'u_' + uid();
+  const sessions = {};
+  let pdata = { exercises: {}, timers: {}, cooldowns: {} };
+  if (start !== 'empty' && PROGRAMMES[start]) {
+    Object.entries(PROGRAMMES[start].sessions).forEach(([cat, m]) => {
+      sessions[cat] = { label: m.label, icon: '', desc: m.desc, color: m.color };
+    });
+    pdata = makeProgData(start);
+  }
+  pdata.exercises ||= {}; pdata.timers ||= {}; pdata.cooldowns ||= {};
+  Object.keys(sessions).forEach(cat => { if (!(cat in pdata.timers)) pdata.timers[cat] = null; pdata.exercises[cat] ||= []; });
+  data.userProgrammes[id] = { name, sessions, archived: false };
+  data.programmes[id] = pdata;
+  addMyProgramme(id);
+  return id;
+}
+// Page d'un programme sans l'activer : sous la liste Programmes (onglet Programme), sinon poussée dans l'onglet
+// courant (fiche d'un élève, onglet Coach)
+function openProgrammePage(id) {
+  if (id === data.activeProgramme) { showActiveProgramme(); return; }
+  if (nav.tab !== 'program') { navigate(makeRoute('programmes', id)); return; }
+  const next = navClone(nav);
+  next.stacks.program = [TABS.program.root, makeRoute('programmes', id)];
+  navCommit(next, 'push', 'push');
+}
+// « Créer un programme » : nom, point de départ, puis (coach) pour lui ou pour un élève. student : créé depuis la
+// fiche de cet élève (« Créer un programme pour camille »), jamais activé. → id, ou null si annulé
+async function newProgrammeFlow({ student = null } = {}) {
+  const who = student ? personName(coachStudent(student)) : '';
+  const name = await askText({ title: 'Nouveau programme', message: student ? `Pour ${who}. Donne-lui un nom.` : 'Donne-lui un nom.',
+    value: student ? `Programme de ${who}`.slice(0, 40) : '', placeholder: 'Ex : Force 5×5', confirm: 'Suivant' });
+  if (!name) return null;
+  const start = await dialog({ type: 'sheet', title: `Partir de quoi pour « ${name} » ?`,
+    message: 'Séances et exercices restent modifiables ensuite.',
+    actions: [
+      { label: 'Programme vide', value: 'empty', style: 'preferred' },
+      ...Object.entries(PROGRAMMES).filter(([k]) => k !== 'custom').map(([k, pm]) => ({ label: `Copie ${elide('de', pm.name)}`, value: k })),
+      { label: 'Annuler', style: 'cancel' },
+    ] });
+  if (!start) return null;
+  // Compte coach : la question est posée, jamais devinée
+  let mine = !student;
+  if (!student && typeof coachRole === 'function' && coachRole().isCoach) {
+    const r = await dialog({ title: `« ${name} » est pour qui ?`, message: 'Un programme pour un élève ne change pas tes propres séances.',
+      actions: [{ label: 'Pour moi', value: 'me', style: 'preferred' }, { label: 'Pour un élève', value: 'student' }, { label: 'Annuler', style: 'cancel' }] });
+    if (!r) return null;
+    mine = r === 'me';
+  }
+  const id = createProgramme(name, start);
+  if (mine) { openProgramme(id); showToast(`Programme « ${name} » créé`); }
+  else { save(); openProgrammePage(id); showToast(`« ${name} » créé. Tes séances ne changent pas.`); }
+  // Programme vide : on enchaîne sur sa première séance
+  if (start === 'empty') openNewSession();
+  return id;
+}
+
+// Sous-titre de la page d'un programme qui n'est pas l'actif
+function progNotActiveText(pid) {
+  const to = typeof coachSentToNames === 'function' ? coachSentToNames(pid) : '';
+  return `${to ? `Envoyé à ${to}. ` : 'Pas ton programme actif. '}Tes séances restent sur ${progMeta(data.activeProgramme).name}.`;
+}
+// Élève dont on vient (fiche de l'élève sous la page du programme), sinon null
+function progStudentFromNav() {
+  const s = nav.stacks[nav.tab] || [];
+  for (let i = s.length - 1; i > 0; i--) if (routeName(s[i]) === 'coach-student') return routeParams(s[i])[0] || null;
+  return null;
+}
+// Bas de la page du programme. Deux gestes, deux mots, deux icônes (retours de Sophie : deux « Envoyer » qui ne
+// faisaient pas la même chose) : « Envoyer à un élève » (avion en papier) le met dans l'app de l'élève, suivi compris ;
+// « Partager une copie » (carré et flèche) ouvre la feuille de partage pour un texte. Sans compte coach : « Partager ».
+function progSendHtml(pid) {
+  const coachOk = typeof coachRole === 'function' && coachRole().isCoach && coachSendableProgrammes().includes(pid);
+  if (!coachOk) return `
+        <div class="group group--gap">
+          <button class="cell cell--action" data-action="share-programme">${icon('square.and.arrow.up', 20)}<span>Partager ce programme</span></button>
+        </div>
+        <div class="group-foot">Une copie des séances et des exercices, à envoyer par message. Tes charges et ton historique ne partent pas.</div>`;
+  const uid = progStudentFromNav(), st = uid ? coachStudent(uid) : null;
+  const send = st
+    ? `<button class="btn btn--primary btn--full prog-send-btn" data-action="prog-send-student" data-id="${esc(pid)}" data-uid="${esc(uid)}">Envoyer à ${esc(personName(st))}</button>`
+    : '';
+  return `
+        ${send}
+        <div class="group group--gap">
+          ${st ? '' : `<button class="cell cell--action" data-action="prog-send-student" data-id="${esc(pid)}">${icon('paperplane', 20)}<span>Envoyer à un élève</span></button>`}
+          <button class="cell cell--action" data-action="share-programme">${icon('square.and.arrow.up', 20)}<span>Partager une copie</span></button>
+        </div>
+        <div class="group-foot">« Envoyer à ${st ? esc(personName(st)) : 'un élève'} » : le programme arrive dans son app, avec tes consignes et tes charges, et tu suis ses séances. « Partager une copie » : un texte à envoyer par message, sans suivi.</div>`;
+}
+
 // Ordre de Mes programmes
 makeReorderable({
   view: 'my-programmes', list: '.mp-list', row: '.mp-row', handle: '.mp-handle',
@@ -423,8 +523,8 @@ makeReorderable({
 // Ordre des séances d'un programme perso
 makeReorderable({
   view: 'programmes', list: '.ps-list', row: '.ps-row', handle: '.ps-handle',
-  onMove: (from, to) => { if (moveSession(data.activeProgramme, from, to)) save(); },
-  nameOf: i => sessionMeta(sessionKeys(data.activeProgramme)[i], data.activeProgramme).label,
+  onMove: (from, to) => { if (moveSession(progFocusId(), from, to)) save(); },
+  nameOf: i => sessionMeta(sessionKeys(progFocusId())[i], progFocusId()).label,
 });
 
 // ── Actions ─────────────────────────────────────────────────
@@ -496,44 +596,41 @@ registerActions({
     if (id === data.activeProgramme) { progEditing = false; navigate('programmes'); return; }
     navigate(makeRoute('prog-info', id));
   },
-  'new-programme': async () => {
-    const name = await askText({ title: 'Nouveau programme', message: 'Donne-lui un nom.', placeholder: 'Ex : Force 5×5', confirm: 'Suivant' });
-    if (!name) return;
-    const start = await dialog({ type: 'sheet', title: `Partir de quoi pour « ${name} » ?`,
-      message: 'Séances et exercices restent modifiables ensuite.',
-      actions: [
-        { label: 'Programme vide', value: 'empty', style: 'preferred' },
-        ...Object.entries(PROGRAMMES).filter(([k]) => k !== 'custom').map(([k, pm]) => ({ label: `Copie ${elide('de', pm.name)}`, value: k })),
-        { label: 'Annuler', style: 'cancel' },
-      ] });
-    if (!start) return;
-    const id = 'u_' + uid();
-    const sessions = {};
-    let pdata = { exercises: {}, timers: {}, cooldowns: {} };
-    if (start !== 'empty') {
-      Object.entries(PROGRAMMES[start].sessions).forEach(([cat, m]) => {
-        sessions[cat] = { label: m.label, icon: '', desc: m.desc, color: m.color };
-      });
-      pdata = makeProgData(start);
-    }
-    data.userProgrammes[id] = { name, sessions, archived: false };
-    data.programmes[id] = pdata;
-    addMyProgramme(id);
-    openProgramme(id);
-    showToast(`Programme « ${name} » créé`);
-    // Programme vide : on enchaîne sur sa première séance
-    if (start === 'empty') openNewSession();
-  },
-  // Partage du programme actif : feuille de partage d'iOS (app), du navigateur, sinon presse-papiers
+  'new-programme': async () => { await newProgrammeFlow(); },
+  // Partage du programme affiché : feuille de partage d'iOS (app), du navigateur, sinon presse-papiers
   'share-programme': async () => {
-    const text = programmeShareText(programmeSharePayload(data.activeProgramme));
-    if (Native.isNative) { if ((await Native.shareText(text, progMeta().name)) === 'failed') showToast('Partage impossible', { error: true }); return; }
-    if (navigator.share) { try { await navigator.share({ text }); } catch {} return; }
-    try { await navigator.clipboard.writeText(text); showToast('Copié, à coller dans un message'); }
-    catch { showToast('Partage impossible', { error: true }); }
+    const id = progFocusId();
+    await shareTextFlow(programmeShareText(programmeSharePayload(id)), { title: progMeta(id).name, copied: 'Copié, à coller dans un message' });
+  },
+  // Envoyer à un élève : celui d'où l'on vient, sinon on le choisit
+  'prog-send-student': async (e, el) => {
+    const pid = el.dataset.id;
+    let uid = el.dataset.uid || null;
+    if (!uid) {
+      const list = (coach.state?.students || []).slice().sort((x, y) => personName(x).localeCompare(personName(y), 'fr'));
+      if (!list.length) {
+        await dialog({ title: 'Aucun élève pour l\'instant', message: 'Invite d\'abord un élève : onglet Coach, « Inviter un élève ».', actions: [{ label: 'OK', style: 'preferred' }] });
+        return;
+      }
+      uid = await dialog({ type: 'sheet', title: `Envoyer « ${progMeta(pid).name} » à…`,
+        actions: [...list.map(st => ({ label: personName(st), value: st.user_id })), { label: 'Annuler', style: 'cancel' }] });
+      if (!uid) return;
+    }
+    navigate(makeRoute('coach-send', uid, pid));
+  },
+  'prog-open-page': (e, el) => { if (progEditable(el.dataset.id)) navigate(makeRoute('programmes', el.dataset.id)); },
+  'prog-use-me': (e, el) => {
+    const id = el.dataset.id;
+    if (!progEditable(id)) return;
+    activateProgramme(id);
+    save();
+    haptic();
+    navReplaceQuiet('programmes');   // même page, désormais celle du programme actif
+    render();
+    showToast(`Programme : ${progMeta(id).name}`);
   },
   'rename-programme': async () => {
-    const id = data.activeProgramme, up = data.userProgrammes[id];
+    const id = progFocusId(), up = data.userProgrammes[id];
     if (!up) return;
     const name = await askText({ title: 'Renommer le programme', value: up.name });
     if (!name) return;
@@ -541,7 +638,7 @@ registerActions({
   },
   // Depuis l'onglet : le programme actif ; depuis Mes programmes › Modifier : celui de la ligne (data-id)
   'delete-programme': async (e, el) => {
-    const id = el?.dataset.id || data.activeProgramme, up = data.userProgrammes[id];
+    const id = el?.dataset.id || progFocusId(), up = data.userProgrammes[id];
     if (!up) return;
     if (activeSession?.programme === id) {
       await dialog({ title: 'Séance en cours', message: 'Termine ou abandonne la séance de ce programme avant de le supprimer.', actions: [{ label: 'OK', style: 'preferred' }] });
@@ -560,7 +657,8 @@ registerActions({
       addMyProgramme(next);
       if (currentView() === 'my-programmes') { activateProgramme(next); save(); render(); }
       else openProgramme(next);
-    } else { save(); render(); }
+    } else if (currentView() === 'programmes') { save(); goBack(); }   // page d'un programme qui n'était pas l'actif
+    else { save(); render(); }
     showToast('Programme supprimé');
   },
 });

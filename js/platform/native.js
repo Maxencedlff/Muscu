@@ -915,6 +915,8 @@ function phoneName() {
 }
 // Avec l'élision : « cet iPhone » / « cet iPad » / « ce téléphone », « l'iPhone » / « le téléphone »,
 // « de l'iPhone » / « du téléphone », « nouvel iPhone » / « nouveau téléphone »
+// Boutique où se gèrent les abonnements : « dans Google Play » sur Android, « chez Apple » ailleurs (juges du 26/11)
+function storeWhere() { return Native.platform === 'android' ? 'dans Google Play' : 'chez Apple'; }
 function thisPhone() { return phoneName() === 'téléphone' ? 'ce téléphone' : `cet ${phoneName()}`; }
 function ThisPhone() { const t = thisPhone(); return t[0].toUpperCase() + t.slice(1); }
 function ThePhone() { const t = thePhone(); return t[0].toUpperCase() + t.slice(1); }

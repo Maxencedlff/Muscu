@@ -297,3 +297,23 @@ function shareStoryButton(id, cls = '') {
   return `<button class="btn btn--secondary btn--full share-btn ${cls}" data-action="share-story" data-id="${esc(id)}">
     ${icon('square.and.arrow.up', 22)}<span>Partager la séance</span></button>`;
 }
+
+// ── Partage d'un texte (programme, invitation d'un élève) ───────
+// Feuille de partage d'iOS (app), du navigateur, sinon presse-papiers. À appeler sans rien attendre avant dans le geste
+// quand c'est possible : Safari n'autorise navigator.share que pendant le geste (MDN). Partage refusé par le navigateur
+// (geste expiré après un appel réseau, pas de feuille de partage) : le texte est copié et un toast le dit, au lieu de ne
+// rien faire (retours de Sophie du 26/11 : « Envoyer ce programme » et « Inviter un élève » ne montraient rien sur le web).
+// → 'shared' | 'copied' | 'cancelled' | 'failed'
+async function shareTextFlow(text, { title = '', copied = 'Copié, à coller dans un message' } = {}) {
+  if (Native.isNative) {
+    const r = await Native.shareText(text, title);
+    if (r === 'failed') { showToast('Partage impossible', { error: true }); return 'failed'; }
+    return r === 'cancelled' ? 'cancelled' : 'shared';
+  }
+  if (navigator.share) {
+    try { await navigator.share({ text }); return 'shared'; }
+    catch (e) { if (e?.name === 'AbortError') return 'cancelled'; }   // fermée par la personne ; sinon : copié
+  }
+  try { await navigator.clipboard.writeText(text); showToast(copied); return 'copied'; }
+  catch { showToast('Partage impossible', { error: true }); return 'failed'; }
+}

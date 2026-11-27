@@ -384,7 +384,7 @@ def t_envoi_complet(bench, eng, dev, theme):
         cp.wait_for_function("() => document.querySelectorAll('.coach-photos-view .pgal__item img[src^=\"blob:\"]').length === 3", timeout=20000)
         cp.clock.run_for(61_000)
         settle(cp)
-        R.check(not cphopen(cp) and 'une minute sans activité' in cp.inner_text('.coach-photos-view'), f'{t} refermées après une minute sans toucher')
+        R.check(not cphopen(cp) and '1 min sans action' in cp.inner_text('.coach-photos-view'), f'{t} refermées après une minute sans toucher')
 
         # ── Élève : retirer une photo, puis quitter le coach ──
         sp.locator('.cph-row').first.locator('[data-action="cph-remove"]').click()

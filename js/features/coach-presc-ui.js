@@ -28,10 +28,18 @@ function coachPrescDraftFor(route) {
   const n = e?.sets || 3;
   coachPrescDraft = { route, load: prescKgTxt(cleanPrescKg(p.load)),
     loads: Array.from({ length: n }, (_, i) => prescKgTxt(Array.isArray(p.loads) ? cleanPrescKg(p.loads[i]) : null)),
-    fixed: reps.fixed === true, max: String(reps.max ?? 12), min: reps.min ? String(reps.min) : '' };
+    // Bas de la fourchette écrit en vrai chiffre, jamais en texte d'exemple gris (retours de Sophie du 26/11 : « 8 » gris
+    // à côté de « 12 » blanc) : sans bas réglé, celui que l'app applique (4 sous le haut, repSpanOf)
+    fixed: reps.fixed === true, max: String(reps.max ?? 12), min: reps.min ? String(reps.min) : prescLowText(reps.max ?? 12) };
   return coachPrescDraft;
 }
 
+
+// Bas de fourchette appliqué quand rien n'est réglé (4 sous le haut, comme repSpanOf), en texte ; '' si aucun
+function prescLowText(max) {
+  const hi = parseInt(max) || 12, lo = Math.max(1, hi - 4);
+  return lo < hi ? String(lo) : '';
+}
 
 function renderCoachPresc(uid) {
   const route = currentRoute();
@@ -168,7 +176,7 @@ registerActions({
       if (min === null || min >= max) { flagInvalid($('#cpMin'), 'Le bas doit être sous le haut'); return; }
     }
     // Reps : gardées seulement si elles changent celles du programme (le programme modifié ensuite fait foi sinon)
-    const same = d.fixed ? fixedReps(e) === max : !fixedReps(e) && (e.repMax ?? 12) === max && (e.repMin ?? null) === min;
+    const same = d.fixed ? fixedReps(e) === max : !fixedReps(e) && (e.repMax ?? 12) === max && (repSpanOf(e)?.[0] ?? null) === (min ?? repSpanOf({ ...e, repMax: max, repMin: null })?.[0] ?? null);
     const p = cleanCoachPresc({ load, loads, ...(same ? {} : { reps: { fixed: d.fixed, max, ...(min ? { min } : {}) } }) }, e.sets);
     const all = (coachSendDraft.presc ||= {});
     if (p) (all[cat] ||= {})[exId] = p; else if (all[cat]) delete all[cat][exId];

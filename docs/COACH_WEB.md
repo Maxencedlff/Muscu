@@ -682,8 +682,8 @@ la barre latérale tant qu'ils ne sont pas ouverts (Plans diète y est depuis le
   D'où l'ordre conseillé : la migration avant le site.
 - **Format identique à l'app** : le brouillon est un programme `cleanSentProgramme` ; chaque champ suit les règles de
   l'app (`deskPgPatch`) : séries 1 à 10, fourchette (le bas reste écrit, sinon un haut seul hors 12 se lirait en reps
-  fixes) ou reps fixes (`repFixed`), charge prescrite pour toutes les séries (`load`) ou série par série (`loads` : top set
-  et back-off, étiquetés par `prescSetTag` ; la charge commune reste en repli, comme `prescKgAt` de l'app : une série
+  fixes) ou reps fixes (`repFixed`), charge prescrite pour toutes les séries (`load`) ou série par série (`loads` : série
+  lourde et séries allégées, étiquetées « Lourde » et « Allégée » par `prescSetTag` ; la charge commune reste en repli, comme `prescKgAt` de l'app : une série
   ajoutée la reprend), repos 10 à 600 s ou celui de l'élève, technique et « sur quelle série »
   (`intensFieldsFor` : Dernière, Toutes, ou des numéros, publiée le 24/11 ; une seule série visée garde la forme
   d'avant), consigne 500 caractères. Envoi par `coachSentPayload` (extrait de `coachSendProgramme` de l'app : même
@@ -798,7 +798,7 @@ d'un plan existant seulement ; l'éditeur n'existait que dans l'app). Rien n'est
 | `#/eleve/<id>/nutrition/edit` | le plan reçu par l'élève (version de `coach_student_programmes`), dans l'éditeur |
 | `#/eleve/<id>/nutrition/new`, `…/nutrition/<plan>` | plan neuf, ou un de mes plans, pour cet élève |
 
-« Plans diète » est ouvert dans la barre latérale (nombre de plans) et dans la barre d'onglets (« Diète »).
+« Plans de nutrition » (nommé « Plans diète » jusqu'au 26/11) est ouvert dans la barre latérale (nombre de plans) et dans la barre d'onglets.
 
 ### Éditeur (js/desk/diet-editor.js ; liste : diet-lib.js ; dialogues : diet-pick.js ; logique : diet-edit-model.js)
 - **Repas** : ajouter (nom en double refusé, sans casse ni accents ; 8 au plus), Options (renommer, consigne, Monter,
@@ -911,6 +911,43 @@ origine opaque) ne peut pas lire ce fichier elle-même : elle le demande à l'ap
 - `python3 tests/test_coach_web_diete.py` (`PPL_ENGINES=chromium` pour un moteur ; job `coach-web` de tests.yml) :
   3 moteurs × 1440, 1180, 820 px × sombre, clair, puis les parcours (voir l'en-tête du fichier).
 - `python3 tests/coach_web_captures_diete.py <dossier>` : 9 écrans, planches sombre et clair côte à côte.
+
+## Retours des juges du 26/11 (branche retours-coach)
+
+Avis du panel `juges16.json` (juge 2) sur le site coach, corrigés dans `coach-web/` seulement :
+
+- **Nutrition : objectif, prévu et noté, chacun nommé.** L'en-tête du plan dit « Objectif 1 800 kcal par jour, repas
+  prévus 1 364 kcal » (le prévu seulement s'il s'écarte de plus de 5 % ; `deskNtPlanHead`, `deskNtDayKcal`,
+  js/desk/diet-model.js) et, sous l'en-tête, « Il manque 436 kcal dans les repas pour atteindre l'objectif : « Modifier
+  ce plan » pour les ajuster ». Sous les repas du jour : « Repas cochés : 1 364 kcal prévus par ton plan. lea a noté
+  1 780 kcal ce jour-là, 416 de plus : des aliments remplacés ou ajoutés » (écart dit au-delà de 10 %,
+  `deskNtCheckedKcal`). Le panneau du jour s'appelle « Mardi 24 novembre : noté par lea » et chaque chiffre porte
+  « objectif » (plus de « 1 780 sur 1 800 »). Les deux calculs restent distincts parce qu'ils mesurent deux choses :
+  le plan (aliments prévus) et ce que l'élève a noté (remplacements compris, que le coach ne voit pas).
+- **Élèves : « Sans programme » seulement sans programme envoyé ET sans phase en cours.** Une phase en cours sans
+  programme envoyé (Thomas de la démo : « tu gardes ton programme ») donne « Suit son propre programme », en gris, sans
+  action. Phase en cours qui finit dans 7 jours ou moins sans phase après : « Fin de phase dans 4 jours : prévoir la
+  suite » ; dernière phase finie : la ligne dit « Sèche terminée le 12 nov. » et « Phase terminée : prévoir la suite »
+  (`deskPhaseTodo`, `deskPhaseLine`, js/desk/model.js ; dans « À traiter », au rang de « Sans programme »).
+- **Programme : écart de charge.** Quand la plus lourde charge prescrite s'écarte d'un cran (`loadStepKg`, 2,5 kg à la
+  barre) ou plus de la plus lourde faite la dernière fois : « Prescrit 45 kg, fait 55 kg » et un bouton « Prescrire
+  57,5 kg » (la charge faite, un cran au-dessus si le haut de la fourchette est atteint ; `deskPgLoadGap`). Le bouton
+  met la lourde à cette charge et décale les allégées du même écart (`deskPgApplyNext`) ; rien ne part avant « Envoyer ».
+  Séries : « Lourde » et « Allégée » (libellés de js/data/intensif.js), exemple de consigne « sur la série lourde ».
+- **Bilans** : rien à changer, les photos s'ouvrent déjà sur l'ordinateur relié (vague 5, docs/PHOTOS_WEB.md) ; la
+  capture des juges datait de la vague 4.
+- **Messages** : « Notifications coupées chez lea : ton message sera là dès que lea ouvrira l'app. »
+- **Semaines** : la colonne Semaine reste collée à gauche quand le tableau défile en largeur (fond opaque `--row-cur`
+  pour la semaine en cours) ; tant que des colonnes restent cachées à droite, une ligne le dit sous le tableau
+  (« D'autres colonnes à droite : fais défiler le tableau. », `deskTableHints`, appelée après chaque rendu).
+- **Élèves** : légende des pastilles sous la liste (« Diète (7 j) : Suivi, Partiel, Pas suivi, Rien de noté », plus
+  « Aujourd'hui, en cours » si une pastille du jour est affichée).
+- **Vocabulaire** : « Plans de nutrition » (navigation, titre, fil d'Ariane), « Plan de nutrition » dans l'onglet ;
+  les renvois à l'app disent « onglet Nutrition » (son libellé coach « Mes diètes » est à renommer dans js/features/).
+
+Tests : `python3 tests/test_coach_web_retours.py` (3 moteurs × 1440 et 820 px × sombre, clair, puis la charge suivante
+envoyée) ; `PPL_COACH_URL=http://127.0.0.1:<port>/` (ou `PPL_URL`) fait servir les tests du site par un serveur déjà
+lancé à la racine du dépôt (`static_server`, tests/coach_web_fixtures.py).
 
 ## Embarquer dans l'app (iPad et tablettes)
 

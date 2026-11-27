@@ -410,7 +410,8 @@ function cplIdentity(ctx, m, { x, top, maxW, name: [nMax, nMin], spec, gap, draw
 // à gauche, « Rejoins-moi sur MDLF Training » en orange (seul orange de l'affiche), le code en blanc très gras, où
 // l'entrer en gris secondaire
 // k : tailles relatives à la hauteur de la carte (carré : carte moins haute, textes plus grands en proportion)
-const CPL_CARD = { s1: 0.15, sc: 0.34, s3: 0.13, gap: 0.075 };
+// s3 : où entrer le code, la seule consigne pour l'élève ; agrandie (juges du 26/11 : illisible en story sur un téléphone)
+const CPL_CARD = { s1: 0.15, sc: 0.32, s3: 0.155, gap: 0.075 };
 function cplCodeCard(ctx, m, icon, x, y, w, h, k = CPL_CARD) {
   cpaRound(ctx, x, y, w, h, Math.min(40, h * 0.2)); ctx.fillStyle = CPL.cell; ctx.fill();
   const pad = 32, is = Math.min(h * 0.46, 110);
@@ -421,7 +422,7 @@ function cplCodeCard(ctx, m, icon, x, y, w, h, k = CPL_CARD) {
     tx += is + 26;
   }
   const tw = x + w - pad - tx;
-  const s1 = cplFit(ctx, m.ctaLine, tw, h * k.s1, 20, 600), s3 = cplFit(ctx, m.ctaWhere, tw, h * k.s3, 18, 600);
+  const s1 = cplFit(ctx, m.ctaLine, tw, h * k.s1, 20, 600), s3 = cplFit(ctx, m.ctaWhere, tw, h * k.s3, 24, 600);
   const sc = cplFit(ctx, m.code, tw, h * k.sc, h * 0.18, 800), gap = h * k.gap;
   const top = y + (h - (s1 * 0.74 + gap + sc * 0.74 + gap + s3 * 0.74)) / 2;
   const b1 = top + s1 * 0.74, b2 = b1 + gap + sc * 0.74, b3 = b2 + gap + s3 * 0.74;
@@ -454,7 +455,7 @@ const CPL_FORMATS = {
 // tête du personnage (qui ne dépasse donc jamais), son buste jusqu'à la taille autour ; à droite, sur le noir, le nom
 // et la spécialité ; carte du code moins haute, en bas
 const CPL_SQUARE = { pad: 44, title: [112, 60], d: 460, ring: 5, bodyH: 1080 * 1.5, cardH: 150, name: [104, 48], spec: 30,
-  gap: 14, card: { s1: 0.17, sc: 0.4, s3: 0.145, gap: 0.06 } };
+  gap: 14, card: { s1: 0.17, sc: 0.38, s3: 0.17, gap: 0.06 } };
 
 // Place de chaque bloc, de haut en bas (sans dessiner) : le titre rapetisse (jusqu'à 70 %) tant que la photo n'a pas
 // sa taille minimale ; la place en trop est partagée au-dessus du titre et entre la photo et la carte
@@ -489,7 +490,7 @@ function cplDrawHero(ctx, m, a, W, H, sq) {
   if (sq) { cplDrawHeroSquare(ctx, m, a, W, H); return; }
   const f = CPL_FORMATS.story, p = cplHeroPlan(ctx, m, f, W), dy = p.dy;
   cplHeroBody(ctx, a.body, W / 2, p.headTop + dy, f.bodyH);
-  const tBottom = cplTitle(ctx, m, { x: W / 2, top: f.top + dy, maxW: W - 2 * f.side, size: p.tS, oneLine: p.lines === 1, accent: CPA.heat });
+  const tBottom = cplTitle(ctx, m, { x: W / 2, top: f.top + dy, maxW: W - 2 * f.side, size: p.tS, oneLine: p.lines === 1, accent: CPA.white });   // blanc : plus le rouge des muscles (juges du 26/11), et plus aucun texte en orange (27/11)
   cplIdentity(ctx, m, { ...p.idOpts, top: tBottom + f.gap * 4 });
   cplPhotoRound(ctx, m, a, W / 2, p.photoTop + dy + f.ring, p.d, f.ring);
   cplCodeCard(ctx, m, a.icon, f.side, p.cardY, W - 2 * f.side, f.cardH);
@@ -497,7 +498,7 @@ function cplDrawHero(ctx, m, a, W, H, sq) {
 function cplDrawHeroSquare(ctx, m, a, W, H) {
   const f = CPL_SQUARE, cardY = H - 40 - f.cardH;
   const words = cplTitleWords(m), tS = cplFit(ctx, words.join(' '), W - 2 * f.pad, f.title[0], f.title[1], 800);
-  const tBottom = cplTitle(ctx, m, { x: W / 2, top: 46, maxW: W - 2 * f.pad, size: tS, oneLine: true, accent: CPA.heat });
+  const tBottom = cplTitle(ctx, m, { x: W / 2, top: 46, maxW: W - 2 * f.pad, size: tS, oneLine: true, accent: CPA.white });
   // Photo à gauche, aussi haute que possible entre le titre et la carte ; le personnage centré dessous, sa tête au
   // centre de la photo (couverte), son buste visible jusqu'à la carte
   const top = tBottom + 40, d = Math.min(f.d, cardY - 28 - top - 2 * f.ring), cx = f.pad + f.ring + d / 2, cy = top + f.ring + d / 2;
@@ -554,7 +555,7 @@ const CPL_PHOTO = {
   story: { side: 60, title: 92, name: [150, 76], spec: 42, gap: 18, cardH: 236, ph: [520, 920], r: 44, air: 12,
     gT: 40, gP: 56, gC: 52 },   // air : titre → photo, photo → nom, spécialité → carte
   square: { pad: 44, title: 64, name: [112, 52], spec: 32, gap: 14, cardH: 150, pw: 470, r: 36,
-    card: { s1: 0.17, sc: 0.4, s3: 0.145, gap: 0.06 } },
+    card: { s1: 0.17, sc: 0.38, s3: 0.17, gap: 0.06 } },
 };
 
 // Story : titre, la photo sur toute la largeur utile, le nom très gros, la spécialité, puis la carte du code ; le bloc

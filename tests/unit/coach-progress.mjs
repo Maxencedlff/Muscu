@@ -63,15 +63,16 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     sameJSON([fresh.kind, fresh.tone, fresh.text], ['new', 'muted', 'Pas encore de séance']);
   });
 
-  test('progression : records de la semaine, un par exercice, le plus marquant d\'abord', () => {
+  test('progression : records de la semaine, tous (comme les cartes des séances), le plus marquant d\'abord', () => {
     const f = facts([[0, [rec('Squat', 'reps', 10)]], [2, [rec('Squat', 'charge', 105), rec('Tractions', 'reps', 9)]], [7, [rec('Développé couché')]], [9]]);
     const p = sp(st({ last_session: last(0) }), f);
-    sameJSON([p.kind, p.tone, p.text], ['records', 'up', '2 records en 7 jours'], 'Squat deux fois : un seul record ; le 7e jour d\'avant ne compte pas');
-    sameJSON(p.records.map(x => [x.ex, x.r.kind]), [['Squat', 'charge'], ['Tractions', 'reps']]);
+    // Retours de Sophie du 26/11 : le nombre de la liste = la somme des records écrits sur les cartes des séances
+    sameJSON([p.kind, p.tone, p.text], ['records', 'up', '3 records en 7 jours'], 'Squat deux fois : deux records ; le 7e jour d\'avant ne compte pas');
+    sameJSON(p.records.map(x => [x.ex, x.r.kind]), [['Squat', 'charge'], ['Squat', 'reps'], ['Tractions', 'reps']]);
     assert.equal(p.n7, 2);
     assert.equal(sp(st({ last_session: last(0) }), facts([[0, [rec('Squat')]]])).text, '1 record en 7 jours');
-    // Casse et accents : même exercice
-    assert.equal(sp(st({ last_session: last(0) }), facts([[0, [rec('Développé couché')]], [1, [rec('developpe COUCHE', 'reps')]]])).records.length, 1);
+    // Deux séances, un record chacune : deux records (même exercice, casse et accents différents)
+    assert.equal(sp(st({ last_session: last(0) }), facts([[0, [rec('Développé couché')]], [1, [rec('developpe COUCHE', 'reps')]]])).records.length, 2);
     // Séance d'une app d'avant (records null) : rien d'inventé
     assert.equal(sp(st({ last_session: last(0) }), facts([[0, null]])).records.length, 0);
   });
@@ -246,11 +247,11 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     }
   });
 
-  test('progression : résumé de la semaine de Mes élèves (records, à relancer, nouveautés)', () => {
+  test('progression : résumé de la semaine de Mes élèves (records, à relancer, séances à voir)', () => {
     const r = run(`teamWeekSummary([{ user_id: 'a', new_sessions: 2 }, { user_id: 'b' }, { user_id: 'c', new_sessions: 0 }],
       st => ({ a: { tone: 'up', records: [1, 2] }, b: { tone: 'warn', records: [] }, c: { tone: 'muted', records: [3] } })[st.user_id],
       st => (st.user_id === 'b' ? 1 : 0))`);
-    sameJSON(r, { records: 3, warn: 1, fresh: 3 });
+    sameJSON(r, { records: 3, warn: 1, fresh: 2 });   // messages non lus comptés à part (segment Messages)
     sameJSON(run(`teamWeekSummary([], () => null)`), { records: 0, warn: 0, fresh: 0 });
   });
 

@@ -263,7 +263,7 @@ export default function ({ test, assert, ROOT }) {
       state: { students: [{ user_id: 'lea', username: 'lea' }] }, threads: { students: {} } }, student: { id: 'lea', sessions: [], now: ${NOW}, weeks: [], diet: { shared: true, days: {} } } };`);
     run(`Object.assign(pg, { id: 'lea', loading: false, kind: null, list: [{ id: 'u_s', data: cleanSentProgramme(${J(SENT)}), sentAt: ${T(3)}, seen: true }] }); deskPgUse(pg.list[0]); pg.open = pg.draft.sessions[0].exercises[0]._k;`);
     const p = run(`deskPgHtml(view.dash.rows[0])`);
-    assert.match(p, /Top set/);
+    assert.match(p, /Lourde/);   // « Top set » en français (juges du 26/11)
     assert.match(p, /Sur quelle série|Technique d'intensification/);
     assert.match(p, /vu par lea/);
     run(`Object.assign(nt, { id: 'lea', loading: false, kind: null, diets: [] })`);

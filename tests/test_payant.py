@@ -1057,8 +1057,10 @@ def t_tarifs(bench, eng, dev, theme):
         b.click()
         settle(page)
         pl = plans_text(page)
-        R.check(page.evaluate('currentView()') == 'paywall' and 'Ta formule' in pl[0] and 'Conseillé' in pl[1] and '25 élèves' in pl[1],
-                f'{t} montée de palier : 25 élèves conseillé, 10 élèves « Ta formule » {pl}')
+        # Juges du 26/11 : venu du bandeau, le palier conseillé passe en tête, mis en avant, sans défiler
+        R.check(page.evaluate('currentView()') == 'paywall' and 'Conseillé' in pl[0] and '25 élèves' in pl[0] and 'Ta formule' in pl[1]
+                and page.locator('.pay-plan--wanted').count() == 1,
+                f'{t} montée de palier : 25 élèves conseillé en tête, puis 10 élèves « Ta formule » {pl}')
         R.check(page.locator(f'[data-action="pay-buy"][data-id="{C10}"]').is_disabled(), f'{t} formule en cours : pas rachetable')
         # Achat du palier suivant : même groupe Apple, accès complet
         page.click('[data-action="pay-buy"][data-id="com.mdlf.training.coach20.monthly"]')

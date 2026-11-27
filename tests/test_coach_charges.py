@@ -128,7 +128,7 @@ def t_charges(bench, eng, dev, theme):
         # Fourchette 3 à 5, top set à 100, back-off à 90
         page.click('.coach-presc-btn[data-ex="e2"]')
         page.wait_for_selector('.coach-presc-view')
-        R.check(page.input_value('#cpMin') == '3' and page.input_value('#cpMax') == '5' and 'Top set' in txt(page, '.coach-presc-view'), f'{t} fourchette 3 à 5, séries nommées')
+        R.check(page.input_value('#cpMin') == '3' and page.input_value('#cpMax') == '5' and 'Lourde' in txt(page, '.coach-presc-view'), f'{t} fourchette 3 à 5, séries nommées')
         page.fill('#cpLoad', '90')
         page.fill('#cpSet0', '100')
         page.click('[data-action="coach-presc-ok"]')
@@ -196,8 +196,8 @@ def t_charges(bench, eng, dev, theme):
         dw = [page.input_value(f'{dl} [data-action="set-weight"][data-si="{i}"]') for i in range(4)]
         dr = [page.input_value(f'{dl} [data-action="set-reps"][data-si="{i}"]') for i in range(4)]
         R.check(dw == ['100', '90', '90', '90'] and dr == ['4', '3', '3', '3'], f'{t} soulevé : 100 × 4 puis 90 × 3 ({dw}, {dr})')
-        R.check(page.locator(f'{dl} .session-set[data-si="0"] .tech-pill').inner_text().startswith('Top set')
-                and page.locator(f'{dl} .session-set[data-si="1"] .tech-pill').inner_text().startswith('Back-off')
+        R.check(page.locator(f'{dl} .session-set[data-si="0"] .tech-pill').inner_text().startswith('Lourde')
+                and page.locator(f'{dl} .session-set[data-si="1"] .tech-pill').inner_text().startswith('Allégée')
                 and page.locator(f'{dl} .tech').count() == 0 and page.locator(f'{dl} .tech__x').count() == 0,
                 f'{t} étiquettes dans la ligne de leur série, sans ×')
         R.check(txt(page, f'{dl} .ex-goal').startswith('Coach : 100 kg puis 90 kg × 3–5'), f'{t} soulevé : « Coach : 100 kg puis 90 kg × 3–5 »')

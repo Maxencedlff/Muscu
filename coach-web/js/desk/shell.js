@@ -51,14 +51,14 @@ const DESK_ICONS = {
 };
 function deskIcon(name, cls = '') { return `<svg class="i ${cls}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${DESK_ICONS[name] || ''}</svg>`; }
 
-// Navigation : seulement ce qui est ouvert (vagues 1, 2 et 4, Plans diète le 25/11). Planning et Mes programmes n'y
+// Navigation : seulement ce qui est ouvert (vagues 1, 2 et 4, Plans de nutrition le 25/11). Planning et Mes programmes n'y
 // sont pas annoncés « bientôt » : un lien qui ne mène nulle part est du bruit ; ils y entreront le jour où ils ouvrent.
 const DESK_NAV = [
   { id: 'students', label: 'Élèves', icon: 'students', href: '#/' },
   { id: 'messages', label: 'Messages', icon: 'messages', href: '#/messages' },
   { id: 'checkins', label: 'Bilans reçus', icon: 'checkins', href: '#/bilans-recus' },
   { id: 'templates', label: 'Mes bilans', icon: 'templates', href: '#/bilans' },
-  { id: 'diet', label: 'Plans diète', icon: 'diet', href: '#/plans-diete' },
+  { id: 'diet', label: 'Plans de nutrition', icon: 'diet', href: '#/plans-diete' },
 ];
 
 function deskNavItem(n, on, { badge = 0, count = null } = {}) {

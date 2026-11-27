@@ -41,17 +41,18 @@ function coachDeskCardHtml() {
             ${icon('chevron.right', 16)}
           </button>
         </div>`;
+  // Premier passage : deux lignes, sous la liste des élèves (juges iPad du 26/11 : le bloc d'explication occupait tout le
+  // haut de l'écran et la liste commençait au milieu)
   return `
-        <div class="group-title">Grand écran</div>
         <div class="group coach-desk-card">
-          <div class="cell coach-desk-card__intro">
+          <button class="cell cell--nav" data-action="coach-desk-open">
             ${icon('arrow.up.left.and.arrow.down.right', 20)}
-            <span class="cell__body"><span class="cell__title">Tes élèves sur tout l'écran</span><span class="cell__sub">Le tableau de tes élèves, leurs semaines et leurs bilans, comme sur coach.mdlf.app. Tu restes connecté.</span></span>
-          </div>
-          <button class="cell cell--action" data-action="coach-desk-open"><span class="cell__title">Ouvrir le mode grand écran</span></button>
+            <span class="cell__body"><span class="cell__title">Ouvrir le mode grand écran</span><span class="cell__sub">Tes élèves sur tout l'écran, comme sur coach.mdlf.app</span></span>
+            ${icon('chevron.right', 16)}
+          </button>
           <button class="cell cell--action coach-desk-card__hide" data-action="coach-desk-hide"><span class="cell__title">Masquer</span></button>
         </div>
-        <div class="group-foot">« Revenir à l'appli » te ramène ici. Le mode grand écran reste dans Réglages › Coach.</div>`;
+        <div class="group-foot">Il reste dans Réglages › Coach.</div>`;
 }
 
 // Réglages › Coach (« Tu es coach ») : toujours là sur grand écran, même masqué de l'onglet

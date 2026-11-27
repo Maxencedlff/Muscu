@@ -58,7 +58,7 @@ Décision de Maxence : l'élève choisit, donnée par donnée, ce que son coach 
 | `student_share_weights(weights jsonb)` | `int` (pesées gardées) | `[{ date, kg }]` : sans consentement `not_shared` ; pas une liste ou élément hors bornes (date entière après 2000 et au plus 24 h dans le futur, kg 25 à 300) `invalid_data` ; plus de 400 ou plus de 64 Ko `too_long`. Remplace toute la liste ; même instant : la dernière. 60 envois par heure. |
 | `coach_student_weights(student uuid)` | `jsonb` | Coach de cet élève, encore coach, sinon `not_found`. `{ shared, since, weights: [{ date, kg }] }` du plus récent ; sans partage : `shared: false`, liste vide. |
 
-App : Réglages › Social et coach › « Partager avec mon coach » (élève suivi seulement ; aussi dans Réglages › Coach) → écran `coach-share` (une case par donnée ouverte, texte de ce que le coach verra). Coach : sur la fiche d'un élève qui partage, groupe « Poids du corps » (dernière pesée, tendance sur 30 jours, courbe de Progrès) ; page séance : pied de page « poids du corps compté (61,4 kg, sa dernière pesée partagée à cette date…) ».
+App : Réglages › Social et coach › « Partager avec mon coach » (élève suivi seulement ; aussi dans Réglages › Coach) → écran `coach-share` (une case par donnée ouverte, texte de ce que le coach verra). Coach : sur la fiche d'un élève qui partage, groupe « Poids du corps » (dernière pesée, tendance sur 30 jours, courbe de Progrès) ; page séance : pied de page « Son poids du corps (61,4 kg) compte pour les exercices au poids du corps » (texte raccourci le 26/11/2026, retours de Sophie).
 
 Mensurations partagées (05/11/2026) : même modèle, case « Mensurations », contrat dans `docs/COACH_SUIVI.md` (« Bilan »). Planification des phases par élève : même document.
 
@@ -184,7 +184,7 @@ Format de js/data/prog-share.js étendu, validé par l'app à la réception :
 `{ name, consigne?, sessions: [{ key, label, color, exercises: [{ name, sets, rest?, measure?, tempo?, repMax?, repMin?, repFixed?, load?, loads?, intens?, intensOn?, ss?, grip?, consigne?, role? }] }] }`.
 - Le même exercice peut revenir dans une séance (26/11/2026, js/data/blocks.js) : pré-fatigue au début, vraies séries à la fin. Chez l'élève, les blocs d'un même nom se reprennent dans l'ordre à chaque envoi (même `id`, même rang) ; un bloc de plus rejoint le suivi du premier (un seul historique, mêmes records). `role` : `'prefat'` (Pré-fatigue) ou `'warmup'` (Échauffement), absent = Normal ; ses séries sont marquées échauffement (hors records, volume, séries par muscle). Une appli d'avant voit deux fois l'exercice et ignore `role`.
 - Charge prescrite (16/11/2026) : `load` (kg pour toutes les séries) et `loads` (série par série), voir « Charge prescrite » plus bas.
-- Reps : fourchette `repMin` à `repMax` (« 8 à 12 »), ou reps fixes `repFixed: true` avec le nombre dans `repMax` (« 4 × 12 », jamais avec `repMin`). Une appli d'avant `repFixed` ignore le champ et lit le seul haut : même hausse de charge quand toutes les séries l'atteignent ; seul l'objectif après la hausse diffère (4 sous le haut au lieu du même nombre).
+- Reps : fourchette `repMin` à `repMax` (« 8 à 12 »), toujours écrite en entier à l'envoi depuis le 26/11/2026 (`sentRangesExplicit`, app et appli web : un bas non réglé part comme le bas appliqué, 4 sous le haut ; avant, seul le haut partait), ou reps fixes `repFixed: true` avec le nombre dans `repMax` (« 4 × 12 », jamais avec `repMin`). Une appli d'avant `repFixed` ignore le champ et lit le seul haut : même hausse de charge quand toutes les séries l'atteignent ; seul l'objectif après la hausse diffère (4 sous le haut au lieu du même nombre).
 - `consigne` (programme ou exercice) : texte du coach, 500 caractères au plus.
 - À l'import, l'élève reçoit un programme perso (`userProgrammes`, id `u_c<8 premiers caractères alphanumériques de l'id du coach>_<prog_id>`, choix du 27/10 : deux coachs qui envoient le même `prog_id` ne s'écrasent jamais, et le coach reconnaît ses programmes ; un import plus ancien `u_c<prog_id>` du même coach garde sa place), marqué `fromCoach: { coachId, name, sentAt, hash, keptAt? }`. Un nouvel envoi du même `prog_id` met à jour le programme importé (exercices et consignes), en gardant les `id` d'exercices dont le nom ne change pas dans la même séance, pour garder l'historique et les records.
 - `order: [clés]` : ordre des séances de tout programme perso (pas seulement reçu), synchronisé dans le profil, parce que jsonb trie les clés d'un objet. Absent, l'ordre des clés de l'appareil fait foi (migration douce) ; une empreinte de profil d'avant ce champ compte comme « inchangé ici » à la synchro.
@@ -247,3 +247,27 @@ prévu ». Sans la migration, l'écart ne lui parvient pas ; rien d'autre ne cha
 - **Élève** : programme reçu → carte « Nouveau programme de <coach> » (Mon coach et accueil) avec « Ajouter à mes programmes » ; consignes visibles dans Programme › Séance, dans la séance (sous le nom de l'exercice, repliable) ; commentaire du coach dans Historique › Séance.
 - **Badge** : sur l'onglet Social (ou Coach) = badge social + badge coach.
 - Hors ligne : messages clairs, rien de perdu.
+
+## Retours de Sophie (coach, 26/11/2026)
+Parcours réel d'une coach peu à l'aise avec la technique, sur iPhone SE, puis 16 juges sur captures :
+- **Programme pour un élève** : Fiche › « Envoyer un programme » propose d'abord « Créer un programme pour <élève> » (nom,
+  point de départ), puis ses programmes. Le programme créé n'est **jamais activé** : il s'ouvre dans sa page (route
+  `programmes:<id>`, `progFocusId` de js/data/accessors.js) où ses séances et exercices se règlent, avec « Envoyer à
+  <élève> » en bas. Dans l'onglet Programme, « Créer un programme » demande à un coach « Pour moi » ou « Pour un élève ».
+  Un programme envoyé se rouvre sans l'utiliser : fiche du programme › « Modifier sans l'utiliser ». Séance, widget,
+  montre, Siri et délais de récupération lisent toujours le programme actif (`onActiveProgramme`).
+- **Deux gestes, deux mots** : page d'un programme, compte coach : « Envoyer à un élève » (avion en papier : choix de
+  l'élève, puis l'écran Envoyer) et « Partager une copie » (feuille de partage ; refusée par le navigateur : copié, avec
+  un toast). Sans compte coach : « Partager ce programme ».
+- **Fiche d'un élève** : « Charges par exercice » (js/data/coach-ex-progress.js : la série de travail la plus lourde de
+  chaque séance, 12 semaines) ; « Envoyer un bilan » (js/data/coach-checkin-send.js : un de mes modèles, sinon un modèle
+  fourni enregistré à la volée, puis `coach_checkin_send_now` ; docs/BILANS.md), dernière demande et son état dessous.
+  Serveur sans les bilans : rien n'apparaît.
+- **Chiffres** : « N records en 7 jours » compte tous les records des séances (plus un par exercice), comme les cartes ;
+  la carte de tête prend le volume de la page de la séance (`sessionReview`) ; le résumé de Mes élèves attend la
+  première lecture de la progression ; « séances à voir » ne compte plus les messages (ils sont sur « Messages », et
+  « Mes amis » montre sa part de la pastille de l'onglet).
+- **Inviter** : un toucher crée le code ET ouvre le partage ; un code de 7 jours encore bon au moins 24 h est repartagé
+  au lieu d'en créer un autre (`coachReusableInvite`).
+- **Charge prescrite** : bas de la fourchette écrit en vrai chiffre (plus un texte d'exemple gris) ; « Lourde » et
+  « Allégée » au lieu de « Top set » et « Back-off » (TECHS, js/data/intensif.js).

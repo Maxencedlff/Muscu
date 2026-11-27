@@ -64,6 +64,8 @@ const SCRIPTS = [
   'js/data/checkin-student.js',
   'js/data/coach-plan.js',
   'js/data/coach-progress.js',
+  'js/data/coach-ex-progress.js',
+  'js/data/coach-checkin-send.js',
   'js/data/referral.js',
   'js/data/plans.js',
   'js/data/min-build.js',
@@ -2315,6 +2317,8 @@ test('Diagnostic du son : verdict, action courte, cause, aide, « Joué » ou «
 (await import('./coach-plan.mjs')).default({ test, run, reset, assert, sameJSON, ROOT });
 // ── Progression des élèves : signal, semaines, phases, tri, faits du serveur (tests dans coach-progress.mjs) ──
 (await import('./coach-progress.mjs')).default({ test, run, assert, sameJSON, ROOT });
+// ── Retours de Sophie (coach, 26/11) : courbes de charge, fourchette envoyée, programme réglé sans être actif, bilans ──
+(await import('./retours-coach.mjs')).default({ test, run, assert, sameJSON });
 // ── Parrainage : code saisi, état du serveur, rapport CSV (tests dans referral.mjs) ──
 await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, ROOT });
 // ── Relecture de la séance d'un autre : volume, écarts, records, douleur (tests dans review.mjs) ──

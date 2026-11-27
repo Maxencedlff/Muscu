@@ -197,8 +197,9 @@ function cellStatusHtml(cat) {
 // Durée habituelle d'une séance (minutes, arrondies à 5) : médiane de ses 5 dernières,
 // sinon estimation à 2,5 min par série prévue
 // progId : programme de la séance (fiche d'un autre programme : avant le 26/11, la durée était lue dans le programme
-// actif, « Pecs ≈ 55 min » et « Dos ≈ 30 min » pour deux séances de 12 séries)
-function sessionMinutes(cat, progId = data.activeProgramme) {
+// actif, « Pecs ≈ 55 min » et « Dos ≈ 30 min » pour deux séances de 12 séries) ; par défaut, le programme affiché
+// (page d'un programme réglé sans être actif : sa durée à lui)
+function sessionMinutes(cat, progId = progFocusId()) {
   const p = progId;
   const durs = (data.history || [])
     .filter(h => h.category === cat && entryProg(h) === p && h.duration > 5 * 60000)

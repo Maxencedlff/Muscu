@@ -91,7 +91,7 @@ def friends(page):
 
 
 def students(page):
-    """Trois élèves : zoe (un record cette semaine : Squat, en charge et en reps), hugo (9 jours sans séance), nina (nouvelle séance pas vue)."""
+    """Trois élèves : zoe (deux records cette semaine, dans une séance : Squat, en charge et en reps), hugo (9 jours sans séance), nina (nouvelle séance pas vue)."""
     def s(prefix, days, rec=False):
         return [{'id': f'{prefix}{i}', 'date': days_back_ms(NOW, d, 18, tz=PARIS), 'duration': 3_000_000, 'programme': 'ppl', 'category': 'push', 'label': 'Push',
                  'exercises': [{'name': 'Squat', 'sets': [{'weight': '100', 'reps': '5'}]}],
@@ -241,13 +241,15 @@ def t_coach(bench, eng, dev, theme):
         R.check(page.get_attribute('.social-seg [data-seg="students"]', 'aria-pressed') == 'true', f'{t} ouvert sur Élèves')
         week = [x.replace('\n', ' ') for x in page.locator('.team-week__tile').all_inner_texts()]
         week = [' '.join(x.split()) for x in week]
-        R.check(week == ['1 record', '1 à relancer', '1 nouveauté'] and page.locator('.team-week__tile--up .medal').count() == 1,
+        # Retours de Sophie (26/11) : tous les records comptés, comme la carte de la séance (« 2 records ») ; les messages ont
+        # leur nombre sur « Messages », le résumé compte les séances pas vues
+        R.check(week == ['2 records', '1 à relancer', '1 séance à voir'] and page.locator('.team-week__tile--up .medal').count() == 1,
                 f'{t} 7 derniers jours : records (médaille), à relancer, nouveautés ({week})')
         R.check(page.locator('.team-week__tile--up').count() == 1 and page.locator('.team-week__tile--warn').count() == 1, f'{t} couleurs : vert et orange')
         aria = page.get_attribute('.team-week', 'aria-label')
-        R.check(aria == '7 derniers jours : 1 record, 1 élève à relancer, 1 nouveauté à lire.', f'{t} VoiceOver : une phrase ({aria!r})')
+        R.check(aria == '7 derniers jours : 2 records, 1 élève à relancer, 1 séance à voir.', f'{t} VoiceOver : une phrase ({aria!r})')
         zoe = page.locator('.coach-student-row', has_text='zoe')
-        R.check('1 record' in zoe.inner_text(), f'{t} qui a progressé : zoe, en {touches} toucher')
+        R.check('2 records' in zoe.inner_text(), f'{t} qui a progressé : zoe, en {touches} toucher')
         R.check(page.locator('.feed-card, #socialSearch').count() == 0, f'{t} Élèves : ni fil ni recherche')
         layout(page, t, 'Coach › Élèves')
         shot(page, LOT, f'5-coach-eleves-{t}')

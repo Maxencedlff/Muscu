@@ -250,7 +250,7 @@ def t_coach(bench, eng, dev, theme):
         share = page.evaluate("bodyShare({ name: 'Tractions pronation' })")
         expect = page.evaluate(f"fmtVolume(500 + 61.4 * {share} * 18)")
         R.check(expect in st, f'{t} séance : volume avec son poids ({expect!r})')
-        R.check('poids du corps compté (61,4 kg' in st, f'{t} séance : pied de page « poids du corps compté »')
+        R.check('Son poids du corps (61,4 kg) compte' in st, f'{t} séance : pied de page « Son poids du corps (61,4 kg) compte »')
         layout(page, t, 'séance avec poids')
         shot(page, LOT, f'4-seance-poids-{t}')
         # Tom ne partage pas : ni courbe, ni poids dans le volume
@@ -261,7 +261,7 @@ def t_coach(bench, eng, dev, theme):
         page.locator('.coach-sess').first.click()
         page.wait_for_selector('.coach-session-view')
         st = page.inner_text('.coach-session-view')
-        R.check('poids du corps non compté' in st and page.evaluate("fmtVolume(500)") in st, f'{t} sans partage : volume d\'avant (lest seul)')
+        R.check('Le poids du corps ne compte pas' in st and page.evaluate("fmtVolume(500)") in st, f'{t} sans partage : volume d\'avant (lest seul)')
         # Léa coupe le partage : la fiche relue n'a plus rien
         page.evaluate(f"__sb.co.shares = []; delete __sb.co.weights['{ids['lea']}']")
         page.evaluate(f"navigate(makeRoute('coach-student', '{ids['lea']}'))")

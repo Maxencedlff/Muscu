@@ -324,7 +324,7 @@ body.has-tabbar .coach-chat-view { padding-bottom: calc(var(--tabbar-h) + 8px + 
   color: var(--label); font: inherit; font-size: var(--fs-body); text-align: left;
 }
 .coach-req-field__input::placeholder { color: var(--label3); }
-select.coach-req-field__input { appearance: none; -webkit-appearance: none; cursor: pointer; }
+select.coach-req-field__input { appearance: none; -webkit-appearance: none; cursor: pointer; text-align: left; text-align-last: left; }   /* « Choisir » à gauche comme les autres champs (WebKit le centrait) */
 /* Diplôme : le ⌃⌄ d'un menu de choix iOS, sinon « Choisir » gris se lisait comme l'exemple d'un champ à taper (panel t6) */
 .coach-req-field__pick { position: relative; display: block; }
 .coach-req-field__pick select.coach-req-field__input { padding-right: 24px; }
@@ -639,6 +639,7 @@ html.type-xl .chat-row__last { white-space: normal; display: -webkit-box; -webki
 .coach-filter--on { color: var(--on-tint); font-weight: 600; }
 .coach-filter--on::before { background: var(--tint-fill); }
 .coach-filter__n { margin-left: 2px; opacity: .8; }
+.coach-filter--on .coach-filter__n { opacity: 1; }   /* nombre aussi lisible que le libellé sur l'aplat (juges du 26/11) */
 .coach-more-rows, .chat-more-rows { justify-content: center; }
 
 /* ── Envoi à plusieurs élèves : cases à cocher façon iOS (rond, coche dedans) ── */

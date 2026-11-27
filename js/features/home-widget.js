@@ -18,7 +18,9 @@ const WIDGET_MAX_TITLE = 40;
 //   week   : séances de la semaine (lundi → dimanche) face à l'objectif, une couleur par jour fait ;
 //            end = lundi suivant, où le widget repart à zéro sans attendre l'app
 //   active : séance en cours, le widget propose alors de la reprendre
-function widgetSnapshot(now = Date.now()) {
+// Toujours le programme actif, même pendant le réglage d'un autre programme (onActiveProgramme, js/data/accessors.js)
+function widgetSnapshot(now = Date.now()) { return onActiveProgramme(() => widgetSnapshotOf(now)); }
+function widgetSnapshotOf(now) {
   const keys = sessionKeys(), cat = nextSessionCat(keys);
   const st = cat ? catStatus(cat, now) : null;
   const ws = weekStats(now), monday = weekStart(now);

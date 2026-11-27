@@ -10,7 +10,7 @@
 function deskDtLibHtml(route) {
   if (route.id) return deskDtFrameHtml(null);
   const acc = dt.acc;
-  const head = `<div class="head"><div class="grow"><h1 class="title">Plans diète</h1><div class="sub">Tes plans, gardés sur ton compte : les mêmes que dans l'app (Programme › Plans de nutrition).</div></div>
+  const head = `<div class="head"><div class="grow"><h1 class="title">Plans de nutrition</h1><div class="sub">Tes plans, gardés sur ton compte : les mêmes que dans l'app (Programme › Plans de nutrition).</div></div>
     <button type="button" class="btn fill" data-dt="new" ${!acc || dt.busy ? 'disabled' : ''}>${deskIcon('plus', 'sm')}Créer un plan</button></div>`;
   if (!acc) {
     return head + (dt.accKind ? `<div class="empty" role="alert">${esc(deskErrorText(dt.accKind))}<br><button type="button" class="btn tint" data-dt="reload">Réessayer</button></div>`

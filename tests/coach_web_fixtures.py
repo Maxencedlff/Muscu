@@ -208,7 +208,7 @@ document.addEventListener('DOMContentLoaded', () => {
 """
 
 
-# Vague 4 (v4=True) : programme complet envoyé à Léa (top set et back-off, drop set, consignes), compte du coach
+# Vague 4 (v4=True) : programme complet envoyé à Léa (série lourde et séries allégées, drop set, consignes), compte du coach
 # (profiles.doc : ses programmes et ses plans diète), plan diète envoyé à Léa (elle accepte les plans), une conversation
 # suivie avec Léa (messages du coach et de l'élève, du plus ancien au plus récent ; les 2 derniers restent non lus) et
 # un commentaire de séance. Après COACH_WEB_SEED (mêmes élèves, même horloge).
@@ -217,9 +217,9 @@ COACH_WEB_V4_SEED = r"""
   const sb = window.__sb, co = sb.co, now = Date.now(), coach = window.__coachId, [lea, tom] = window.__students;
   const at = (k, h = 18, m = 0) => { const d = new Date(now); d.setHours(h, m, 0, 0); d.setDate(d.getDate() - k); return d.getTime(); };
   const ex = (name, sets, lo, hi, o = {}) => ({ name, sets, repMin: lo, repMax: hi, ...o });
-  const seche = { name: 'Sèche 4 jours', consigne: 'Garde 1 à 2 reps en réserve, sauf sur le top set.', sessions: [
+  const seche = { name: 'Sèche 4 jours', consigne: 'Garde 1 à 2 reps en réserve, sauf sur la série lourde.', sessions: [
     { key: 'haut-a', label: 'Haut A', color: '#FF9F0A', exercises: [
-      ex('Développé couché', 4, 6, 8, { loads: [45, 40, 40, 40], intens: 'topback', rest: 150, consigne: '2 reps en réserve sur le top set' }),
+      ex('Développé couché', 4, 6, 8, { loads: [45, 40, 40, 40], intens: 'topback', rest: 150, consigne: '2 reps en réserve sur la série lourde' }),
       ex('Rowing barre', 4, 8, 10, { load: 50, rest: 120, consigne: 'Dos gainé, tirer vers le nombril' }),
       ex('Développé militaire haltères', 3, 8, 10, { load: 12, rest: 120 }),
       ex('Élévations latérales', 3, 12, 15, { load: 6, rest: 60, intens: 'drop-last', consigne: 'Descendre à 4 kg sur la dernière' }),
@@ -310,7 +310,13 @@ class _Quiet(http.server.SimpleHTTPRequestHandler):
 
 @contextlib.contextmanager
 def static_server():
-    """Sert le dépôt sur un port libre de localhost (jamais 8731) ; rend l'adresse de coach-web/."""
+    """Sert le dépôt sur un port libre de localhost (jamais 8731) ; rend l'adresse de coach-web/.
+    PPL_COACH_URL, sinon PPL_URL (adresse d'un serveur déjà lancé à la racine du dépôt, ex. http://127.0.0.1:8797/) :
+    utilisé tel quel, aucun serveur lancé ici."""
+    given = os.environ.get('PPL_COACH_URL') or os.environ.get('PPL_URL')
+    if given:
+        yield given.rstrip('/') + '/coach-web/'
+        return
     with socket.socket() as s:
         s.bind(('127.0.0.1', 0))
         port = s.getsockname()[1]

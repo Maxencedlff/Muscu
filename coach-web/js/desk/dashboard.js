@@ -48,6 +48,14 @@ function deskListHtml(rows, now, label, { header = true } = {}) {
   return `<div class="group lst">${header ? `<div class="row hdr" aria-hidden="true"><span>Élève</span><span>Séances (7 j)</span><span>Diète (7 j)</span><span>À faire</span><span class="r">Dernière séance</span><span></span></div>` : ''}
     <ul aria-label="${esc(label)}">${rows.map(r => deskStudentRowHtml(r, now)).join('')}</ul></div>`;
 }
+// Légende des pastilles « Diète (7 j) » (juges du 26/11 : elle n'existait que dans l'onglet Nutrition), sous la liste,
+// seulement si un élève partage sa diète ; « En cours » seulement si une pastille du jour est affichée
+function deskDietLegendHtml(rows) {
+  const st = new Set(rows.flatMap(r => (r.dietDots || []).map(d => d.status)));
+  if (!st.size) return '';
+  const it = (c, t) => `<span><span class="dp"><i class="${c}"></i></span> ${t}</span>`;
+  return `<div class="legend dash-leg" id="diet-legend"><span class="leg-t">Diète (7 j) :</span>${it('s', 'Suivi')}${it('p', 'Partiel')}${it('n', 'Pas suivi')}${it('z', 'Rien de noté')}${st.has('today') ? it('c', 'Aujourd\'hui, en cours') : ''}</div>`;
+}
 
 function deskInviteHtml(d) {
   if (!d.code) return `<div class="group"><div class="row"><div class="grow">Pas de code disponible</div><button type="button" class="btn tint" data-action="new-invite">Créer un code</button></div></div>`;
@@ -102,6 +110,6 @@ function deskDashboardHtml(d, ui) {
     <div class="seg" role="radiogroup" aria-label="Filtrer les élèves">${segs}</div>
   </div>
   ${stats}
-  <div class="cols dash"><div class="list-col">${list}</div>${rail}</div>
+  <div class="cols dash"><div class="list-col">${list}${deskDietLegendHtml(ui.query.trim() ? found : all)}</div>${rail}</div>
   <dialog id="invite-dialog" aria-labelledby="inv-title"><h2 id="inv-title" class="dlg-t">Inviter un élève</h2>${deskInviteHtml(d)}<form method="dialog" class="dlg-f"><button class="btn">Fermer</button></form></dialog>`;
 }

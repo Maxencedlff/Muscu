@@ -56,7 +56,7 @@ function techPrescribed(ex) {
 function techPillHtml(s, { spoken = true } = {}) {
   const t = setTech(s);
   if (!t || TECHS[t].sub) return '';
-  return `<span class="tech-pill"${spoken ? '' : ' aria-hidden="true"'}><span class="tech-pill__name">${TECHS[t].label}</span> <span class="tech-pill__hint">${TECHS[t].hint}</span></span>`;
+  return `<span class="tech-pill"${spoken ? '' : ' aria-hidden="true"'}><span class="tech-pill__name">${TECHS[t].label}</span>${TECHS[t].hint ? ` <span class="tech-pill__hint">${TECHS[t].hint}</span>` : ''}</span>`;
 }
 
 // Sous la série (drop set, rest-pause, cluster) : titre de la technique (+ une sous-série, retirer), puis une ligne par

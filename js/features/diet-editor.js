@@ -30,8 +30,8 @@ function dietMealsNoun(plan) { return dietPersonal(plan) ? 'Tes repas types' : '
 // l'écran du plan ne montre que les objectifs)
 const dietComposing = new Set();
 
-// Titre de la liste : « Mes diètes » pour un coach (ses modèles, envoyés à ses élèves), sinon « Plans de nutrition »
-// Un seul nom pour la même chose, coach ou pratiquant (« Mes diètes » côté coach, « Plans de nutrition » ailleurs : juges du 26/11)
+// Titre de la liste : « Plans de nutrition » pour tout le monde, coach compris (juges du 26/11 : « Mes diètes » côté coach,
+// « Plans de nutrition » côté pratiquant, pour le même objet)
 function dietPlansTitle() { return 'Plans de nutrition'; }
 // Organisation des jours en deux mots (liste des plans, cellule Jours)
 function dietDaysWord(plan) { return plan?.days?.mode === 'week' ? 'Semaine' : plan?.days?.mode === 'session' ? 'Entraînement et repos' : 'Tous les jours pareils'; }

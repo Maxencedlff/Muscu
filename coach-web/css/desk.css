@@ -11,6 +11,7 @@
   --bg: #F2F2F7; --cell: #FFFFFF; --cell2: #F2F2F7; --cell3: #E5E5EA;
   --label: #000000; --label2: rgba(60,60,67,.78); --label3: rgba(60,60,67,.55);
   --sep: rgba(60,60,67,.2); --fill: rgba(120,120,128,.12); --fill2: rgba(120,120,128,.2); --seg-on: #FFFFFF;
+  --row-cur: #EFEFF0;   /* --fill posé sur --cell, opaque : la colonne Semaine collée cache ce qui défile dessous */
   /* 27/11, choix de Maxence (« option 2 », comme l'app, css/liens.css) : l'orange n'est qu'aux boutons pleins à texte blanc
      (--accent-fill) ; liens, actions en texte, anneaux et coches dans la couleur du texte, les liens en demi-gras (fin du fichier) */
   --accent: var(--label); --accent-text: var(--label); --accent-tint: var(--fill); --accent-fill: #B8460F; --on-accent: #FFFFFF;
@@ -27,6 +28,7 @@
     --bg: #000000; --cell: #1C1C1E; --cell2: #2C2C2E; --cell3: #3A3A3C;
     --label: #FFFFFF; --label2: rgba(235,235,245,.66); --label3: rgba(235,235,245,.45);
     --sep: rgba(84,84,88,.6); --fill: rgba(120,120,128,.24); --fill2: rgba(120,120,128,.36); --seg-on: #636366;
+    --row-cur: #323236;
     --accent: var(--label); --accent-text: var(--label); --accent-tint: var(--fill); --accent-fill: #CA4D10;   /* texte blanc 4,6:1 */
     --green: #30D158; --green-text: #30D158; --gold: #FFD60A;
   }
@@ -186,7 +188,13 @@ table.wk td, table.wk th[scope="row"] { text-align: right; padding: 9px 9px; bor
 table.wk tr:last-child td, table.wk tr:last-child th { border-bottom: 0; }
 table.wk th:first-child { text-align: left; padding-left: 14px; }
 table.wk td small, table.wk th small { display: block; color: var(--label2); font-size: 12px; }
-table.wk tr.cur td, table.wk tr.cur th { background: var(--fill); }
+table.wk tr.cur td, table.wk tr.cur th { background: var(--row-cur); }
+/* Colonne Semaine collée à gauche quand le tableau défile en largeur (juges du 26/11 : « Taille (cm » coupé) */
+table.wk th[scope="row"], table.wk thead th:first-child { position: sticky; left: 0; z-index: 1; background: var(--cell); }
+table.wk tr.cur th[scope="row"] { background: var(--row-cur); }
+.tscroll.more table.wk th[scope="row"], .tscroll.more table.wk thead th:first-child { border-right: .5px solid var(--sep); }
+.tscroll-hint { color: var(--label2); font-size: 13px; padding: 7px 14px 0; display: flex; align-items: center; gap: 6px; }
+.tscroll-hint[hidden] { display: none; }
 table.wk tr.cur .wn { color: var(--accent-text); }
 table.wk .wn { font-weight: 600; }
 .more { margin-top: 4px; }
@@ -546,6 +554,8 @@ table.wk th.ckh { white-space: normal; min-width: 84px; max-width: 120px; }
 .dp i.f { border: 0; }
 .legend { display: flex; gap: 6px 16px; flex-wrap: wrap; color: var(--label2); font-size: 13px; padding: 8px 14px 0; }
 .legend > span { display: inline-flex; align-items: center; gap: 6px; }
+.legend.dash-leg { padding: 10px 14px 0; }
+.legend .leg-t { font-weight: 500; }
 .nt-meal { align-items: flex-start; }
 .nt-ck { width: 24px; display: grid; place-items: center; flex: none; padding-top: 1px; }
 .nt-meal b { font-weight: 600; }
@@ -747,3 +757,6 @@ dialog.phz.zoomed .phz-view { cursor: grab; }
 
 /* Liens et actions en texte reconnaissables sans couleur d'accent : demi-gras (27/11, option 2) */
 :is(.btn.tint, .warn, table.wk tr.cur .wn, .send, .row .v.warn, .dt-a .sel select, .dt-a .sel svg) { font-weight: 600; }
+/* Écart entre la charge prescrite et la dernière fois (juges du 26/11), et la charge proposée en un toucher */
+.pg-gap { font-size: 13px; margin-top: 4px; }
+.pg-next { padding: 10px 0; min-height: 44px; font-size: 14px; text-align: left; }
