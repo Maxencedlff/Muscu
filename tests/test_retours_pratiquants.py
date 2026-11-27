@@ -182,5 +182,31 @@ def t_volume(bench):
         R.check(v == '4 200 kg', f'4 200 kg ({v!r})')
 
 
-run_main(R, [t_premier_lancement, t_noms_seances, t_import_hevy, t_bilan, t_carte_muscles],
+def t_liens(bench, eng, dev, theme):
+    """Option 2 de Maxence (27/11) : l'orange n'est qu'aux boutons pleins ; liens dans la couleur du texte, en demi-gras ;
+    « Liens en couleur » (Réglages › Apparence › Design) leur rend l'accent."""
+    with bench.page(eng, dev, theme) as page:
+        t = tag(dev, theme)
+        seed(page, theme, ppl_v2_today_json())
+        st = lambda: page.evaluate("""() => { const l = document.querySelector('.hero [data-action="edit-next-session"], .hero .hero__edit, .home-list__btn, .targets__edit');
+            const b = document.querySelector('.hero__btn'), lab = getComputedStyle(document.body).color;
+            return { link: l && getComputedStyle(l).color, weight: l && +getComputedStyle(l).fontWeight, label: lab, btn: b && getComputedStyle(b).backgroundColor,
+                     btnText: b && getComputedStyle(b).color }; }""")
+        s0 = st()
+        want = 'rgb(202, 77, 16)' if theme == 'dark' else 'rgb(184, 70, 15)'
+        R.check(s0['btn'] == want and s0['btnText'] == 'rgb(255, 255, 255)', f'{t} bouton plein orange, texte blanc {s0}')
+        R.check(s0['link'] == s0['label'] and s0['weight'] >= 600, f'{t} lien dans la couleur du texte, en demi-gras {s0}')
+        go(page, 'settings-design')
+        sw = page.locator('[data-action="design-links"]')
+        R.check(sw.count() == 1 and sw.get_attribute('aria-checked') == 'false', f'{t} Design : « Liens en couleur » éteint par défaut')
+        shot(page, LOT, f'design_{t}')
+        sw.click(); settle(page)
+        R.check(page.evaluate("document.body.classList.contains('links-color') && data.design.links === true"), f'{t} Liens en couleur : allumé et enregistré')
+        go(page, 'dashboard')
+        s1 = st()
+        R.check(s1['link'] not in (s1['label'],) and s1['btn'] == want, f'{t} Liens en couleur : lien dans l\'accent {s1}')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+run_main(R, [t_premier_lancement, t_noms_seances, t_import_hevy, t_bilan, t_carte_muscles, t_liens],
          once=[t_progres_muscle, t_fiche_duree, t_volume])
