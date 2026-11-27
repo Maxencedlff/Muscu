@@ -18,6 +18,9 @@ function historySorted() {
 // avec accent quand l'un des deux en a. Les données gardées ne changent pas : seul le regroupement à l'affichage.
 // Chaque filtre compte ses séances (n), celles des HIST_RECENT_DAYS derniers jours (recent) et la date de la dernière
 // (last) : de quoi choisir les pastilles visibles et trier la feuille « Plus ».
+// Nom d'une séance dans l'Historique et ses filtres : le même qu'à l'accueil et en séance (sessionTitle, « Corps entier »
+// et non « Full Body », 2e tour des juges du 27/11), échappé comme sessionMeta().label
+function histSessionName(cat, prog) { return esc(sessionTitle(cat, prog)); }
 const HIST_RECENT_DAYS = 60;
 function historyFilterKeys() {
   const out = [], at = new Map();
@@ -26,12 +29,12 @@ function historyFilterKeys() {
     if (i === undefined) { at.set(n, out.length); out.push([key, label]); return; }
     if (label.normalize('NFD').length > out[i][1].normalize('NFD').length) out[i][1] = label;   // « Épaules » plutôt que « Epaules »
   };
-  sessionKeys().forEach(k => add(k, sessionMeta(k).label));
+  sessionKeys().forEach(k => add(k, histSessionName(k)));
   const hist = historySorted();
   hist.forEach(h => {
     const prog = entryProg(h);
     if (prog === data.activeProgramme || isHealthEntry(h)) return;
-    add(`${prog}/${h.category}`, sessionMeta(h.category, prog).label);
+    add(`${prog}/${h.category}`, histSessionName(h.category, prog));
   });
   const stats = out.map(() => ({ n: 0, recent: 0, last: 0 }));
   const since = Date.now() - HIST_RECENT_DAYS * 86_400_000;
@@ -112,14 +115,14 @@ function setHistoryFilter(key) {
 // historyNameLabels() déjà calculé (boucles) ; les données gardées ne changent pas
 function historyNameLabels(filters = historyFilterKeys()) { return new Map(filters.map(f => [normName(f.label), f.label])); }
 function historyEntryLabel(h, labels = historyNameLabels()) {
-  const label = sessionMeta(h.category, entryProg(h)).label;
+  const label = histSessionName(h.category, entryProg(h));
   return labels.get(normName(label)) || label;
 }
 // Nom normalisé d'une séance passée, et celui que vise un filtre (« programme/catégorie » ou catégorie du programme actif)
-function historyEntryName(h) { return normName(sessionMeta(h.category, entryProg(h)).label); }
+function historyEntryName(h) { return normName(histSessionName(h.category, entryProg(h))); }
 function historyFilterName(key) {
   const i = key.indexOf('/');
-  return normName(i > 0 ? sessionMeta(key.slice(i + 1), key.slice(0, i)).label : sessionMeta(key).label);
+  return normName(i > 0 ? histSessionName(key.slice(i + 1), key.slice(0, i)) : histSessionName(key));
 }
 // Une séance passe le filtre quand son nom est celui du filtre, quel que soit son programme ; les courses et sorties vélo
 // de Santé n'ont que « Toutes »

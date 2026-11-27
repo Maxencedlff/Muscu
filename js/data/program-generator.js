@@ -425,7 +425,18 @@ function genOrderGroup(move) { return GEN_MAIN_PATTERNS.has(move.pattern) ? 0 : 
 // Mouvement de base d'un exercice : deux variantes dont l'une prolonge le nom de l'autre (« Hip thrust » et « Hip thrust
 // machine ») sont le même mouvement. Jamais deux fois dans une séance (panel du 26/11 : Hip thrust machine puis Hip thrust,
 // même prescription, « on dirait une erreur du générateur ») ; la place va au motif de repli (GEN_FALLBACK)
-const genSameMove = (x, y) => { const p = normName(x), q = normName(y); return p === q || p.startsWith(q + ' ') || q.startsWith(p + ' '); };
+// Famille de mouvement : le nom sans le matériel qui le termine (« Hip thrust machine » et « Hip thrust haltère » : « hip
+// thrust », 2e tour du panel du 27/11 : les deux se suivaient dans Bas du corps B, même prescription)
+const GEN_EQUIP_WORDS = new Set(['machine', 'haltere', 'halteres', 'barre', 'kettlebell', 'elastique', 'poulie', 'smith', 'cable']);
+function genMoveFamily(name) {
+  const w = normName(name).split(' ');
+  while (w.length > 1 && GEN_EQUIP_WORDS.has(w[w.length - 1])) w.pop();
+  return w.join(' ');
+}
+const genSameMove = (x, y) => {
+  const p = normName(x), q = normName(y);
+  return p === q || p.startsWith(q + ' ') || q.startsWith(p + ' ') || genMoveFamily(x) === genMoveFamily(y);
+};
 
 // Choix des exercices de toutes les séances : préférence, puis rotation entre les séances (A / B)
 function genPickExercises(types, a, equip) {

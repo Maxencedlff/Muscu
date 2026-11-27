@@ -109,7 +109,8 @@ function runImport() {
   const previous = JSON.stringify(data);
   // Programme actif jamais fait (le PPL d'office, celui conseillé au premier lancement) : le programme importé le remplace,
   // ses séances et ses records se rangent dessous dans Progrès (Karim le 26/11 : exercices de Hevy éparpillés sous un PPL vide)
-  const untouched = !(data.history || []).some(h => h.programme === data.activeProgramme);
+  // Seulement un programme intégré : un programme créé ou reçu d'un coach (isUserProg) n'est jamais remplacé, même pas encore fait
+  const untouched = !isUserProg(data.activeProgramme) && !(data.history || []).some(h => h.programme === data.activeProgramme);
   const r = applyImport(imp.plan, imp);
   imp = null;
   if (!r.added) {

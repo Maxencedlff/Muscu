@@ -33,9 +33,9 @@ function tourSteps(ctx = {}) {
   const steps = [
     ctx.live
       ? { id: 'start', sel: '.hero [data-action="resume-session"]', title: 'Reprendre',
-        text: 'Rouvre ta séance en cours. Touche le rond à droite d\'une série pour la noter.' }
+        text: 'Rouvre ta séance en cours. Touche le rond à droite d\'une série pour la valider.' }
       : { id: 'start', sel: '.hero [data-action="start-session"]', title: 'Démarrer',
-        text: 'Lance la séance du jour. En séance, touche le rond à droite d\'une série pour la noter.' },
+        text: 'Lance la séance du jour. En séance, touche le rond à droite d\'une série pour la valider.' },
     ctx.beat
       ? { id: 'targets', sel: '.hero .targets', title: 'À battre aujourd\'hui',
         text: 'Ta dernière performance sur chaque exercice. Fais un peu mieux : une rep ou un peu plus de charge.' }

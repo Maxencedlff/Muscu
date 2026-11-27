@@ -189,6 +189,7 @@ export default function ({ test, run, reset, assert, sameJSON }) {
   test('générateur : jamais deux variantes du même mouvement dans une séance (Hip thrust et Hip thrust machine, panel du 26/11)', () => {
     const same = (x, y) => run(`genSameMove(${JSON.stringify(x)}, ${JSON.stringify(y)})`);
     assert.ok(same('Hip thrust', 'Hip thrust machine') && same('Hip thrust haltère', 'Hip thrust') && same('Pont fessier', 'Pont fessier unilatéral'));
+    assert.ok(same('Hip thrust machine', 'Hip thrust haltère') && same('Curl biceps barre', 'Curl biceps haltères'), 'même famille, autre matériel (2e tour du 27/11)');
     assert.ok(!same('Squat barre', 'Squat gobelet') && !same('Développé couché barre', 'Développé incliné barre') && !same('Curl biceps barre', 'Curl marteau'));
     // Profils où la priorité « fessiers » double le motif fessier, du cas du panel (4 jours, salle) aux autres
     for (const days of [2, 3, 4, 5, 6]) for (const minutes of [45, 60, 90]) for (const level of ['debutant', 'intermediaire', 'avance']) {

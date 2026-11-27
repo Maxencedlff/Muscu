@@ -26,13 +26,13 @@ de démo se tape directement dans App Store Connect.
 
 > MDLF Training is a strength-training log. It can be used without an account: browsing programs and the exercise library, viewing history and progress charts, and exporting data never require one.
 >
-> Subscriptions (guideline 3.1.2): the paywall is ON in this build. Recording a new workout opens the subscription screen (Settings › Subscription also shows it). Personal plans (monthly, yearly) are offered to everyone, with a 3-month free trial (Apple introductory offer). Coach plans (10, 20, 30 or unlimited students) are only offered to accounts whose coach role was verified by us (qualified sports instructors with a French professional card); the demo account below is a verified coach, so all ten products are visible. Each plan shows its price and period, the trial, auto-renewal, how to cancel, and links to the Terms of Use (Apple standard EULA, supplemented by our terms), Terms of Sale and Privacy Policy. Purchases work in the Sandbox environment; "Restore purchases" is on the same screen.
+> Subscriptions (guideline 3.1.2): the paywall is ON in this build. Recording a new workout opens the subscription screen (Settings › Subscription also shows it). Personal plans (monthly, yearly) are offered to everyone, with a 3-month free trial (Apple introductory offer). Coach plans (10, 25, 50 or 100 students, 2-month free trial) are only offered to accounts whose coach role was verified by us (qualified sports instructors with a French professional card); the demo account below is a verified coach, so all ten products are visible. Each plan shows its price and period, the trial, auto-renewal, how to cancel, and links to the Terms of Use (Apple standard EULA, supplemented by our terms), Terms of Sale and Privacy Policy. Purchases work in the Sandbox environment; "Restore purchases" is on the same screen.
 >
 > Account (guideline 5.1.1(v)): an account is only required to record new workouts once subscribed, because the subscription is attached to the user's account on our server (we verify Apple's signed transactions and App Store Server Notifications), so that it can be restored on another device, and so that a coach can follow a student. Sign in with Apple is offered first, then Google and a one-time email code; no password. Account deletion: Settings › Account › Delete my account (this also revokes Sign in with Apple).
 >
 > Demo account (verified coach, Google sign-in): [ADRESSE DU COMPTE GOOGLE DE DÉMO] / [MOT DE PASSE DU COMPTE GOOGLE DE DÉMO]. You can also sign in with your own Apple ID to see the personal plans.
 >
-> Coach plans and students: a verified coach buys an auto-renewable coach subscription in the app (In-App Purchase, tiers of 10, 20, 30 or unlimited students). Students who join that coach with the coach's code get full access paid by the coach's subscription, within the number of students of the coach's tier; they never pay and are never charged. If the coach's subscription ends, students keep access for 7 days, then they can subscribe themselves through In-App Purchase like any user.
+> Coach plans and students: a verified coach buys an auto-renewable coach subscription in the app (In-App Purchase, tiers of 10, 25, 50 or 100 students; more than 100: no plan, the app gives our email address). Students who join that coach with the coach's code get full access paid by the coach's subscription, within the number of students of the coach's tier; they never pay and are never charged. If the coach's subscription ends, students keep access for 7 days, then they can subscribe themselves through In-App Purchase like any user.
 >
 > Codes: the only code that can be entered in the iOS app is an Apple subscription offer code ("J'ai un code d'offre Apple", which opens Apple's own redemption sheet). The app has no license keys or other code of its own to unlock features.
 >
@@ -89,7 +89,7 @@ lue le 31/10/2026).
 | `com.mdlf.training.coachmax.yearly` | `10-com.mdlf.training.coachmax.yearly.png` |
 
 Note de revue de chaque abonnement coach (champ « Review Notes » du produit), à coller :
-> Coach plans are only offered in the app to accounts whose coach role was verified (qualified sports instructors). The demo account in the app's review information is a verified coach. A coach plan includes the coach's own full access and following up to 10 / 20 / 30 / unlimited students.
+> Coach plans are only offered in the app to accounts whose coach role was verified (qualified sports instructors). The demo account in the app's review information is a verified coach. A coach plan includes the coach's own full access and following up to 10 / 25 / 50 / 100 students.
 
 ## 5. Risques et choix à trancher avant l'envoi
 1. **Codes cadeaux maison (règle 3.1.1)** : **tranché le 12/11 (option (b) dans l'app iOS)**, voir 6.1. Reste

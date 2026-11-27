@@ -249,12 +249,12 @@ function accessBannerHtml() {
 // n'est qu'une ligne secondaire. opts : { label, tag, current, months } (palier coach, annuel).
 function payPlanHtml(p, opts = {}) {
   const label = opts.label || PAY_PLAN_LABEL[p.id] || 'Abonnement';
-  const tag = opts.current ? 'Ta formule' : opts.tag || (p.id === ACCESS_YEARLY_ID ? 'Moins cher par mois' : '');
+  const tag = opts.current ? 'Ta formule' : opts.tag || (opts.saving ? `${opts.saving}\u00a0% moins cher` : p.id === ACCESS_YEARLY_ID ? 'Moins cher par mois' : '');
   // Essai coach offert (offre promotionnelle signée) : seulement quand l'essai de lancement n'est plus accordé
   const promo = opts.current ? null : accessCoachPromoFor(p);
   const trial = p.trial ? `${payDurationText(p.trial)} ${p.trial.value > 1 || p.trial.unit === 'month' ? 'gratuits' : 'gratuit'}`
     : promo ? `${payDurationText(promo)} ${promo.value > 1 || promo.unit === 'month' ? 'offerts' : 'offert'}` : '';
-  const months = opts.months ? `soit ${planMonthsText(opts.months)}` : '';
+  const months = opts.perMonth ? `soit ${opts.perMonth} par mois` : '';
   const sub = [months, trial].filter(Boolean).join(', ');
   return `
           <button class="pay-plan${opts.current ? ' pay-plan--current' : ''}${opts.wanted ? ' pay-plan--wanted' : ''}" data-action="pay-buy" data-id="${esc(p.id)}"${promo ? ' data-promo="1"' : ''} ${access.buying || opts.current ? 'disabled' : ''}>
@@ -264,11 +264,11 @@ function payPlanHtml(p, opts = {}) {
           </button>`;
 }
 const payPer = p => (p.period === 'year' ? 'par an' : 'par mois');
-// Mois de la formule mensuelle que paie l'annuelle du même palier (« soit 8,5 mois »), calculé
-function payYearMonths(list, p) {
+// Annuel : prix par mois et économie sur le mensuel du même palier (« soit <prix> par mois », « <n> % moins cher »), calculés
+function payYearOpts(list, p) {
   const plan = planOf(p.id);
-  if (!plan || plan.period !== 'year') return null;
-  return planYearMonths(list.find(x => x.id === planId(plan.tier.key, 'month')), p);
+  if (!plan || plan.period !== 'year') return {};
+  return { perMonth: planPerMonthText(p), saving: planYearSaving(list.find(x => x.id === planId(plan.tier.key, 'month')), p) };
 }
 
 // Ce que donne l'abonnement, dit avant les formules
@@ -297,12 +297,12 @@ function payTermsHtml(list) {
 
 let payCoachPeriod = 'month';   // onglet Coach : Mensuel ou Annuel
 
-// Formules du particulier (mensuel, annuel « soit 8,5 mois »)
+// Formules du particulier (mensuel, annuel « soit <prix> par mois »)
 function payProHtml(list) {
   const pro = list.filter(p => planOf(p.id)?.tier.key === 'pro');
   if (!pro.length) return payMissingHtml();
   return `<p class="pay-benefits">${PAY_BENEFITS}</p>
-        <div class="pay-plans">${pro.map(p => payPlanHtml(p, { months: payYearMonths(list, p) })).join('')}</div>${payTermsHtml(pro)}${payLegalHtml()}`;
+        <div class="pay-plans">${pro.map(p => payPlanHtml(p, payYearOpts(list, p))).join('')}</div>${payTermsHtml(pro)}${payLegalHtml()}`;
 }
 
 // Paliers coach, réservés à un coach validé : 4 formules (10, 25, 50, 100 élèves) pour la période choisie, nombre d'élèves suivis,
@@ -328,7 +328,7 @@ function payCoachHtml(list, pre) {
   const planOne = p => {
     const t = planOf(p.id).tier, on = t === wanted && current !== p.id;
     return payPlanHtml(p, { label: t.label, current: current === p.id, tag: on ? (pre && tier?.uncovered > 0 ? `Conseillé pour ${plural(students, 'élève', 'élèves')}` : 'Conseillé') : '',
-      months: payYearMonths(list, p), wanted: on && !!pre });
+      perMonth: payYearOpts(list, p).perMonth, wanted: on && !!pre });   // l'économie n'est dite qu'au particulier : « Conseillé » garde la place
   };
   // Venu du bandeau « élèves au-delà de ton palier » (pre) : le palier conseillé en tête, mis en avant, sans défiler
   // (juges du 26/11 : l'écran s'ouvrait sur la formule actuelle, le palier conseillé plus bas)
@@ -408,7 +408,8 @@ function payCoachLinkHtml() {
 // reason : 'end' (écriture refusée) ou 'offer' (depuis les Réglages ou un bandeau) ; tab : 'pro' ou
 // 'coach' ; pre : formule à mettre en avant (montée de palier)
 function renderPaywall(reason = 'offer', tab = 'pro', pre = null) {
-  const head = navBar({ title: 'Abonnement', large: false });
+  // « Formules » : l'écran s'ouvre depuis Réglages › Abonnement, dont le nom est déjà sur le bouton retour (2e tour des juges du 27/11)
+  const head = navBar({ title: 'Formules', large: false });
   const end = reason === 'end';
   const coachTab = tab === 'coach' && coachRole().isCoach;
   const shown = (access.products || []).filter(p => planIsCoach(p.id) === coachTab);
@@ -416,7 +417,8 @@ function renderPaywall(reason = 'offer', tab = 'pro', pre = null) {
   // Onglet Coach sans essai de lancement : l'essai coach offert, s'il est accordé
   const promo = coachTab && !trial ? shown.map(p => accessCoachPromoFor(p)).find(Boolean) : null;
   const off = !paywallOn();
-  // Élève offert par son coach : « Offert par ton coach <nom> », rien à acheter
+  // Élève offert par son coach : « Offert par ton coach <nom> », rien à acheter, ni à restaurer ni code à saisir (2e tour
+  // des juges du 27/11) ; Réglages › Abonnement les garde derrière « Autres options », pour un achat d'avant
   const offered = !off && !coachTab && accessStatus() === 'coach_team';
   // Accès à vie offert, onglet Particulier : rien à acheter, le haut de l'écran le dit aussi
   const forever = !off && !coachTab && accessGiftForever();
@@ -447,11 +449,11 @@ function renderPaywall(reason = 'offer', tab = 'pro', pre = null) {
         ${payTabsHtml(coachTab ? 'coach' : 'pro')}
         ${coachTab ? '' : payCoverNoteHtml()}
         ${payPlansHtml(coachTab ? 'coach' : 'pro', pre)}
-        <div class="group">
+        ${offered ? '' : `<div class="group">
           ${payRestoreCellHtml()}
           ${payCodeCellsHtml()}
         </div>
-        ${payCodeNoteHtml()}
+        ${payCodeNoteHtml()}`}
         ${forever || offered || Native.store.soon ? '' : `<div class="group-foot">${PT.payTrialFoot}</div>`}
         ${coachTab ? '' : payCoachLinkHtml()}
         ${planned ? '' : payLegalHtml()}

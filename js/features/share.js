@@ -304,10 +304,11 @@ function shareStoryButton(id, cls = '') {
 // (geste expiré après un appel réseau, pas de feuille de partage) : le texte est copié et un toast le dit, au lieu de ne
 // rien faire (retours de Sophie du 26/11 : « Envoyer ce programme » et « Inviter un élève » ne montraient rien sur le web).
 // → 'shared' | 'copied' | 'cancelled' | 'failed'
-async function shareTextFlow(text, { title = '', copied = 'Copié, à coller dans un message' } = {}) {
+// failed : le seul message affiché quand ni le partage ni la copie ne marchent (un seul toast, jamais deux à la suite)
+async function shareTextFlow(text, { title = '', copied = 'Copié, à coller dans un message', failed = 'Partage impossible' } = {}) {
   if (Native.isNative) {
     const r = await Native.shareText(text, title);
-    if (r === 'failed') { showToast('Partage impossible', { error: true }); return 'failed'; }
+    if (r === 'failed') { showToast(failed, { error: true }); return 'failed'; }
     return r === 'cancelled' ? 'cancelled' : 'shared';
   }
   if (navigator.share) {
@@ -315,5 +316,5 @@ async function shareTextFlow(text, { title = '', copied = 'Copié, à coller dan
     catch (e) { if (e?.name === 'AbortError') return 'cancelled'; }   // fermée par la personne ; sinon : copié
   }
   try { await navigator.clipboard.writeText(text); showToast(copied); return 'copied'; }
-  catch { showToast('Partage impossible', { error: true }); return 'failed'; }
+  catch { showToast(failed, { error: true }); return 'failed'; }
 }

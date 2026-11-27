@@ -2452,7 +2452,7 @@ def _abonnement(r):
 @parcours('abonnement', 'Abonnement d\'un particulier (verrou payant allumé)', 'pratiquant')
 def p_abonnement(r):
     """Max, sans abonnement, verrou payant allumé (simulé : il est éteint en vrai) : Réglages › Abonnement, puis
-    les formules (essai de 3 mois, mensuel, annuel « soit 8,5 mois »), mentions d'Apple sous les boutons."""
+    les formules (essai de 3 mois, mensuel, annuel « soit 4,58 € par mois »), mentions d'Apple sous les boutons."""
     _coquille_payante(r)
     r.lancer(REALISTE)
     r.connecter('max')

@@ -148,10 +148,15 @@ function sessionPlainName(label) {
 // « Push » à la main garde le nom tapé (Karim le 26/11 : « Pousser (Push) » au lieu de son « Push »).
 // Les pastilles, la mini-barre et les petits espaces gardent le nom court (rawLabel, sessionMeta().label).
 function sessionTitle(cat, progId) {
-  progId = progId || data.activeProgramme;
+  progId = progId || progFocusId();   // comme rawLabel et sessionKeys : le programme réglé (programme d'un élève)
   const raw = rawLabel(cat, progId);
-  const builtIn = progId !== FREE && (!isUserProg(progId) || Object.prototype.hasOwnProperty.call(SESSION_PLAIN, cat));
-  return (builtIn && sessionPlainName(raw)) || raw;
+  if (progId === FREE) return raw;
+  return isUserProg(progId) ? sessionPlainLabel(cat, raw) : (sessionPlainName(raw) || raw);
+}
+// Nom en français d'une séance d'une copie de programme intégré (clé push, fullbody… : « Full Body » → « Corps entier »),
+// le libellé tel quel sinon. Sans état : sert aussi à l'écran Envoyer et au programme envoyé à l'élève (js/data/coach.js)
+function sessionPlainLabel(key, label) {
+  return (Object.prototype.hasOwnProperty.call(SESSION_PLAIN, key) && sessionPlainName(label)) || label;
 }
 
 function firstSession() {

@@ -936,7 +936,7 @@ Avis du panel `juges16.json` (juge 2) sur le site coach, corrigés dans `coach-w
   Séries : « Lourde » et « Allégée » (libellés de js/data/intensif.js), exemple de consigne « sur la série lourde ».
 - **Bilans** : rien à changer, les photos s'ouvrent déjà sur l'ordinateur relié (vague 5, docs/PHOTOS_WEB.md) ; la
   capture des juges datait de la vague 4.
-- **Messages** : « Notifications coupées chez lea : ton message sera là dès que lea ouvrira l'app. »
+- **Messages** : « Notifications coupées chez lea : ton message sera là dès que lea ouvrira l'app. », suivi de « Copier un mot pour prévenir lea » (texte à coller dans un SMS, 27/11)
 - **Semaines** : la colonne Semaine reste collée à gauche quand le tableau défile en largeur (fond opaque `--row-cur`
   pour la semaine en cours) ; tant que des colonnes restent cachées à droite, une ligne le dit sous le tableau
   (« D'autres colonnes à droite : fais défiler le tableau. », `deskTableHints`, appelée après chaque rendu).

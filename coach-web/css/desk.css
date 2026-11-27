@@ -492,7 +492,8 @@ table.wk th.ckh { white-space: normal; min-width: 84px; max-width: 120px; }
 .note-ed textarea, .pg-cons textarea { display: block; width: 100%; min-height: 72px; border: 0; border-radius: 10px; background: var(--cell); font: inherit; font-size: 16px;
   line-height: 1.4; color: var(--label); padding: 10px 12px; resize: vertical; }
 .pg-cons textarea { background: var(--cell2); }
-.chat-off { color: var(--label2); font-size: 13px; padding: 6px 16px 0; }
+.chat-off { color: var(--label2); font-size: 13px; padding: 6px 16px 0; display: flex; flex-wrap: wrap; align-items: center; column-gap: 12px; }
+.chat-off .btn.link { font-size: 13px; padding-inline: 0; }
 .chat-in { display: flex; align-items: flex-end; gap: 10px; padding: 10px 12px 2px 16px; border-top: .5px solid var(--sep); }
 .chat-in textarea { flex: 1; min-width: 0; min-height: 44px; max-height: 180px; border: 0; border-radius: 22px; background: var(--cell2); font: inherit; font-size: 16px;
   line-height: 1.4; color: var(--label); padding: 11px 16px; resize: none; }

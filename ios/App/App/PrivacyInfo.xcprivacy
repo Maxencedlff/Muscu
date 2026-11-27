@@ -129,10 +129,12 @@
 			</array>
 		</dict>
 		<dict>
-			<!-- Photos de bilan envoyées par l'élève lui-même à son coach (docs/PHOTOS_BILAN.md) : redessinées sans
+			<!-- Photo de profil (recadrée, réduite à 512 px et envoyée sans métadonnées dans un espace privé) et photos
+			     de bilan envoyées par l'élève lui-même à son coach (docs/PHOTOS_BILAN.md) : redessinées sans
 			     métadonnées puis chiffrées sur l'iPhone pour ce seul coach ; le serveur garde le fichier chiffré, le
 			     jour, la pose et la date de l'accord. Les photos du coffre restent sur l'iPhone. Même déclaration
-			     dans App Store Connect (Photos ou vidéos : Fonctionnalité de l'app) -->
+			     dans App Store Connect (docs/revue/SOUMISSION.md, section 5 : Photos ou vidéos, liées à l'identité,
+			     Fonctionnalité de l'app) -->
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypePhotosorVideos</string>
 			<key>NSPrivacyCollectedDataTypeLinked</key>

@@ -8,7 +8,8 @@
 //  - Ce fichier ne contient AUCUN PRIX : ils sont lus chez StoreKit (displayPrice). Depuis le 16/11/2026,
 //    les élèves d'un coach ne paient rien (l'abonnement coach les comprend, docs/PAYANT_V1.md) : il n'y a
 //    plus d'offre élève ni de prix écrit dans l'app.
-//  - « soit 8,5 mois » est CALCULÉ (prix annuel / prix mensuel lus chez StoreKit, au demi-mois près).
+//  - « soit <prix> par mois » et « <n> % moins cher » sont CALCULÉS (prix lus chez StoreKit). Avant le 27/11 :
+//    « soit 8,5 mois », que les juges ne comprenaient pas.
 //  - Paliers coach (grille du 17/11/2026) : limite d'élèves suivis 10, 25, 50, 100 ; au-delà de 100, pas
 //    d'achat : « Plus de 100 élèves : écris-nous » (PLAN_COACH_CONTACT). Le serveur fait foi
 //    (coach_tier_state, refus tier_full) ; ici on ne fait que choisir quoi montrer.
@@ -55,15 +56,18 @@ function planNextTier(id) {
   return PLAN_COACH_TIERS[i + 1] || null;
 }
 
-// « soit 8,5 mois » : combien de mois de la formule mensuelle paie l'annuel, au demi-mois près.
-// null si les prix ne sont pas des nombres utilisables (StoreKit rend price en nombre).
-function planYearMonths(monthly, yearly) {
+// Prix par mois de l'annuel, dans la devise de StoreKit : le prix annuel divisé par 12 (2e tour des juges du 27/11 :
+// « soit 8,5 mois » ne se comprenait pas). null si le prix ou la devise manquent
+function planPerMonthText(yearly) {
+  const y = Number(yearly?.amount), cur = yearly?.currency;
+  if (!Number.isFinite(y) || y <= 0 || typeof cur !== 'string' || !/^[A-Z]{3}$/.test(cur)) return null;
+  try { return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: cur }).format(y / 12); } catch { return null; }
+}
+// Économie de l'annuel sur 12 mois du mensuel, en pour cent entiers (arrondi vers le bas : jamais plus que la vérité) ;
+// null si les prix manquent ou si l'écart est sous 5 %
+function planYearSaving(monthly, yearly) {
   const m = Number(monthly?.amount), y = Number(yearly?.amount);
   if (!Number.isFinite(m) || !Number.isFinite(y) || m <= 0 || y <= 0) return null;
-  const n = Math.round((y / m) * 2) / 2;
-  return n > 0 && n < 12 ? n : null;
-}
-// 8.5 → « 8,5 mois », 10 → « 10 mois »
-function planMonthsText(n) {
-  return `${String(n).replace('.', ',')} mois`;
+  const pct = Math.floor((1 - y / (12 * m)) * 100);
+  return pct >= 5 ? pct : null;
 }

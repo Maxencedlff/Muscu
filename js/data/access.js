@@ -545,7 +545,7 @@ async function accessLoadProducts({ force = false } = {}) {
     .map(p => ({ id: p.id, price: p.displayPrice.trim().slice(0, 24),
       label: typeof p.displayName === 'string' ? p.displayName.slice(0, 60) : '',
       period: planOf(p.id).period,
-      // Nombre (pour « soit 8,5 mois ») et devise : jamais affichés tels quels
+      // Nombre et devise (pour le prix par mois de l'annuel, planPerMonthText) : jamais affichés tels quels
       amount: typeof p.price === 'number' && Number.isFinite(p.price) ? p.price : null,
       currency: typeof p.currency === 'string' ? p.currency.slice(0, 3) : null,
       trial: accessTrialOf(p), introEligible: p.introEligible === true, promo: accessPromoOf(p) }))

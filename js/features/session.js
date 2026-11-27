@@ -101,12 +101,19 @@ function exUndoBefore(block, xs) {
   if (!u) return '';
   // « Annuler » d'une série : dans sa ligne ; si la dernière série referme la carte, la ligne passe au-dessus d'elle
   // (dans le bloc des reps en réserve sous la carte repliée quand il est là : foldedRirHtml)
-  if (u.si !== undefined) return u.ex && block.some(i => xs[i] === u.ex) && blockCollapsed(block, xs) && !foldedRirShown(block) ? exUndoHtml(u) : '';
+  // Hors de sa carte, la ligne nomme l'exercice (2e tour des juges du 27/11 : « Série 2 validée · Annuler » entre deux cartes
+  // repliées, on ne savait pas à quel exercice elle se rapportait)
+  if (u.si !== undefined) return u.ex && block.some(i => xs[i] === u.ex) && blockCollapsed(block, xs) && !foldedRirShown(block) ? exUndoHtml(exUndoNamed(u)) : '';
   // Série supprimée : à sa place dans la carte d'un exercice seul (delUndoRows), au-dessus d'un superset
   if (u.delSi !== undefined && block.length === 1 && !blockCollapsed(block, xs)) return '';
   if (u.ex && block.some(i => xs[i] === u.ex)) return exUndoHtml(u);
   if (u.at !== undefined && !u.ex && block[0] === u.at) return exUndoHtml(u);
   return '';
+}
+// « Leg curl machine : série 2 validée »
+function exUndoNamed(u) {
+  const name = String(u.ex?.name || '').trim(), t = String(u.text || '');
+  return name ? { ...u, text: `${name} : ${t.charAt(0).toLowerCase()}${t.slice(1)}` } : u;
 }
 const openDone = new WeakSet(); // exercices terminés dépliés
 
@@ -662,7 +669,7 @@ function renderGroupCard(members, cur, tags) {
         <button class="ex-summary" data-action="toggle-ex" data-ei="${head}" aria-expanded="false">
           <span class="ex-summary__text">
             <span class="ex-summary__name">${kind}</span>
-            ${members.map(ei => `<span class="ex-summary__line num"><span class="ss-tag ss-tag--sm">${tags[ei]}</span>${esc(exLabel(xs[ei]))} · ${doneSummary(xs[ei])}</span>${doneExtraLines(xs[ei]).map(l => `<span class="ex-summary__line num">${esc(l)}</span>`).join('')}`).join('')}
+            ${members.map(ei => `<span class="ex-summary__line ex-summary__line--ss num"><span class="ss-tag ss-tag--sm">${tags[ei]}</span><span class="ex-summary__txt">${esc(exLabel(xs[ei]))} · ${doneSummary(xs[ei])}</span></span>${doneExtraLines(xs[ei]).map(l => `<span class="ex-summary__line ex-summary__line--ss-sub num">${esc(l)}</span>`).join('')}`).join('')}
           </span>
           <span class="set-check set-check--done ex-summary__check">${icon('checkmark', 18)}</span>
         </button>${foldedRirHtml(members)}
@@ -899,7 +906,9 @@ function renderSetRow(ex, ei, s, si, cur, tag) {
   const m       = measureOf(ex);
   const prevF   = setFirstValue(s.prev, m);
   // « 14 × 10 » jamais coupé (insécable et sans retour à la ligne, set-prev__val : css/session.css)
-  const prev    = s.prev ? `<span class="set-prev__val">${prevF ? prevF + '&nbsp;×&nbsp;' : ''}${esc(s.prev.reps)}</span>` : '—';
+  // Jamais fait (aucune série d'avant sur cet exercice) : « 1re fois » au lieu d'un « — » sans explication (2e tour du 27/11)
+  const prev    = s.prev ? `<span class="set-prev__val">${prevF ? prevF + '&nbsp;×&nbsp;' : ''}${esc(s.prev.reps)}</span>`
+    : (ex.sets || []).some(x => x.prev) ? '—' : '1re&nbsp;fois';
   const editing = editingSet && editingSet.ei === ei && editingSet.si === si;
   // Caché à VoiceOver et inactif tant que le balayage ne l'a pas révélé (setDelShown, js/features/session-gestures.js) : lu
   // avant chaque série, un double toucher supprimait sans le vouloir (panel « yeux neufs » du 16/11). Sans balayage :

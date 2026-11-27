@@ -1194,7 +1194,7 @@ function renderCoachSend(uid, progId) {
   const groups = sessions.map(s => {
     const xs = data.programmes[progId]?.exercises?.[s.key] || [];
     return `
-        <div class="group-title">${esc(s.label)}</div>
+        <div class="group-title">${esc(sessionPlainLabel(s.key, s.label))}</div>
         <div class="group">${xs.length ? xs.map((e0, i) => {
           // Reps prescrites à cet élève (js/data/coach-presc.js) à la place de celles du programme
           const e = applyCoachPresc({ ...e0 }, dr.presc?.[s.key]?.[e0.id]);
@@ -1324,8 +1324,9 @@ function coachPrescBtnHtml(uid, progId, cat, e) {
 // ── Partage d'un code d'invitation ──────────────────────────
 
 async function shareCoachInvite(code) {
-  const r = await shareTextFlow(coachInviteText(code), { title: 'Invitation', copied: 'Invitation copiée, colle-la dans un message' });
-  if (r === 'failed') showToast(`Code : ${code}`);
+  // Échec : un seul toast, qui donne le code à dicter ou recopier
+  await shareTextFlow(coachInviteText(code), { title: 'Invitation', copied: 'Invitation copiée, colle-la dans un message',
+    failed: `Partage impossible. Code : ${code}` });
 }
 // Code de 7 jours encore bon au moins 24 h : « Inviter un élève » le repartage au lieu d'en créer un autre (retours de
 // Sophie du 26/11 : un code créé sans être envoyé, puis un second au toucher suivant). Le plus récent, sinon null

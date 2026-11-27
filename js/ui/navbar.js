@@ -232,6 +232,7 @@ document.fonts?.ready.then(() => fitBackLabel());
 function routeTitle(route, isRoot) {
   if (route === 'my-programmes') return 'Programmes';   // racine de l'onglet Programme : son grand titre
   if (route === 'programmes') return progMeta().name;    // page du programme actif : son nom
+  if (routeName(route) === 'programmes' && progEditable(routeParams(route)[0])) return progMeta(routeParams(route)[0]).name;   // programme réglé sans être actif (élève)
   if (isRoot && TAB_OF_ROOT[route]) return tabMeta(TAB_OF_ROOT[route]).label;
   const name = routeName(route);
   if (name === 'editor') { const cat = editorCatOf(route); return cat ? rawLabel(cat) : 'Séance'; }
@@ -248,7 +249,7 @@ function routeTitle(route, isRoot) {
     notifications: 'Notifications',
     'social-people': routeParams(route)[0] === 'followers' ? 'Te suivent' : 'Suivis',
     'add-session': editSessionId ? 'Modifier la séance' : 'Séance passée',
-    paywall: 'Abonnement', subscription: 'Abonnement',
+    paywall: 'Formules', subscription: 'Abonnement',
     library: 'Bibliothèque', 'library-ex': 'Exercice', 'guide-topic': 'Guide', 'stats-muscles': 'Muscles', 'stats-group': MUSCLE_GROUP_BY_ID.get(routeParams(route)[0])?.label || 'Muscles', 'muscles-unknown': 'Sans muscles',
     nutrition: 'Nutrition', 'diet-plans': dietPlansTitle(), 'diet-settings': 'Réglages', 'diet-send': 'Envoyer',
     'diet-plan': (routeParams(route)[1] != null ? dietDayName(data.dietPlans?.[routeParams(route)[0]], Number(routeParams(route)[1])) : '') || data.dietPlans?.[routeParams(route)[0]]?.name || 'Plan',

@@ -18,7 +18,7 @@ const PIXEL = 'Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTM
 const ARGS = ['3 mois', '7,77 € par mois ou 77,77 € par an'];
 // Textes Android qui nomment Apple ou l'iPhone parce que c'est vrai : un abonnement pris sur iPhone se gère sur
 // l'iPhone, un identifiant Apple relié au compte se retire chez Apple. Toute autre mention échoue.
-const ANDROID_APPLE_OK = ['payManageFoot', 'payNoStore', 'payDoubleTrial', 'payDeleteActive', 'appleManualRevoke'];
+const ANDROID_APPLE_OK = ['payManageFoot', 'payDoubleTrial', 'payDeleteActive', 'appleManualRevoke'];
 const APPLE_WORDS = /iPhone|iPad|Apple|iCloud|Face ID|Touch ID|Safari|Temps d'écran|trousseau|App Store|TestFlight|StoreKit/;
 
 export default function ({ test, assert, sameJSON, nativeContext, ROOT }) {
@@ -117,5 +117,11 @@ export default function ({ test, assert, sameJSON, nativeContext, ROOT }) {
     // la build 1 d'Android serait « trop ancienne » face au minimum d'iOS (≈ 40) et bloquée dès le premier lancement
     const { Native } = nativeContext({ platform: 'android' });
     assert.equal(Native.platform, 'android');
+  });
+
+  test('textes système : Android ne promet ni compte MDLF ni code promo Google Play tant que rien ne s\'y achète', () => {
+    const { PT } = load('android');
+    assert.doesNotMatch(PT.payNoStore.join(' '), /compte MDLF|Connecte-toi/, 'pas de compte sur Android pour l\'instant');
+    assert.doesNotMatch(PT.payCodeNote, /Google Play|Play Store/, 'aucun code promo Google Play');
   });
 }

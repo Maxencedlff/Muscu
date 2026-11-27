@@ -113,7 +113,7 @@ function soundDiagReport(res, ctx = {}) {
   }
   const lost = [...(fileHeard ? [] : [{ name: 'son enregistré' }]), ...missing];
   const during = lost.length
-    ? `${soundNames(lost).replace(/^l/, 'L')} ${lost.length > 1 ? 'pas joués' : 'pas joué'}`
+    ? `${soundNames(lost).replace(/^l/, 'L')} ${lost.length > 1 ? 'n\'ont pas été joués' : 'n\'a pas été joué'}`   // « Le bip de départ n'a pas été joué » (2e tour du 27/11)
     : 'Tous les sons joués';
 
   const vol = typeof st.outputVolume === 'number' ? `${Math.round(st.outputVolume * 100)}\u00a0%` : '?';

@@ -104,7 +104,8 @@ const PLATFORM_TEXTS = {
   },
 
   android: {
-    payCodeNote: 'Un code MDLF se saisit ici, avec « J\'ai un code ». Un code promo Google Play se saisit dans le Play Store.',
+    // Rien ne s'achète encore sur Android (Native.store.soon) : aucun code promo Google Play à saisir
+    payCodeNote: 'Un code MDLF se saisit ici, avec « J\'ai un code ».',
     payOfferCode: 'J\'ai un code Google Play',
     payOfferCodeToast: 'Saisis le code dans le Play Store',
     payManage: 'Gérer dans Google Play',
@@ -127,8 +128,9 @@ const PLATFORM_TEXTS = {
     payPromoRule: 'Essai coach réservé aux coachs vérifiés qui n\'ont jamais eu d\'abonnement coach, une seule fois par compte. Si Google Play ne l\'accepte pas, rien n\'est débité.',
     payMissingPending: 'Les formules ne sont pas encore proposées dans Google Play.',
     payMissingFailed: 'Les formules n\'ont pas pu être lues dans Google Play.',
+    // Pas de compte MDLF sur Android pour l'instant : rien à « reconnecter » (audit du 27/11)
     payNoStore: ['L\'abonnement n\'est pas encore proposé sur Android. Il arrivera avec Google Play.',
-      'Déjà abonné sur iPhone ? Connecte-toi au même compte MDLF : l\'accès suit le compte. Séances et progrès restent accessibles ici.'],
+      'Séances et progrès restent accessibles ici.'],
     payBlocked: () => ['Google Play ne permet pas d\'acheter sur ce téléphone.', 'Vérifie que le Play Store est à jour et qu\'un compte Google y est connecté.'],
     payDoubleTrial: (who, date) => `${who} t'offre l'accès. Ton propre essai devient payant le ${date} : résilie-le dans le Play Store, ou sur l'iPhone s'il y a été pris, pour ne pas être prélevé.`,
     payDeleteActive: 'Supprimer le compte n\'arrête pas l\'abonnement : il reste facturé par la boutique où tu l\'as pris (Google Play, ou Apple s\'il vient d\'un iPhone). Résilie-le d\'abord.',

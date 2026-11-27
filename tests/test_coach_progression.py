@@ -192,7 +192,7 @@ def t_fiche(bench, eng, dev, theme):
         R.check(page.locator('.progress-week .review-rec').count() == 3, f'{t} fiche : les 3 records, comme les cartes des séances')
         # Retours de Sophie (26/11) : plus de mini-barres « 0 0 6 6 par 7 jours », la semaine d'avant dite en mots
         R.check(page.locator('.progress-week .wkbars').count() == 0 and 'par 7 jours' not in wk, f'{t} fiche : plus de mini-barres ({wk!r})')
-        R.check(page.inner_text('.coach-student-view .progress-week + .group-foot') == "Aujourd'hui et les 6 jours d'avant.", f'{t} fiche : pied sans « barres »')
+        R.check(page.locator('.coach-student-view .progress-week + .group-foot').count() == 0, f'{t} fiche : plus de pied qui répète la rangée de jours')
         # Coach v2 : la dernière séance passe dans la carte de tête, illustrée (vignette décorative), au-dessus des
         # « 7 derniers jours », avec ses jours d'entraînement en pastilles (aujourd'hui à droite)
         hero = page.locator('.coach-student-view .cstu-hero')

@@ -256,6 +256,12 @@ html.type-xl .ss-thumbs { display: none; }
 .ex-summary__name { font-size: 1rem; line-height: 1.294rem; font-weight: 600; overflow-wrap: anywhere; }
 .ex-summary__line { font-size: 0.765rem; color: var(--label2); display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .ex-summary__line .medal { color: var(--medal); }
+/* Superset replié : la lettre A1, A2 à gauche, le nom à côté sur toutes les lignes (2e tour des juges du 27/11 : le nom
+   d'A2 passait sous sa lettre) ; drop et autres lignes alignés sur le nom */
+.ex-summary__line--ss { display: flex; flex-wrap: nowrap; align-items: flex-start; }
+.ex-summary__line--ss .ss-tag--sm { flex-shrink: 0; margin-top: 1px; }
+.ex-summary__txt { min-width: 0; overflow-wrap: break-word; }
+.ex-summary__line--ss-sub { padding-left: 34px; }
 .ex-summary__check { width: 28px; height: 28px; }
 
 .view.session .session-add-ex-btn {
@@ -765,7 +771,8 @@ html.type-xl .ax__equip, html.type-xl .ax .mf__row { flex-wrap: wrap; overflow-x
 /* Boutons ensemble, à droite, même sans le texte d'aide (petit écran) ; passés sous le libellé, ils y restent calés à droite */
 .tech__btns { display: flex; align-items: center; gap: 16px; flex: none; margin-left: auto; }
 .tech__x { min-width: 44px; padding: 0 12px; color: var(--tint-on-fill); }
-html.type-xl .tech__both { display: none; }   /* « (2 bras) » : chaque bloc dit déjà son bras ; en AX33 il recouvrait le texte (21/11) */
+.tech__both { margin-left: 2px; }   /* « + drop aux 2 bras » : une espace, le gap du bouton plus 2 px (pas d'espace doublée) */
+html.type-xl .tech__both { display: none; }   /* « aux 2 bras » : chaque bloc dit déjà son bras ; en AX33 il recouvrait le texte (21/11) */
 .tech__add::after, .tech__x::after { content: ''; position: absolute; inset: -4px; }   /* 44 px dessinés (panel du 20/11), 52 touchables, 8 px libres entre les deux */
 .tech__add:active, .tech__x:active { opacity: .6; }
 .session-set--sub { min-height: 52px; margin-bottom: 2px; border-radius: 0 var(--r-sm) var(--r-sm) 0; box-shadow: inset 2px 0 0 var(--sep); }

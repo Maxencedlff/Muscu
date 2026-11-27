@@ -9,7 +9,12 @@ ont été **lus** dans ASC le 03/11 (requêtes GET de l'API, aucune écriture). 
 
 Groupe `MDLF Training Acces` (id 22520671), app 6823561962. Tous en état `MISSING_METADATA` le 03/11 :
 il manque la **capture de revue** (fichiers ci-dessous). Partage familial : désactivé sur les dix (lu dans ASC).
-Essai : offre de lancement « 3 mois gratuits » sur les dix, 5 pays (docs/PAYANT_V1.md).
+Essai : offre de lancement « 3 mois gratuits » sur les deux abonnements particulier, « 2 mois gratuits » sur les huit
+abonnements coach depuis le 17/11/2026, 5 pays (docs/PAYANT_V1.md).
+
+Paliers coach : **grille du 17/11/2026**, 10, 25, 50 et 100 élèves (`js/data/plans.js`, `PLAN_TIERS`) ; les identifiants
+ne changent pas (`coach20` = 25 élèves, `coach30` = 50, `coachmax` = 100). Prix France : docs/PAYANT_V1.md, « Grille coach du 17/11 »
+(les prix du tableau ci-dessous, lus le 03/11, sont ceux de la grille du 30/10 : à relire dans ASC).
 
 Limites d'Apple : nom affiché 35 caractères, description 55 caractères.
 
@@ -19,12 +24,12 @@ Limites d'Apple : nom affiché 35 caractères, description 55 caractères.
 | 10 | MDLF Training annuel | `com.mdlf.training.pro.yearly` | 6827767660 | 1 an | 55,00 € | `sombre/02-com.mdlf.training.pro.yearly.png` |
 | 7 | Coach 10 élèves mensuel | `com.mdlf.training.coach10.monthly` | 6829035180 | 1 mois | 15,99 € | `sombre/03-com.mdlf.training.coach10.monthly.png` |
 | 8 | Coach 10 élèves annuel | `com.mdlf.training.coach10.yearly` | 6829035208 | 1 an | 134,99 € | `sombre/04-com.mdlf.training.coach10.yearly.png` |
-| 5 | Coach 20 élèves mensuel | `com.mdlf.training.coach20.monthly` | 6829035210 | 1 mois | 19,99 € | `sombre/05-com.mdlf.training.coach20.monthly.png` |
-| 6 | Coach 20 élèves annuel | `com.mdlf.training.coach20.yearly` | 6829035275 | 1 an | 169,00 € | `sombre/06-com.mdlf.training.coach20.yearly.png` |
-| 3 | Coach 30 élèves mensuel | `com.mdlf.training.coach30.monthly` | 6829035217 | 1 mois | 24,99 € | `sombre/07-com.mdlf.training.coach30.monthly.png` |
-| 4 | Coach 30 élèves annuel | `com.mdlf.training.coach30.yearly` | 6829035393 | 1 an | 209,99 € | `sombre/08-com.mdlf.training.coach30.yearly.png` |
-| 1 | Coach illimité mensuel | `com.mdlf.training.coachmax.monthly` | 6829035229 | 1 mois | 29,99 € | `sombre/09-com.mdlf.training.coachmax.monthly.png` |
-| 2 | Coach illimité annuel | `com.mdlf.training.coachmax.yearly` | 6829035364 | 1 an | 250,00 € | `sombre/10-com.mdlf.training.coachmax.yearly.png` |
+| 5 | Coach 25 élèves mensuel | `com.mdlf.training.coach20.monthly` | 6829035210 | 1 mois | 19,99 € | `sombre/05-com.mdlf.training.coach20.monthly.png` |
+| 6 | Coach 25 élèves annuel | `com.mdlf.training.coach20.yearly` | 6829035275 | 1 an | 169,00 € | `sombre/06-com.mdlf.training.coach20.yearly.png` |
+| 3 | Coach 50 élèves mensuel | `com.mdlf.training.coach30.monthly` | 6829035217 | 1 mois | 24,99 € | `sombre/07-com.mdlf.training.coach30.monthly.png` |
+| 4 | Coach 50 élèves annuel | `com.mdlf.training.coach30.yearly` | 6829035393 | 1 an | 209,99 € | `sombre/08-com.mdlf.training.coach30.yearly.png` |
+| 1 | Coach 100 élèves mensuel | `com.mdlf.training.coachmax.monthly` | 6829035229 | 1 mois | 29,99 € | `sombre/09-com.mdlf.training.coachmax.monthly.png` |
+| 2 | Coach 100 élèves annuel | `com.mdlf.training.coachmax.yearly` | 6829035364 | 1 an | 250,00 € | `sombre/10-com.mdlf.training.coachmax.yearly.png` |
 
 Chemins relatifs à `docs/revue/`. `docs/revue/clair/` contient les mêmes en thème clair (contrôle).
 
@@ -46,9 +51,9 @@ Valeurs **actuelles** dans ASC, à garder sauf les deux corrections d'accents ma
 | pro.monthly | MDLF Training mensuel | ✎ actuel « Acces complet, facture chaque mois. » → **Accès complet, facturé chaque mois.** | MDLF Training monthly | Full access, billed monthly. |
 | pro.yearly | MDLF Training annuel | ✎ actuel « Acces complet, facture chaque annee. » → **Accès complet, facturé chaque année.** | MDLF Training yearly | Full access, billed yearly. |
 | coach10.* | Coach 10 élèves | Accès complet et suivi de 10 élèves au plus. | Coach 10 clients | Full access and up to 10 clients. |
-| coach20.* | Coach 20 élèves | Accès complet et suivi de 20 élèves au plus. | Coach 20 clients | Full access and up to 20 clients. |
-| coach30.* | Coach 30 élèves | Accès complet et suivi de 30 élèves au plus. | Coach 30 clients | Full access and up to 30 clients. |
-| coachmax.* | Coach illimité | Accès complet et élèves illimités. | Coach unlimited | Full access and unlimited clients. |
+| coach20.* | ✎ **Coach 25 élèves** | ✎ **Accès complet et suivi de 25 élèves au plus.** | ✎ **Coach 25 clients** | ✎ **Full access and up to 25 clients.** |
+| coach30.* | ✎ **Coach 50 élèves** | ✎ **Accès complet et suivi de 50 élèves au plus.** | ✎ **Coach 50 clients** | ✎ **Full access and up to 50 clients.** |
+| coachmax.* | ✎ **Coach 100 élèves** | ✎ **Accès complet et suivi de 100 élèves au plus.** | ✎ **Coach 100 clients** | ✎ **Full access and up to 100 clients.** |
 
 Mensuel et annuel d'un même palier coach portent le même nom affiché : Apple affiche la durée à côté du
 nom (feuille d'achat, Réglages › Abonnements), ce n'est pas bloquant.
@@ -58,8 +63,8 @@ Les notes actuelles sont en français **sans accents** (« accès complet a l ap
 
 - `pro.monthly` et `pro.yearly` :
   > Personal plan: full access to MDLF Training (recording new workouts and syncing them to the account). Offered to every signed-in user with a 3-month free trial (Apple introductory offer). Shown in the app at Settings › Subscription, and when recording a workout once the paywall is on. History, progress charts and data export stay available without a subscription.
-- Les huit `coach*` (remplacer N par 10, 20, 30 ou « an unlimited number of ») :
-  > Coach plan: full access for the coach and follow-up of up to N students. Coach plans are only offered in the app to accounts whose coach role was verified by us (French professional card of sports instructor). The demo account given in the App Review Information is a verified coach: Settings › Subscription › Coach tab shows the four tiers, with a Monthly / Yearly switch. 3-month free trial (Apple introductory offer).
+- Les huit `coach*` (remplacer N par 10, 25, 50 ou 100) :
+  > Coach plan: full access for the coach and follow-up of up to N students. Coach plans are only offered in the app to accounts whose coach role was verified by us (French professional card of sports instructor). The demo account given in the App Review Information is a verified coach: Settings › Subscription › Coach tab shows the four tiers, with a Monthly / Yearly switch. 2-month free trial (Apple introductory offer).
 
 ## 2. Localisation du groupe d'abonnements
 Lue dans ASC le 03/11 : **fr-FR** et **en-US**, nom d'affichage du groupe **« MDLF Training »**, « Nom de
@@ -119,6 +124,7 @@ Finalité : **Fonctionnalité de l'app** (App Functionality), sauf mention contr
 | Identifiants › **Identifiant de l'utilisateur** (User ID) | Fonctionnalité de l'app | Identifiant du compte, identifiant « Se connecter avec Apple », pseudo | `supabase/migrations/20261026000000_profils.sql:26-28`, `js/data/account.js:333`, `privacy.html:44`, `:49` |
 | Identifiants › **Identifiant de l'appareil** (Device ID) | Fonctionnalité de l'app | Jeton APNs de l'iPhone, gardé avec le compte quand une notification push est allumée | `supabase/migrations/20261031900000_notifications_push.sql:27-31`, `privacy.html:136` |
 | Achats › **Historique des achats** (Purchase History) | Fonctionnalité de l'app (**+ Autres finalités**, voir décision 3) | Produit, dates, identifiants de transaction, environnement ; pour le parrainage : prix, devise, pays de la boutique | `supabase/migrations/20261028000000_payant.sql:143`, `:169`, `20261101000000_parrainage_payant.sql:62-78`, `supabase/functions/verify-purchase/purchase-policy.js:122`, `privacy.html:98`, `:109` |
+| Contenu utilisateur › **Photos ou vidéos** (Photos or Videos) | Fonctionnalité de l'app | **Photo de profil** (MDLF Pro, gratuite pour les coachs) : recadrée et réduite sur l'iPhone (512 px), envoyée sans métadonnées dans un espace privé, vue seulement par les abonnés acceptés, le coach et les élèves ; **photos de bilan** envoyées par l'élève lui-même à son coach, chiffrées pour ce seul coach (docs/PHOTOS_BILAN.md). Même déclaration que le manifeste : liée à l'identité, pas de suivi | `ios/App/App/PrivacyInfo.xcprivacy` (`NSPrivacyCollectedDataTypePhotosorVideos`, lié, App Functionality), `js/data/profile-photo.js`, `js/data/coach-photos.js`, `privacy.html` (photo de profil, photos de bilan) |
 | Diagnostics › **Autres données de diagnostic** (Other Diagnostic Data) | Fonctionnalité de l'app | Version du contenu de l'app et date du premier lancement de cette version, envoyées avec le profil « pour savoir côté serveur qui a quelle version » | `js/data/sync.js:29-30`, `:33`, `:124-130` |
 | Autres données › **Autres types de données** (Other Data Types) | Fonctionnalité de l'app | Numéro de carte professionnelle et diplôme de la demande coach | `supabase/migrations/20261030000000_payant_tarifs.sql:241-245`, `privacy.html:86` |
 
@@ -127,7 +133,7 @@ Finalité : **Fonctionnalité de l'app** (App Functionality), sauf mention contr
 | Type | Raison | Justification |
 |---|---|---|
 | Données Apple Santé lues (poids, courses, vélo, sommeil) | Restent sur l'iPhone, jamais dans l'historique synchronisé. **Seule exception** : le résumé par jour (pas, durée de sommeil, minutes de cardio) envoyé au coach si l'élève coche « Pas, sommeil et cardio » ; déclaré en Santé et forme › Santé (ligne plus haut, docs/SANTE_COACH.md) | `js/data/health-workouts.js:7-10`, `js/data/sync.js:44-45` (`bodyWeightKg`, `bodyWeightLog`, `healthOn` locaux), `privacy.html:148` |
-| Photos ou vidéos (photos de progression, « coffre ») | **Oui, elles restent sur l'appareil** : IndexedDB chiffrée (AES-GCM), ni serveur, ni pellicule, ni copie iCloud de l'app ; seule la sauvegarde iPhone d'Apple les contient, chiffrées | `js/data/progress-photos.js:5-24`, `js/data/photo-vault.js:7`, `privacy.html:33` |
+| Photos de progression du coffre (hors photos de bilan envoyées au coach) | **Oui, elles restent sur l'appareil** : IndexedDB chiffrée (AES-GCM), ni serveur, ni pellicule, ni copie iCloud de l'app ; seule la sauvegarde iPhone d'Apple les contient, chiffrées | `js/data/progress-photos.js:5-24`, `js/data/photo-vault.js:7`, `privacy.html:33` |
 | Informations sensibles (sexe), mensurations, poids saisi non partagé | Jamais envoyés | `js/data/sync.js:38-45` (`strengthSex`, `bodyMeasures`) |
 | Infos financières (moyen de paiement) | Apple encaisse, le développeur ne voit rien (exclu par la définition d'Apple) | `privacy.html:109` |
 | Localisation, contacts, audio, historique de navigation | Aucune API utilisée (recherche sans résultat dans `js/` et `ios/App/App`) | grep `geolocation`, `CLLocation`, `CNContact`, `getUserMedia` : aucun usage |

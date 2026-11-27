@@ -110,6 +110,18 @@ document.addEventListener?.('click', e => {
   if (!b || b.closest('.toast') || typeof currentView !== 'function' || currentView() !== 'nutrition') return;
   document.querySelectorAll('.toast--action').forEach(removeToast);
 }, true);
+// Défiler est aussi le geste suivant (2e tour des juges du 27/11 : « Remplacé par… » restait affiché pendant qu'on
+// descendait vers la carte Eau et cachait « Bouteille », « + 1 L d'eau » restait sur la ligne Sel et cachait « Pincée »).
+// Hauteur de départ prise au premier défilement après 300 ms : le défilement que l'écran fait lui-même au dessin ne compte pas
+const DIET_TOAST_SCROLL_PX = 48;
+window.addEventListener?.('scroll', () => {
+  if (typeof currentView !== 'function' || currentView() !== 'nutrition') return;
+  document.querySelectorAll('.toast--action').forEach(t => {
+    if (Date.now() - Number(t.dataset.at || 0) < 300) return;
+    if (t.dataset.y0 === undefined) { t.dataset.y0 = String(window.scrollY); return; }
+    if (Math.abs(window.scrollY - Number(t.dataset.y0)) > DIET_TOAST_SCROLL_PX) removeToast(t);
+  });
+}, { passive: true });
 // Toast d'un ajout sur un jour passé : « Ajouté à hier · Dîner »
 function dietPastWord(day) { const t = dietDayTitle(day); return t === 'Hier' ? 'à hier' : `au ${t.charAt(0).toLowerCase()}${t.slice(1)}`; }
 // Part remplie d'une jauge : sur les nombres affichés (arrondis au gramme ou à la kcal), pour que « 4 / 4 g »

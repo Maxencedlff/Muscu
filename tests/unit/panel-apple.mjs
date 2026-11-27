@@ -78,7 +78,7 @@ export default function ({ test, run, reset, assert, app, sameJSON, ROOT }) {
     // Code sans les commentaires (une ligne // ou la fin de ligne après « // ») : seuls les textes montrés comptent
     const code = f => src(f).split('\n').filter(l => !l.trim().startsWith('//')).map(l => l.replace(/\s\/\/\s.*$/, '')).join('\n');
     for (const f of ['js/features/social-ui.js', 'js/features/social-me-ui.js', 'js/features/coach-ui.js', 'js/ui/navbar.js', 'js/features/reactions-ui.js', 'js/features/comments-ui.js']) {
-      const hits = (code(f).match(/[^\n]*abonn[^\n]*/gi) || []).filter(l => !/paywall: 'Abonnement'/.test(l));   // écran payant
+      const hits = (code(f).match(/[^\n]*abonn[^\n]*/gi) || []).filter(l => !/paywall: '(Abonnement|Formules)', subscription: 'Abonnement'/.test(l));   // écrans payants
       assert.deepEqual(hits, [], `${f} : ${hits.join(' | ')}`);
     }
     assert.match(src('docs/ERGONOMIE.md'), /\| Suivre ; ceux qui te suivent/, 'lexique : suivre');

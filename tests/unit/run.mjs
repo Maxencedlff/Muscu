@@ -2195,10 +2195,10 @@ test('Diagnostic du son : verdict, action courte, cause, aide, « Joué » ou «
   assert.equal(m.action, 'Ferme l\'app, rouvre‑la, puis refais le test.');
   assert.ok(m.help.includes('sélecteur d\'apps') && m.help.endsWith('envoie le diagnostic au support.'), m.help);
   sameJSON(Array.from(m.rows.find(x => x[0] === 'Bip de départ')), ['Bip de départ', 'Pas joué', false]);
-  sameJSON(Array.from(m.rows.find(x => x[0] === 'Pendant ce test')), ['Pendant ce test', 'Le bip de départ pas joué', false]);
+  sameJSON(Array.from(m.rows.find(x => x[0] === 'Pendant ce test')), ['Pendant ce test', 'Le bip de départ n\'a pas été joué', false]);
   assert.ok(m.rows.find(x => x[0] === 'Avant ce test')[1].startsWith('Interruption (appel'));
   assert.equal(m.rows.find(x => x[0] === 'Sortie')[1], 'Bluetooth (AirPods de Max)');
-  assert.ok(m.text.includes('GO : pas joué, pic −160') && m.text.includes('moteur non') && m.text.includes('Pendant ce test : Le bip de départ pas joué'));
+  assert.ok(m.text.includes('GO : pas joué, pic −160') && m.text.includes('moteur non') && m.text.includes('Pendant ce test : Le bip de départ n\'a pas été joué'));
   // Tout joué vers des AirPods : l'aide nomme l'appareil qui prend le son
   const bt = JSON.parse(JSON.stringify(SELF_OK)); bt.before.outputs = [{ type: 'BluetoothA2DPOutput', name: 'AirPods de Max' }];
   assert.ok(c.soundDiagReport(bt).help.startsWith('Le son part vers AirPods de Max. Débranche‑le'), c.soundDiagReport(bt).help);
@@ -2209,7 +2209,7 @@ test('Diagnostic du son : verdict, action courte, cause, aide, « Joué » ou «
   two.steps[2].peakDb = -90; two.steps[3].peakDb = -90;
   const t2 = c.soundDiagReport(two);
   assert.equal(t2.title, 'L\'app n\'a pas joué le décompte 1 et le bip de départ');
-  assert.equal(t2.rows.find(x => x[0] === 'Pendant ce test')[1], 'Le décompte 1 et le bip de départ pas joués');
+  assert.equal(t2.rows.find(x => x[0] === 'Pendant ce test')[1], 'Le décompte 1 et le bip de départ n\'ont pas été joués');
   two.steps.forEach(s => { s.peakDb = -90; });
   assert.equal(c.soundDiagReport(two).title, 'L\'app n\'a pas joué la fin de repos', 'fichier seul');
   two.file = { played: false, error: 'lecture refusée par iOS' };
@@ -2220,7 +2220,7 @@ test('Diagnostic du son : verdict, action courte, cause, aide, « Joué » ou «
   const fileOnly = JSON.parse(JSON.stringify(SELF_OK)); fileOnly.file.peakDb = -120;
   const fo = c.soundDiagReport(fileOnly);
   assert.equal(fo.title, 'L\'app n\'a pas joué le son enregistré');
-  assert.equal(fo.rows.find(x => x[0] === 'Pendant ce test')[1], 'Le son enregistré pas joué');
+  assert.equal(fo.rows.find(x => x[0] === 'Pendant ce test')[1], 'Le son enregistré n\'a pas été joué');
   assert.equal(c.soundDiagReport({}).title, 'L\'app n\'a joué aucun son', 'résultat vide : pas d\'erreur');
 });
 
@@ -2256,6 +2256,7 @@ test('Diagnostic du son : verdict, action courte, cause, aide, « Joué » ou «
 
 (await import('./triceps-poulies.mjs')).default({ test, run, reset, assert, sameJSON });
 (await import('./textes-affiches.mjs')).default({ test, assert, ROOT });
+(await import('./liens.mjs')).default({ test, assert, ROOT });   // liens et actions en texte : css/liens.css tenue à jour
 
 // ── Récupération par muscle (tests dans recovery.mjs) ──────
 

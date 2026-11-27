@@ -462,4 +462,30 @@ def t_ax33(bench, eng, dev, theme):
         R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_programme_eleve, t_creer_pour_qui, t_envoyer_partager, t_fiche, t_bilan_serveur_ancien, t_inviter, t_fourchette, t_textes, t_ax33])
+# ── Audit du 27/11 : séance d'un programme d'élève, titre de l'écran = nom de la séance (jamais l'identifiant interne) ──
+def t_titre_seance_eleve(bench, eng, dev, theme):
+    t = tag(dev, theme)
+    with bench.frozen_page(NOW, eng, dev, theme) as page:
+        open_app(page, theme)
+        signin(page, 'sophie')
+        setup_coach(page)
+        # Programme vide créé pour Camille, une séance nommée à la main (clé interne s1abc), deux exercices
+        page.evaluate("""() => {
+            data.userProgrammes.u_cam = { name: 'Camille débutante', archived: false, sessions: { s1abc: { label: 'Bas du corps', icon: '', desc: '', color: '#34C759' } } };
+            data.programmes.u_cam = { timers: {}, cooldowns: {}, exercises: { s1abc: [{ id: 'e1', name: 'Presse à cuisses', sets: 3, repMax: 12 }, { id: 'e2', name: 'Leg curl machine', sets: 3, repMax: 12 }] } };
+            data.myProgrammes.push('u_cam'); save();
+            switchTab('program', { reset: true }); navigate(makeRoute('programmes', 'u_cam')); }""")
+        settle(page)
+        page.locator('.programmes [data-action="open-prog-session"]').first.click()
+        page.wait_for_selector('.editor, .view')
+        settle(page)
+        title = page.evaluate("document.querySelector('#app .navbar__title')?.textContent.trim()")
+        R.check(title == 'Bas du corps', f'{t} séance du programme de Camille : titre « Bas du corps », pas « s1abc » ({title!r})')
+        back = page.evaluate("document.querySelector('#app .navbar__back-label')?.dataset.full")   # libellé complet (« Retour » s'il ne tient pas)
+        R.check(page.evaluate('nav.tab') == 'program' and back == 'Camille débutante', f'{t} onglet Programme, retour vers le programme de Camille ({back!r})')
+        R.check(page.evaluate('data.activeProgramme') != 'u_cam', f'{t} programme de Camille pas activé')
+        shot(page, LOT, f'30-seance-programme-eleve-{t}')
+        R.check(not page.errors, f'{t} aucune erreur JS {page.errors}')
+
+
+run_main(R, [t_titre_seance_eleve, t_programme_eleve, t_creer_pour_qui, t_envoyer_partager, t_fiche, t_bilan_serveur_ancien, t_inviter, t_fourchette, t_textes, t_ax33])

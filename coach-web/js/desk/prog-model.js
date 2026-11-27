@@ -32,7 +32,10 @@ function deskDocClean(raw) {
 function deskSendableProgs(doc) {
   if (!doc) return [];
   return coachSendableProgrammes(doc).map(id => {
-    const v = coachSentPayload(programmeToSent(doc, id), id);
+    // Noms des séances comme dans l'app (« Corps entier », sessionPlainLabel de js/data/accessors.js)
+    const raw = programmeToSent(doc, id);
+    raw?.sessions?.forEach(s => { s.label = sessionPlainLabel(s.key, s.label); });
+    const v = coachSentPayload(raw, id);
     return v.ok ? { id, name: v.data.name, sessions: v.data.sessions.length, data: v.data } : null;
   }).filter(Boolean);
 }

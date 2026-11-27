@@ -334,9 +334,13 @@ function entryProg(h) { return h?.programme || 'ppl'; }
 function plural(n, one, many) { return `${n} ${n > 1 ? many : one}`; }
 // Élision devant un mot (souvent un pseudo) : « de max », « d'essai », « que max », « qu'essai ». Voyelle,
 // ou h (muet dans presque tous les cas) ; pas devant y (« de Yann »). word : de, que, le, la, je, ne… ; next : texte déjà échappé s'il va dans du HTML
+// h aspiré : pas d'élision (« Copie de Haut et bas du corps », 2e tour des juges du 27/11 : « Copie d'Haut »)
+const ELIDE_H_ASPIRE = new Set(['haut', 'hauts', 'hanche', 'hanches', 'hack', 'hip', 'hors', 'hockey', 'handball', 'hamac', 'harnais', 'hiit']);
 function elide(word, next) {
   const n = String(next ?? '');
-  return /^[aeiouàâäéèêëîïôöùûüœæh]/i.test(n) ? `${word.slice(0, -1)}'${n}` : `${word} ${n}`;
+  const first = n.split(/[\s'’,.:;!?()/-]/)[0].normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const vowel = /^[aeiouàâäéèêëîïôöùûüœæh]/i.test(n) && !ELIDE_H_ASPIRE.has(first);
+  return vowel ? `${word.slice(0, -1)}'${n}` : `${word} ${n}`;
 }
 
 // aria-describedby : une liste d'identifiants (aide d'origine : #coachCardHelp, #payCodeHelp…) ; on ajoute ou on retire le

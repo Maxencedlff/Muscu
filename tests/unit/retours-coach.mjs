@@ -56,6 +56,15 @@ export default function ({ test, run, assert, sameJSON }) {
     run(`progFocusOf = null; delete data.userProgrammes.u_x`);
   });
 
+  test('titre de séance : celui du programme affiché (programme d\'un élève), jamais l\'identifiant interne', () => {
+    run(`data.userProgrammes.u_el = { name: 'Camille', sessions: { s1abc: { label: 'Bas du corps', color: '#34C759' } }, archived: false }; data.activeProgramme = 'ppl';`);
+    run(`progFocusOf = () => 'u_el'`);
+    assert.equal(run(`sessionTitle('s1abc')`), 'Bas du corps', 'sans programme passé : le programme affiché');
+    assert.equal(run(`sessionTitle('s1abc')`), run(`rawLabel('s1abc')`), 'même programme que rawLabel');
+    assert.equal(run(`onActiveProgramme(() => sessionTitle('push'))`), 'Pousser', 'onActiveProgramme : le programme actif');
+    run(`progFocusOf = null; delete data.userProgrammes.u_el`);
+  });
+
   test('bilans du coach : modèles et demandes nettoyés (sans nom, sans suivi valide ou sans date : écartés)', () => {
     const t = run(`cleanCkTemplates({ templates: [{ id: 'a', name: ' Hebdo ', items: [{ key: 'weight', kind: 'weight', label: 'Poids', type: 'number', unit: 'kg', required: false }] },
       { id: 'b', name: '', items: [] }, { id: 'c', name: 'Vide', items: [{ kind: 'inconnu' }] }, null] })`);

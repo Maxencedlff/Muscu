@@ -1002,15 +1002,16 @@ def plans_text(page):
 
 def t_tarifs(bench, eng, dev, theme):
     t = tag(dev, theme)
-    # 1. Particulier : prix lus chez StoreKit, « soit 8,5 mois » calculé, aucune formule coach
+    # 1. Particulier : prix lus chez StoreKit, « soit 4,58 € par mois » calculé, aucune formule coach
     with bench.page(eng, dev, theme) as page:
         open_app(page, theme, ppl_v2_today_json(), store={'products': 'all'})
         signin(page, username='max')
         refresh_access(page)
         txt = paywall(page)
         pl = plans_text(page)
-        R.check(len(pl) == 2 and '6,49 € par mois' in pl[0] and '55,00 € par an' in pl[1] and 'soit 8,5 mois' in pl[1]
-                and 'soit' not in pl[0], f'{t} particulier : mensuel, annuel « soit 8,5 mois » {pl}')
+        pln = [x.replace('\u202f', ' ').replace('\u00a0', ' ') for x in pl]
+        R.check(len(pl) == 2 and '6,49 € par mois' in pl[0] and '55,00 € par an' in pl[1] and 'soit 4,58 € par mois' in pln[1]
+                and '29 % moins cher' in pln[1] and 'soit' not in pl[0], f'{t} particulier : mensuel, annuel « soit 4,58 € par mois » {pl}')
         R.check(page.locator('.pay-tabs').count() == 0 and '11,11' not in txt and 'élèves' not in ' '.join(pl),
                 f'{t} pas coach : aucun palier coach visible')
         R.check('Tu es coach ?' in txt and 'Tu es coach\u202f?' in typo_raw(page, "document.querySelector('.pay-view').innerText"),
@@ -1038,7 +1039,9 @@ def t_tarifs(bench, eng, dev, theme):
         page.click('[data-action="pay-period"][data-period="year"]')
         settle(page)
         pl = plans_text(page)
-        R.check(len(pl) == 4 and '94,40 € par an' in pl[0] and all('soit 8,5 mois' in x for x in pl), f'{t} coach annuel : « soit 8,5 mois » {pl}')
+        pln = [x.replace('\u202f', ' ').replace('\u00a0', ' ') for x in pl]
+        R.check(len(pl) == 4 and '94,40 € par an' in pl[0] and 'soit 7,87 € par mois' in pln[0] and all('soit' in x and 'mois' in x for x in pl),
+                f'{t} coach annuel : prix par mois {pl}')
         page.click('[data-action="pay-period"][data-period="month"]')
         settle(page)
         # Onglet Particulier toujours là pour un coach
@@ -1081,6 +1084,8 @@ def t_tarifs(bench, eng, dev, theme):
         R.check('Offert par ton coach lucas' in page.inner_text('.pay-hero') and 'rien à payer' in txt.lower()
                 and page.locator('.pay-plan, [data-action="pay-buy"]').count() == 0 and '4,89' not in txt and '25 %' not in txt
                 and 'seul essai gratuit' not in txt, f'{t} élève offert : écran d\'abonnement sans formule ({txt[:160]!r})')
+        R.check(page.locator('.pay-view [data-action="pay-restore"], .pay-view [data-action="pay-apple-code"]').count() == 0,
+                f'{t} élève offert : ni « Restaurer » ni code d\'offre (rien à payer)')
         layout(page, t, 'abonnement élève offert')
         shot(page, LOT, f'23-eleve-offert-{t}')
         txt = sub_text(page)

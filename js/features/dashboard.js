@@ -552,7 +552,8 @@ async function startSessionFlow(cat) {
   // Mode lecture seule (verrou allumé, plus le droit d'écrire) : l'abonnement est proposé, rien n'est touché
   if (!(await accessGate())) return;
   const free = cat === FREE;
-  if (!free && !(prog().exercises[cat] || []).length) {
+  // La séance démarrée est toujours celle du programme actif (startSession), même si un autre programme est affiché
+  if (!free && !(onActiveProgramme(prog).exercises[cat] || []).length) {
     await dialog({ title: 'Aucun exercice', message: 'Ajoute un exercice pour démarrer cette séance.', actions: [{ label: 'OK', style: 'preferred' }] });
     return;
   }
@@ -561,7 +562,7 @@ async function startSessionFlow(cat) {
       message: `${rawLabel(activeSession.category, activeSession.programme)} a commencé il y a ${fmtDuration(Date.now() - activeSession.startedAt)}.`,
       actions: [
         { label: 'Reprendre', value: 'resume', style: 'preferred' },
-        { label: `Abandonner et démarrer ${free ? 'une séance libre' : rawLabel(cat)}`, value: 'replace', style: 'destructive' },
+        { label: `Abandonner et démarrer ${free ? 'une séance libre' : rawLabel(cat, data.activeProgramme)}`, value: 'replace', style: 'destructive' },
         { label: 'Annuler', style: 'cancel' },
       ] });
     if (choice === 'resume') { navigate('session'); return; }

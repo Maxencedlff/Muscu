@@ -151,8 +151,11 @@ def matrix_case(browser, url, engine, w, h, touch, theme):
         snap(page, engine, w, theme, '5-bilans')
         # ── 5 : Messages, notifications coupées ──
         go(page, '#/eleve/LEA/messages', '.bub')
-        off = sp(page.locator('.chat-off').inner_text())
+        off = sp(page.locator('.chat-off .grow').inner_text())
         check(off == 'Notifications coupées chez lea : ton message sera là dès que lea ouvrira l\'app.', f'{tag} : notifications {off!r}')
+        # Un mot à coller dans un SMS pour prévenir l'élève (2e tour des juges du 27/11)
+        nudge = page.locator('.chat-off [data-ms="nudge"]')
+        check(nudge.count() == 1 and 'prévenir lea' in nudge.inner_text(), f'{tag} : bouton « Copier un mot pour prévenir lea »')
 
         snap(page, engine, w, theme, '6-messages')
         # ── 6 : Semaines, tableau large ──

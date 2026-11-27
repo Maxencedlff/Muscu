@@ -63,11 +63,12 @@ function techPillHtml(s, { spoken = true } = {}) {
 // sous-série, remplie comme une série (charge proposée, objectif de la dernière fois en gris, ✓). Top set et back-off :
 // pastille dans la ligne de la série (techPillHtml)
 // « + drop » et « Retirer » d'une série (rien à retirer sur une technique prescrite par le coach). Un mot plutôt qu'un × rond
-// sans légende, et « + drop (2 bras) » quand la série est notée par bras (16 juges du 26/11 : quoi retirer, à quel bras ajouter)
+// sans légende, et « + drop aux 2 bras » quand la série est notée par bras (16 juges du 26/11 : quoi retirer, à quel bras ajouter ;
+// 2e tour du 27/11 : « (2 bras) » ne disait pas si le drop était commun)
 function techBtnsHtml(ex, ei, s, si) {
   const T = TECHS[setTech(s)], name = setSpokenName(ex, si).toLowerCase(), two = hasSide2(s) ? `, pour les 2 ${unilateralLimb(ex) === 'jambe' ? 'jambes' : 'bras'}` : '';
   const add = (s.sub || []).length < TECH_SUB_MAX
-    ? `<button class="tech__add" data-action="tech-add-sub" data-ei="${ei}" data-si="${si}" aria-label="Ajouter ${T.fem ? 'une' : 'un'} ${T.subName}, ${name}${two}">${icon('plus', 14)}${T.subName}${two ? '<span class="tech__both" aria-hidden="true">\u00a0(2\u00a0' + (unilateralLimb(ex) === 'jambe' ? 'jambes' : 'bras') + ')</span>' : ''}</button>` : '';
+    ? `<button class="tech__add" data-action="tech-add-sub" data-ei="${ei}" data-si="${si}" aria-label="Ajouter ${T.fem ? 'une' : 'un'} ${T.subName}, ${name}${two}">${icon('plus', 14)}${T.subName}${two ? '<span class="tech__both" aria-hidden="true">aux 2\u00a0' + (unilateralLimb(ex) === 'jambe' ? 'jambes' : 'bras') + '</span>' : ''}</button>` : '';
   return `<span class="tech__btns">${add}
         ${techPrescribed(ex) ? '' : `<button class="tech__x" data-action="tech-remove" data-ei="${ei}" data-si="${si}" aria-label="Retirer le ${T.label.toLowerCase()} de la ${name}${two}"><span aria-hidden="true">Retirer</span></button>`}</span>`;
 }

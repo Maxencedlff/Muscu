@@ -403,6 +403,9 @@ export default function ({ test, run, reset, assert, sameJSON }) {
     assert.equal(ex('ABCDEFGH1'), null, '9 caractères : pas un code');
     sameJSON(['max', 'essai', 'hugo', 'Yann', 'Élise', '3pm'].map(n => run(`elide('de', ${JSON.stringify(n)})`)), ['de max', 'd\'essai', 'd\'hugo', 'de Yann', 'd\'Élise', 'de 3pm']);
     assert.equal(run(`'Ce ' + elide('que', 'essai') + ' verra'`), 'Ce qu\'essai verra');
+    // h aspiré (2e tour des juges du 27/11 : « Copie d'Haut et bas du corps »)
+    sameJSON(['Haut et bas du corps', 'Hip thrust', 'hanches', 'Hélène', 'Hugo'].map(n => run(`elide('de', ${JSON.stringify(n)})`)),
+      ['de Haut et bas du corps', 'de Hip thrust', 'de hanches', 'd\'Hélène', 'd\'Hugo']);
     assert.match(run(`coachInviteText('HXFZMB3V')`), /Social › Rejoindre un coach/);
   });
 

@@ -120,10 +120,10 @@ def t_history(bench, eng, dev, theme):
             bras.click()
             tb = set(page.evaluate("[...document.querySelectorAll('.hcell__title')].map(e => e.textContent)"))
             R.check(tb == {'Bras'}, f'{t} historique : filtre Bras ({tb})')
-        # Filtre Pull + recherche
+        # Filtre Pull + recherche : nom en français, comme l'accueil (sessionTitle, 2e tour des juges du 27/11)
         page.click('[data-action="hist-filter"][data-cat="pull"]')
         titles = set(page.evaluate("[...document.querySelectorAll('.hcell__title')].map(e => e.textContent)"))
-        R.check(titles == {'Pull'}, f'{t} historique : filtre Pull ({titles})')
+        R.check(titles == {'Tirer'}, f'{t} historique : filtre Pull ({titles})')
         page.fill('#histSearch', 'genou')
         R.check(page.locator('.hcell').count() == 0, f'{t} historique : recherche combinée au filtre')
         page.click('[data-action="hist-filter"][data-cat="all"]')

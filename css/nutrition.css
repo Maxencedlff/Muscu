@@ -115,7 +115,7 @@ div.diet-meal__title { cursor: default; }
 .diet-item__body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .diet-item__name { font-size: var(--fs-callout); overflow-wrap: anywhere; }
 .diet-item__sub { font-size: var(--fs-footnote); color: var(--label2); overflow-wrap: anywhere; }
-.diet-item__swapped { display: block; color: var(--tint); }
+.diet-item__swapped { display: block; color: var(--label2); }   /* note « Remplacé par… », « Ajouté à 12:30 » : pas un lien */
 .diet-item__swap { color: var(--tint); flex-shrink: 0; }
 /* Aliment du plan retiré pour la journée : barré, en gris ; « Remettre » en couleur d'action */
 .diet-item--off .diet-item__name { color: var(--label2); text-decoration: line-through; }

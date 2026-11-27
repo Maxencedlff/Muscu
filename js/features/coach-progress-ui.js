@@ -38,7 +38,8 @@ function studentLastGroup(st) {
   if (row && row.doneAt === ls.done_at) return sessionGroupOf(row.s.exercises);
   const prog = coachSentIdOf(ls.programme, account.user?.id) || ls.programme;
   if (!prog) return null;
-  const key = progSessionsOf(data, prog).find(x => normName(x.label) === normName(ls.label))?.key;
+  // Nom reçu : celui envoyé (« Corps entier », sessionPlainLabel) ou celui d'avant le 27/11 (« Full Body »)
+  const key = progSessionsOf(data, prog).find(x => [x.label, sessionPlainLabel(x.key, x.label)].some(l => normName(l) === normName(ls.label)))?.key;
   return key ? sessionGroupOf(data.programmes?.[prog]?.exercises?.[key]) : null;
 }
 // Séances par jour sur les 7 derniers jours (du plus ancien à aujourd'hui), seulement si toute la période est connue
@@ -161,19 +162,30 @@ function coachWeekSummaryHtml(uid) {
   const more = pr.records.length > PROGRESS_SUMMARY_RECORDS
     ? `<div class="cell"><span class="cell__sub">Et ${plural(pr.records.length - PROGRESS_SUMMARY_RECORDS, 'autre record', 'autres records')}, dans ses séances</span></div>` : '';
   const sessions = progressSessionsCell(pr, planned, progressWeekBefore(uid));
+  // Sans pied « Aujourd'hui et les 6 jours d'avant » : la rangée de jours le montre déjà (2e tour des juges du 27/11)
   return `
         <div class="group-title">7 derniers jours</div>
-        <div class="group progress-week">${sig}${sessions}${recs}${none}${more}</div>
-        <div class="group-foot">Aujourd'hui et les 6 jours d'avant.</div>`;
+        <div class="group progress-week">${sig}${sessions}${recs}${none}${more}</div>`;
 }
 
 // En tête de Mes élèves : « 7 derniers jours » (glissants, comme le signal de chaque élève), trois chiffres d'un coup d'œil (records battus, élèves à relancer,
 // nouveautés à lire), avec la même couleur que les lignes (vert ↑, orange, teinte). Rien à toucher : c'est
 // la liste triée en dessous qui mène aux élèves. VoiceOver lit une phrase.
+let coachTeamWeekAsked = '';   // élèves sans faits pour lesquels la progression a déjà été relue
 function coachTeamWeekHtml(students) {
   if (!students?.length) return '';
   // Rien avant la première lecture de la progression : pas de « 0 record » qui devient « 2 records » (retours de Sophie)
   if (!progress.loadedAt && progress.available !== false) return '';
+  // Élève arrivé après la dernière lecture (séances faites, pas encore de faits) : relu d'abord, au lieu de « 0 record » qui
+  // devient « 2 records » au passage suivant (2e tour des juges du 27/11)
+  // Une seule relecture par groupe d'élèves manquants : un élève que le serveur ne décrit pas ne bloque pas le résumé
+  if (progress.available === true) {
+    const missing = students.filter(st => st.last_session && !progress.facts?.[st.user_id]).map(st => st.user_id).sort().join(',');
+    if (missing && (progress.loading || coachTeamWeekAsked !== missing)) {
+      if (!progress.loading) { coachTeamWeekAsked = missing; coachProgressRefresh({ minAge: 0 }); }
+      return '';
+    }
+  }
   const now = Date.now();
   const w = teamWeekSummary(students, st => coachStudentProgress(st, now));
   const tile = (val, lbl, tone) => `<span class="team-week__tile${val ? ` team-week__tile--${tone}` : ''}"><span class="team-week__val num">${val && tone === 'up' ? `${medalSvg(14)} ` : ''}${val}</span> <span class="team-week__lbl">${lbl}</span></span>`;

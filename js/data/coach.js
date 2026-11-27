@@ -699,7 +699,11 @@ async function coachSetNote(student, sessionId, text) {
 
 // Envoi d'un de mes programmes, avec les consignes saisies (over, voir programmeToSent)
 async function coachSendProgramme(student, progId, over = null) {
-  const v = coachSentPayload(programmeToSent(data, progId, over), progId);
+  // L'élève reçoit le nom affiché chez le coach (« Corps entier », pas « Full Body » : 2e tour des juges du 27/11) ;
+  // l'empreinte des envois (coachProgrammeHash) garde les libellés enregistrés
+  const raw = programmeToSent(data, progId, over);
+  raw?.sessions?.forEach(s => { s.label = sessionPlainLabel(s.key, s.label); });
+  const v = coachSentPayload(raw, progId);
   if (!v.ok) return v;
   const r = await coachRpc('coach_send_programme', { student, prog_id: progId, data: v.data });
   if (r.ok) coachRecordSent(student, progId, Date.now(), v.data.name);

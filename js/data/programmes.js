@@ -31,7 +31,7 @@ const PROGRAMMES = {
     },
   },
   fullbody: {
-    name: 'Corps entier', alias: 'Full Body', desc: 'Corps entier · 3×/semaine', icon: icon('dumbbell'),
+    name: 'Corps entier', alias: 'Full Body', desc: 'Tout le corps à chaque séance · 3×/semaine', icon: icon('dumbbell'),
     sessions: {
       fullbody: { label: 'Full Body', desc: 'Jambes · Dos · Pectoraux · Bras', color: 'var(--teal)' },
     },

@@ -608,7 +608,7 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     const start = fs.readFileSync(path.join(ROOT, 'js/features/session.js'), 'utf8');
     assert.ok(/writeOk: typeof canWrite !== 'function' \|\| canWrite\(\),/.test(start), 'droit d\'écrire non noté au début de la séance');
   });
-  test('formules : catalogue, paliers coach, « soit 8,5 mois » calculé', () => {
+  test('formules : catalogue, paliers coach, prix par mois et économie de l\'annuel calculés', () => {
     sameJSON(run(`[planOf('com.mdlf.training.coach20.yearly').tier.key, planOf('com.mdlf.training.coach20.yearly').period,
       planOf('com.mdlf.training.pro.monthly').tier.coach, planOf('com.mdlf.training.access.gift'), planIsCoach('com.mdlf.training.coachmax.monthly')]`),
       ['coach20', 'year', false, null, true]);
@@ -619,12 +619,15 @@ export default function ({ test, run, assert, sameJSON, ROOT }) {
     assert.equal(run('PLAN_COACH_CONTACT'), 'Plus de 100 élèves : écris-nous à contact@mdlf.app');
     sameJSON(run(`['com.mdlf.training.coach10.monthly', 'com.mdlf.training.coach30.yearly', 'com.mdlf.training.coachmax.monthly', 'com.mdlf.training.pro.monthly']
       .map(id => planNextTier(id)?.key ?? null)`), ['coach20', 'coachmax', null, 'coach10']);
-    // Prix lus chez StoreKit (nombres, fictifs ici) : 55 / 6,49 = 8,47 → 8,5 mois ; 94,4 / 11,11 = 8,50 → 8,5
-    sameJSON(run(`[planYearMonths({ amount: 6.49 }, { amount: 55 }), planYearMonths({ amount: 11.11 }, { amount: 94.4 }),
-      planYearMonths({ amount: 44.44 }, { amount: 377.7 }), planYearMonths({ amount: 7.77 }, { amount: 77.77 }),
-      planYearMonths(null, { amount: 55 }), planYearMonths({ amount: 0 }, { amount: 55 }), planYearMonths({ amount: 5 }, { amount: 70 })]`),
-      [8.5, 8.5, 8.5, 10, null, null, null]);
-    assert.equal(run('planMonthsText(8.5)'), '8,5 mois');
+    // Prix lus chez StoreKit (nombres, fictifs ici) : 55 € par an = 4,58 € par mois, 29 % de moins que 12 × 6,49 €
+    const nb = x => String(x).replace(/[\u00a0\u202f]/g, ' ');
+    sameJSON(run(`[planPerMonthText({ amount: 55, currency: 'EUR' }), planPerMonthText({ amount: 94.4, currency: 'EUR' }),
+      planPerMonthText({ amount: 55 }), planPerMonthText({ amount: 0, currency: 'EUR' }), planPerMonthText(null)]`).map(x => x && nb(x)),
+      ['4,58 €', '7,87 €', null, null, null]);
+    sameJSON(run(`[planYearSaving({ amount: 6.49 }, { amount: 55 }), planYearSaving({ amount: 11.11 }, { amount: 94.4 }),
+      planYearSaving({ amount: 5 }, { amount: 59 }), planYearSaving(null, { amount: 55 }), planYearSaving({ amount: 5 }, { amount: 70 })]`),
+      [29, 29, null, null, null], 'sous 5 % ou plus cher : rien');
+    sameJSON(run(`[typeof planYearMonths, typeof planMonthsText]`), ['undefined', 'undefined'], '« soit 8,5 mois » retiré');
     // Plus d'offre élève (16/11/2026) : ni prix de repli, ni page de code d'offre
     sameJSON(run(`[typeof planStudentPrice, typeof planRedeemUrl, PLAN_APP_STORE_ID]`), ['undefined', 'undefined', '6823561962']);
   });

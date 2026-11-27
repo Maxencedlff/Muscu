@@ -164,7 +164,8 @@ function deskThreadHtml(id, { inFiche = false } = {}) {
       <button type="button" class="btn link" data-ms="report">Signaler</button></div>
     <div class="chat-b" id="chat-b" data-keep-scroll="${esc(id)}" role="log" aria-live="polite" aria-relevant="additions" tabindex="0" aria-label="${esc(`Messages avec ${name}`)}">
       <p class="chat-intro">Personne d'autre que toi et ${esc(name)} ne lit ces messages, sauf en cas de signalement. Ils sont supprimés si le suivi s'arrête.</p>${body}</div>
-    ${off ? `<p class="chat-off">${esc(`Notifications coupées chez ${name} : ton message sera là dès que ${name} ouvrira l'app.`)}</p>` : ''}
+    ${off ? `<p class="chat-off"><span class="grow">${esc(`Notifications coupées chez ${name} : ton message sera là dès que ${name} ouvrira l'app.`)}</span>
+      <button type="button" class="btn link" data-ms="nudge">${esc(`Copier un mot pour prévenir ${name}`)}</button></p>` : ''}
     <div class="chat-in"><label class="sr" for="chat-in">${esc(`Message à ${name}`)}</label>
       <textarea id="chat-in" data-key="${esc(id)}" rows="1" placeholder="${esc(`Écrire à ${name}`)}" autocomplete="off" aria-describedby="chat-count chat-help"${cnt.over ? ' aria-invalid="true"' : ''}>${esc(draft)}</textarea>
       <button type="button" class="send" data-ms="send" aria-label="Envoyer le message" ${c.sending || chatProblem(draft) ? 'disabled' : ''}>${deskIcon('send')}</button></div>
@@ -269,6 +270,15 @@ async function deskReportAlert(reportId) {
   catch { return false; }
 }
 
+// Notifications coupées chez l'élève : un mot à coller dans un SMS ou une autre messagerie, pour qu'il ouvre l'app
+// (2e tour des juges du 27/11 : « un coach à distance ne peut toujours pas prévenir son élève »)
+function deskChatNudgeText() { return 'Je t\'ai écrit dans MDLF Training : ouvre l\'app pour lire mon message.'; }
+async function deskChatNudge(id) {
+  const name = deskChatRow(id)?.name || 'ton élève';
+  try { await navigator.clipboard.writeText(deskChatNudgeText()); deskToast(`Mot copié : colle-le dans un SMS à ${name}`); }
+  catch { deskToast(`Copie impossible. À envoyer à ${name} : ${deskChatNudgeText()}`); }
+}
+
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-ms]');
   if (!el) return;
@@ -279,6 +289,7 @@ document.addEventListener('click', e => {
   else if (a === 'more') { chatLoad(id, { more: true, ...deskChatOpts }).then(() => deskRender()); deskRender(); }
   else if (a === 'retry') { chatLoad(id, deskChatOpts).then(() => deskRender()); }
   else if (a === 'report') deskChatReport(id);
+  else if (a === 'nudge') deskChatNudge(id);
   else if (a === 'note-open') {
     const row = ms.extra[id]?.sessions.find(s => s.id === el.dataset.sid);
     ms.note = { sid: el.dataset.sid, text: row?.note || '' };
