@@ -439,9 +439,11 @@ def t_compte(bench, eng, dev, theme):
         R.check('🐙' in page.locator('.account-hero .avatar').inner_text(), f'{t} avatar affiché')
         R.check('Avatar' not in (page.locator('.toast').inner_text() if page.locator('.toast').count() else ''), f'{t} pas de toast « Avatar enregistré »')
         R.check(page.locator('.method-cell--google .icon').count() == 0 and method_value(page, 'google') == 'Ajouter', f'{t} « Ajouter » sans chevron')
-        colors = page.evaluate("""() => { const c = s => getComputedStyle(document.querySelector(s)).color;
-            return [c('.method-cell--google .cell__title'), c('.account-hero__name'), c('.method-cell--google .cell__value'), c('.method-cell--apple .cell__value')]; }""")
-        R.check(colors[0] == colors[1] and colors[2] != colors[0], f'{t} nom du moyen en couleur de texte, seul « Ajouter » en bleu {colors}')
+        colors = page.evaluate("""() => { const c = s => getComputedStyle(document.querySelector(s)).color, w = s => +getComputedStyle(document.querySelector(s)).fontWeight;
+            return [c('.method-cell--google .cell__title'), c('.account-hero__name'), c('.method-cell--google .cell__value'), c('.method-cell--apple .cell__value'),
+                    w('.method-cell--google .cell__value'), w('.method-cell--apple .cell__value')]; }""")
+        # 27/11 (option 2) : « Ajouter » dans la couleur du texte mais en demi-gras (ou dans l'accent avec « Liens en couleur »)
+        R.check(colors[0] == colors[1] and (colors[2] != colors[0] or colors[4] > colors[5]), f'{t} nom du moyen en couleur de texte, seul « Ajouter » se distingue {colors}')
         R.check('Il en faut au moins un.' in page.inner_text('.account-view'), f'{t} « Il en faut au moins un »')
         R.check(small_targets(page, '.account-view .cell') == 0, f'{t} cellules de 44 pt')
         R.check(no_hscroll(page), f'{t} pas de défilement horizontal')

@@ -12,7 +12,7 @@ body:not(.links-color) :is(
   .auth__nav, .auth__link, .method-cell__add, .azoom__sum, .azoom__btn, .azoom__whole, .ck-skip, .ck-auto,
   .ck-tile__plus, .plan-stepper__btn, .coach-ex-consigne, .coach-presc-btn, .coach-presc-btn__act,
   .chat-push-off__link, .cdiet__nav, .cdiet__rule summary, .defi-act .defi-act__t, .defi-cal__nav,
-  .targets__edit, .hero__edit, .home-list__btn, .mline2__more, .atlas-box__iso-all, .mpanel__zoom,
+  .hero__edit, .home-list__btn, .mline2__more, .atlas-box__iso-all, .mpanel__zoom,
   .mpick__auto, .howto__more, .navbar__text, .diet-item__swap, .qty__twin-btn, .diet-cand--back,
   .diet-cand--new, .diet-cand--back .diet-cand__name, .diet-cand--new .diet-cand__name, .qty__step,
   .diet-ico--act, .diet-tg__link, .mlow__more, .mlow__reset, .mrow__zsum, .group-title__btn, .cell--action,

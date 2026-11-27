@@ -55,7 +55,8 @@ def t_design(bench, eng, dev, theme):
         settle(page)
         # Défaut : « Orange », bouton brique à texte blanc
         R.check(not page.evaluate("document.body.classList.contains('design-bleu')"), f'{t} défaut : pas de design bleu')
-        R.check(css_var(page, '--tint-fill') == 'rgb(184, 70, 15)', f'{t} défaut : bouton orange brique ({css_var(page, "--tint-fill")})')
+        # 27/11 (option 2) : #CA4D10 en sombre (texte blanc 4,6:1), #B8460F en clair
+        R.check(css_var(page, '--tint-fill') == ('rgb(202, 77, 16)' if theme == 'dark' else 'rgb(184, 70, 15)'), f'{t} défaut : bouton orange ({css_var(page, "--tint-fill")})')
         fills = page.evaluate(FILLS)
         R.check(fills and all(f['color'] == 'rgb(255, 255, 255)' and f['ratio'] >= 4.5 for f in fills), f'{t} accueil : aplats à texte blanc, 4,5:1 {fills}')
 
