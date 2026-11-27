@@ -38,7 +38,7 @@ function planPlain(s) {
 // ── Nombres en lettres ───────────────────────────────────────
 // « quatre fois huit », « dix-huit », « vingt et une », « quatre-vingt-dix secondes », « one » à « twelve »
 const PARSE_NUM_WORDS = {
-  zero: 0, un: 1, une: 1, deux: 2, trois: 3, quatre: 4, cinq: 5, six: 6, sept: 7, huit: 8, neuf: 9, dix: 10, onze: 11, douze: 12,
+  zero: 0, zéro: 0, un: 1, une: 1, deux: 2, trois: 3, quatre: 4, cinq: 5, six: 6, sept: 7, huit: 8, neuf: 9, dix: 10, onze: 11, douze: 12,
   treize: 13, quatorze: 14, quinze: 15, seize: 16, vingt: 20, vingts: 20, trente: 30, quarante: 40, cinquante: 50, soixante: 60, cent: 100,
   one: 1, two: 2, three: 3, four: 4, five: 5, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, fifteen: 15, twenty: 20, thirty: 30,
 };
@@ -67,7 +67,26 @@ function planDigits(s) {
   }).replace(/\b(une?|one)\s+(minutes?|mn|min|series?|séries?|fois|serie|série|rep|reps|répétition)\b/gi, '1 $2')
     .replace(/(\d+)\s*(?:minutes?|min|mn)\s+et\s+demie?\b/gi, (m, n) => `${n} min 30`)
     .replace(/\bune\s+minute\s+et\s+demie?\b/gi, '1 min 30')
-    .replace(/(\d+)\s*fois\s*(\d+)/gi, '$1 x $2');
+    .replace(/(\d+\s*fois\s+)(?:le|les|de)\s+(?=\d)/gi, '$1')   // « quatre fois le 10 » (dictée)
+    .replace(/(\d+\s*fois\s+)([a-zà-ÿ]{3,6})\b/gi, (m, a, w) => a + planNumberHeard(w))
+    .replace(/(\d+)\s*fois\s*(\d+)/gi, '$1 x $2')
+    // Tempo dicté (« tempo trois zéro un zéro ») : « un » y est un chiffre
+    .replace(/\btempo((?:\s+(?:\d|une?|x)\b){3,4})/gi, (m, d) => `tempo${d.replace(/\bune?\b/gi, '1')}`);
+}
+
+// Nombre mal entendu par la dictée après « fois » (« quatre fois lui », « quatre fois nuit » pour huit) : le seul nombre de
+// 2 à 20 qui se prononce pareil, ou à un son près (planPhon, js/data/plan-phonetic.js) ; sinon le mot reste
+const PARSE_HEARD_KEEP = new Set(['max', 'maxi', 'maximum', 'echec', 'les', 'des', 'par', 'avec', 'repos', 'sur', 'une', 'reps', 'serie', 'series', 'temps']);
+let PARSE_HEARD_NUMS = null;
+function planNumberHeard(w) {
+  if (typeof planPhon !== 'function' || PARSE_HEARD_KEEP.has(planPlain(w)) || PARSE_NUM_WORDS[planPlain(w)] !== undefined) return w;
+  PARSE_HEARD_NUMS ||= Object.entries(PARSE_NUM_WORDS).filter(([k, v]) => v >= 2 && v <= 20 && /^[a-z]+$/.test(k) && !/^(?:one|two|three|four|five|seven|eight|nine|ten|eleven|twelve|fifteen|twenty)$/.test(k)).map(([k, v]) => [planPhon(k), v]);
+  const key = planPhon(w);
+  if (key.length < 2) return w;
+  const near = PARSE_HEARD_NUMS.map(([k, v]) => [editDistance(key, k, 1), v]).filter(([d]) => d <= 1).sort((x, y) => x[0] - y[0]);
+  if (!near.length) return w;
+  if (near[0][0] === 0 || (near.length === 1 || near[1][0] > near[0][0])) return String(near[0][1]);
+  return w;
 }
 
 // ── Lecture d'une ligne ──────────────────────────────────────
@@ -97,7 +116,7 @@ const PARSE_RE = {
   repsThenSets: new RegExp(String.raw`(?<![0-9]|[0-9][.,])(?:${PARSE_REPS_SRC})\s*(?:reps?|repetitions?)\s*(?:x|sur|en|,)?\s*(\d{1,2})\s*(?:series?|sets?|tours?)\b`),
   setsOnly: /(?<![0-9]|[0-9][.,])(\d{1,2})\s*(?:series?|sets?|tours?)\b|\b(?:series?|sets?)\s*[:=]\s*(\d{1,2})(?![0-9])/,
   repsOnly: new RegExp(String.raw`(?<![0-9]|[0-9][.,])(?:${PARSE_REPS_SRC})\s*(?:reps?|repetitions?|rep)\b|\b(?:reps?|repetitions?)\s*[:=]?\s*(?:${PARSE_REPS_SRC})`),
-  restKw: new RegExp(String.raw`\b(?:repos|recup(?:eration)?|rest|pause|r)\s*[:=]?\s*(?:de\s+|of\s+)?(?:${PARSE_TIME_SRC})|(?:${PARSE_TIME_SRC})\s*(?:de\s+)?(?:repos|recup(?:eration)?|rest|pause|entre)`),
+  restKw: new RegExp(String.raw`\b(?:repos|recup(?:eration)?|rest|pause|r)\s*[:=]?\s*(?:de\s+|of\s+|et\s+)?(?:${PARSE_TIME_SRC})|(?:${PARSE_TIME_SRC})\s*(?:de\s+)?(?:repos|recup(?:eration)?|rest|pause|entre)`),
   timeBare: new RegExp(PARSE_TIME_SRC),
   amrapWord: /\b(?:jusqu'?a\s+l'?echec|a\s+l'?echec|amrap|max\s+reps?)\b/,
   // Accolade d'un bloc répété, en fin de ligne (« >x3 », « } x 3 ») : séries du bloc (planBlocks, js/data/plan-blocks.js)
@@ -291,12 +310,15 @@ function planReps(presc, word, first, rest) {
 
 // ── Nom restant ──────────────────────────────────────────────
 // Puces, numéros, mots de liaison et restes de prescription ôtés : « - 1) Fais 4 séries de 8 au développé couché, » → « développé couché »
-const PARSE_LEAD_WORDS = /^(?:(?:(?:tu|on|vous|je)\s+[a-zà-ÿ]+(?:\s+(?:sur|avec|par|de|du|par))?|et|puis|ensuite|apres|après|enfin|termine|terminer|finis|finir|pour\s+finir|on\s+finit|on\s+enchaine|enchaine|enchaîne|commence|commencer|on\s+commence|tu\s+fais|fais|faire|fait|on\s+part\s+sur|on\s+fait|avec|par|au|aux|à|a|le|la|les|du|de|des|en|sur|exercice\s*\d*|exo\s*\d*|ex\s*\d*)\b[\s:,.-]*)+/i;
+const PARSE_LEAD_WORDS = /^(?:(?:(?:tu|on|vous|je)\s+[a-zà-ÿ]+(?:\s+(?:sur|avec|par|de|du|par))?|et|puis|ensuite|apres|après|enfin|termine|terminer|finis|finir|fini|finit|pour\s+finir|alors\s+pour|pour|on\s+finit|on\s+enchaine|enchaine|enchaîne|commence|commencer|on\s+commence|tu\s+fais|fais|faire|fait|on\s+part\s+sur|on\s+fait|avec|par|au|aux|à|a|le|la|les|du|de|des|en|sur|exercice\s*\d*|exo\s*\d*|ex\s*\d*)\b[\s:,.-]*)+/i;
 const PARSE_TAIL_WORDS = /(?:[\s,;:.-]+(?:et|puis|avec|de|des|du|à|a|au|en|sur|par|pour|reps?|répétitions?|repetitions?|séries?|series?|sets?|x|repos|récup|recup|rest|pause|entre|les|chaque|côté|cote|kg|tempo|rpe|rir|@|ou))+[\s,;:.-]*$/i;
 // Mots de remplissage d'une dictée (« euh », « voilà », « pareil »)
 const PARSE_FILLERS = /(?:^|\s)(?:euh+|heu+|hum+|bah|ben|voila|voilà|alors|bon|donc|ok|okay|pareil|genre|du coup|bref)(?=\s|$|[,.])/gi;
 function planCleanName(s) {
   let n = String(s).replace(PARSE_FILLERS, ' ').replace(/\s+/g, ' ').trim();
+  // Nom corrigé en parlant (« développé arnold euh non développé militaire ») : ce qui suit la correction
+  const fix = n.match(/^(.*\S)\s+(?:euh\s+)?(?:non|pardon|attends\s+non|enfin\s+non|je\s+veux\s+dire)[\s,]+(\S.*)$/i);
+  if (fix && /[a-zà-ÿ]{3}/i.test(fix[2])) n = fix[2];
   for (let i = 0; i < 3; i++) {
     const before = n;
     n = n.replace(/^[\s\-•*·▪►>|:;,.=~]+/, '')

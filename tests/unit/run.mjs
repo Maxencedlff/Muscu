@@ -88,6 +88,7 @@ const SCRIPTS = [
   'js/data/measures.js',
   'js/data/import-csv.js',
   'js/data/plan-grammar.js',
+  'js/data/plan-phonetic.js',
   'js/data/plan-match.js',
   'js/data/plan-table.js',
   'js/data/plan-blocks.js',

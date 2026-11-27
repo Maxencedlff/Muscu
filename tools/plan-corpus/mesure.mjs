@@ -19,7 +19,7 @@ export const PLAN_LAB_KINDS = ['dictee', 'photo', 'photo-tableau'];
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 // Seuls les scripts dont le moteur a besoin, dans l'ordre de index.html
 export const PLAN_ENGINE_SCRIPTS = ['js/core/util.js', 'js/data/tempo.js', 'js/data/warmup.js', 'js/data/intensif.js', 'js/data/muscles.js',
-  'js/data/exercise-catalogue.js', 'js/data/import-csv.js', 'js/data/plan-grammar.js', 'js/data/plan-match.js', 'js/data/plan-table.js', 'js/data/plan-blocks.js',
+  'js/data/exercise-catalogue.js', 'js/data/import-csv.js', 'js/data/plan-grammar.js', 'js/data/plan-phonetic.js', 'js/data/plan-match.js', 'js/data/plan-table.js', 'js/data/plan-blocks.js',
   'js/data/plan-parser.js', 'js/data/plan-aliases.js'];
 
 export function planEngine() {

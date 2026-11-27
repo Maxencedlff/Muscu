@@ -198,8 +198,53 @@ function planMatchVariants(text) {
     // Choix « Développé couché ou Dips », « Rowing barre ou Rameur » : la première option
     text.split(/\s+(?:ou|or)\s+/i)[0].trim()].filter(v => v && /[a-z]/i.test(v)))];
 }
+// Mots du début ou de la fin qu'aucun nom de la bibliothèque ne contient, même mal écrits (« à la maison avec la
+// kettlebell swing », « pull-over à la poulie c'est tout ») : ôtés, le nom est au milieu
+function planTrimUnknown(idx, key) {
+  const w = key.split(' ');
+  const known = x => PARSE_STOP.has(x) || planNearWords(idx, x.length > 3 ? x.replace(/(?<=[a-z])s$/, '') : x).length > 0;
+  let a = 0, b = w.length;
+  while (a < b && !known(w[a])) a++;
+  while (b > a && !known(w[b - 1])) b--;
+  // Ce qui reste doit être un vrai morceau : au moins un mot de plus de deux lettres
+  const kept = w.slice(a, b).filter(x => !PARSE_STOP.has(x));
+  return (a || b < w.length) && kept.filter(x => x.length > 2).length >= 2 ? w.slice(a, b).join(' ') : null;
+}
+// Nom lu, puis, s'il n'est pas sûr, le même sans ses mots inconnus du début et de la fin (un peu moins sûr)
 function planMatchLibrary(text, none) {
-  const variants = planMatchVariants(text);
+  const r = planMatchForms(planMatchVariants(text), text, none);
+  if (r.name && r.score >= 0.8) return r;
+  const idx = planMatchIndex();
+  const trimmed = [...new Set(planMatchVariants(text).map(v => planTrimUnknown(idx, planMatchKey(v))).filter(Boolean))];
+  const t = trimmed.length ? planMatchForms(trimmed, text, none) : none;
+  const st = t.name ? Math.round(Math.min(t.score, 0.9) * 0.95 * 100) / 100 : 0;
+  const best = st > (r.name ? r.score : 0) ? { ...t, score: st, how: 'fuzzy' } : r;
+  if (best.name && best.score >= 0.75) return best;
+  // Dernier recours, la prononciation (dictée) : « Lip trust » = hip thrust, « quête Lebel swing » = swing kettlebell
+  const ph = planMatchPhonetic(planMatchVariants(text).concat(trimmed));
+  return ph && ph.score > (best.name ? best.score : 0) ? { name: ph.name, score: ph.score, how: 'phonetic', raw: text } : best;
+}
+// Formes de la bibliothèque dont la clé phonétique (plan-phonetic.js) est la plus proche ; mots dans le désordre
+// (« swing kettlebell » et « kettlebell swing ») comparés aussi, un nom n'étant pas toujours dit dans le même ordre
+function planMatchPhonetic(variants) {
+  if (typeof planPhonKey !== 'function') return null;
+  const idx = planMatchIndex();
+  if (!idx.phon) idx.phon = idx.forms.map(f => ({ f, key: planPhonKey(f.words.join(' ')), sorted: f.words.map(planPhon).sort().join('') }));
+  let best = null;
+  for (const v of variants) {
+    const words = planWords(planMatchKey(v));
+    if (!words.length) continue;
+    const q = planPhonKey(words.join(' ')), qs = words.map(planPhon).sort().join('');
+    if (q.length < 5) continue;
+    for (const p of idx.phon) {
+      const d = Math.min(planPhonNear(q, p.key), planPhonNear(qs, p.sorted));
+      if (d === Infinity) continue;
+      if (!best || d < best.d || (d === best.d && p.f.rank >= 0 && (best.rank < 0 || p.f.rank < best.rank))) best = { name: p.f.name, d, rank: p.f.rank };
+    }
+  }
+  return best ? { name: best.name, score: best.d === 0 ? 0.8 : 0.72 } : null;
+}
+function planMatchForms(variants, text, none) {
   const idx = planMatchIndex();
   for (const v of variants) {
     const e = catalogueEntry(v);

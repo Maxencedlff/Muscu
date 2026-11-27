@@ -70,21 +70,40 @@ function planLabel(line) {
   return t.slice(0, PARSE_LABEL_MAX).trim();
 }
 
+// Morceau de dictée qui ne dit qu'une correction (« attends non », « euh pardon », « non plutôt »)
+const PARSE_CORRECTION = /^(?:(?:attends?|non|pardon|plutot|en fait|enfin|je veux dire|correction|oups|ah)\s*)+$/;
+// Mot d'un en-tête de séance, au singulier ou au pluriel (« séances », « abdo »), écrit comme il est entendu par la
+// dictée (« d'eau » pour dos, « poule » pour pull : même prononciation, planPhon)
+let PARSE_SPLIT_PHON = null;
+function planIsSplitWord(word) {
+  const w = planPlain(word).replace(/[^a-z0-9']/g, '').replace(/^[dl]'/, '').replace(/'/g, '');
+  if (!w) return false;
+  if (PARSE_SPLIT_WORDS.has(w) || PARSE_SPLIT_WORDS.has(w.replace(/s$/, '')) || PARSE_SPLIT_WORDS.has(`${w}s`)) return true;
+  if (typeof planPhon !== 'function' || w.length < 3 || /\d/.test(w)) return false;
+  PARSE_SPLIT_PHON ||= new Set([...PARSE_SPLIT_WORDS].filter(x => x.length >= 3 && !/\d/.test(x)).map(planPhon).filter(x => x.length >= 2));
+  return PARSE_SPLIT_PHON.has(planPhon(w));
+}
 // Sous-titre fait seulement de groupes musculaires (« PECTORAUX », « CUISSES / FESSIERS », « Pectoraux, biceps et abdos »)
 const planSplitOnly = b => { const w = b.split(/[\s/+&,()-]+/).filter(Boolean); return w.length > 0 && w.length <= 6 && w.every(x => PARSE_SPLIT_WORDS.has(x)); };
 // En-tête collé à son premier exercice, sans deux-points : mots de séance en tête (« séance suivante jambes »), puis un
 // exercice reconnu qui prescrit un travail. { label, rest } ou null
-function planHeadSplit(text, learned) {
+// first : rien n'a encore été lu ; une dictée commence souvent par la séance sans le mot (« bras biceps triceps curl… »)
+function planHeadSplit(text, learned, first = false) {
   const t = planTidy(text);
   const low = planPlain(t);
-  if (!PARSE_HEAD_RE.test(low) && !new RegExp(`^(?:${PARSE_DAYS})\\b`).test(low)) return null;
+  const said = PARSE_HEAD_RE.test(low) || new RegExp(`^(?:${PARSE_DAYS})\\b`).test(low);
+  if (!said && !first) return null;
   const words = [...t.matchAll(/\S+/g)];
   let k = 0;
-  while (k < words.length && k < 6 && PARSE_SPLIT_WORDS.has(planPlain(words[k][0]).replace(/[^a-z0-9]/g, ''))) k++;
+  while (k < words.length && k < 6 && planIsSplitWord(words[k][0])) k++;
   if (!k || k >= words.length) return null;
   const rest = t.slice(words[k].index);
-  const r = planReadLine(planSplitLine(rest)[0].text);
-  if (!planHasWork(r.presc) || planMatchExercise(r.name, learned).score < PARSE_MATCH_MIN) return null;
+  const r = planPieceRead(planSplitLine(rest)[0]);
+  // Mot de séance dit (« séances suivantes bas du corps … 4 × 6 ») : la séance commence même si l'exercice est mal entendu
+  const strongSaid = said && /\b(?:seances?|session|workout)\b/.test(low.slice(0, words[k].index));
+  if (!planHasWork(r.presc) || (!strongSaid && planMatchExercise(r.name, learned).score < PARSE_MATCH_MIN)) return null;
+  // Sans mot de séance : seulement si la ligne entière n'est pas déjà un exercice (« biceps curl 3x10 » en est un)
+  if (!said && planMatchExercise(planReadLine(planSplitLine(t)[0].text).name, learned).score >= PARSE_MATCH_MIN) return null;
   return { label: planLabel(t.slice(0, words[k].index)), rest };
 }
 
@@ -106,15 +125,21 @@ function planSourceLines(text) {
 // Coupe sur une copie sans accents mais garde le texte d'origine : on repère les positions sur la forme simple
 function planPlainSafe(l) {
   const low = planPlain(l);
-  const cuts = new Set();
-  for (const re of [PARSE_DICT_SESSION, PARSE_DICT_BREAK, /\s*[.;]\s+(?=\S)/g]) {
+  const cuts = new Map();   // position → coupure à un point (gardée seulement si la phrase d'avant prescrit déjà)
+  [[PARSE_DICT_SESSION, false], [PARSE_DICT_BREAK, false], [/\s*[.;]\s+(?=\S)/g, true]].forEach(([re, dot]) => {
     re.lastIndex = 0;
     let m;
-    while ((m = re.exec(low))) { cuts.add(m.index); if (m[0] === '') re.lastIndex++; }
-  }
+    while ((m = re.exec(low))) { if (!cuts.has(m.index) || !dot) cuts.set(m.index, dot); if (m[0] === '') re.lastIndex++; }
+  });
   let out = '', last = 0;
-  [...cuts].sort((a, b) => a - b).forEach(i => { out += `${l.slice(last, i).trimEnd()}\n`; last = i; });
-  return (out + l.slice(last)).replace(/\n\s*[.;]\s*/g, '\n').replace(/^\s+/gm, '');
+  // Le point mis par la reconnaissance vocale au milieu d'un exercice (« développé couché. Barre quatre fois huit ») ne
+  // coupe pas : la phrase d'avant nomme un exercice sans rien prescrire encore
+  [...cuts.keys()].sort((a, b) => a - b).forEach(i => {
+    const before = cuts.get(i) ? planReadLine(l.slice(last, i)) : null;
+    if (before && !planHasWork(before.presc) && planMatchExercise(before.name).score >= PARSE_MATCH_MIN) return;
+    out += `${l.slice(last, i).trimEnd()}\n`; last = i;
+  });
+  return (out + l.slice(last)).replace(/\n\s*[.;]\s*/g, '\n').replace(/^\s+/gm, '').replace(/(?<=\S)\.\s+(?=\S)/g, ' ');
 }
 
 // Une ligne qui porte plusieurs exercices (« DC 4x8, squat 5x5 », « curl 3x12 + extension 3x12 », dictée « développé
@@ -136,12 +161,51 @@ function planSplitLine(line) {
     } else break;
   }
   parts.push({ text: rest, join: false });
+  // Virgules mises par la reconnaissance vocale avant la prescription (« élévation frontale 3 × 12 Crunch à la poulie,
+  // trois séries de 15 ») : coupée seulement aux virgules, la ligne range les noms avec le mauvais exercice. Sans les
+  // virgules, le découpage après chaque prescription les remet à leur place
+  if (parts.length > 1 && parts.slice(0, -1).every(p => /^\s*,\s*$/.test(p.sep))) {
+    const bare = planSplitBare(t.replace(/,/g, ' '));
+    const named = bare.map(x => planReadLine(x)).filter(r => planHasWork(r.presc) && r.name.length >= 2).length;
+    if (bare.length >= parts.length && named === bare.length && planTrailingName(parts.slice(0, -1))) return bare.map(text => ({ text, join: false }));
+  }
   const ssLine = /super\s*-?\s*set|bi\s*-?\s*set|tri\s*-?\s*set/i.test(t);
   parts.forEach((p, i) => { if (i && (/\+|avec|sur|superset|bi-?set|suivi/i.test(parts[i - 1].sep || '') || (ssLine && /\//.test(parts[i - 1].sep || '')))) p.join = true; });
   // Deux prescriptions sans séparateur (dictée) : coupure après la prescription, au premier mot qui n'en fait pas partie
-  return parts.flatMap(p => planSplitBare(p.text).map((text, k) => ({ text, join: k ? false : p.join })));
+  return parts.flatMap(p => planSplitBare(p.text).map((text, k) => ({ text, join: k ? false : p.join })))
+    .flatMap(p => planSplitShared(p, ssLine));
 }
-const PARSE_PRESC_WORD = /^(?:\d+[a-z'"]*|x|fois|series?|séries?|sets?|reps?|repetitions?|répétitions?|de|du|d'|a|à|au|avec|repos|recup|récup|récupération|recuperation|rest|pause|secondes?|sec|s|minutes?|min|mn|kg|kilos?|%|rpe|rir|tempo|par|chaque|bras|jambes?|cote|côté|max|echec|échec|entre|les|et|en|reserve|réserve|drop|set|top|back-?off|rest-pause|cluster|degressif|dégressif|derniere|dernière|toutes|serie|série|\d+-\d+(?:-\d+)*|\(|\)|-|:|,|puis|ensuite|charge|lourd|leger|léger)$/i;
+// Un morceau qui finit par un nom après sa prescription (« … 3 × 12 Crunch à la poulie ») : le nom est celui du suivant
+function planTrailingName(parts) {
+  return parts.some(p => {
+    const low = planPlain(planDigits(p.text));
+    const hits = [...low.matchAll(new RegExp(PARSE_RE.setsReps.source, 'g'))];
+    if (!hits.length) return false;
+    const h = hits.at(-1), tail = low.slice(h.index + h[0].length).trim().split(/\s+/).filter(w => w && !PARSE_PRESC_WORD.test(w.replace(/[.,;]+$/, '')));
+    return tail.length >= 1 && planMatchExercise(tail.join(' ')).score >= PARSE_MATCH_MIN;
+  });
+}
+// « en superset développé couché haltères et écarté poulie quatre séries de dix chacun » : deux exercices nommés, une
+// prescription dite une fois pour les deux. Le premier morceau prend la prescription du suivant (share) ; enchaînés si
+// la ligne dit superset ou « avec »
+const PARSE_SHARED = /\b(?:chacun|chacune|chaque|each|pour les deux|tous les deux|toutes les deux)\b/i;
+function planSplitShared(p, ssLine) {
+  if (!PARSE_SHARED.test(planPlain(p.text)) && !ssLine) return [p];
+  const segs = p.text.split(/\s+(?:et|and|avec|puis)\s+/i);
+  if (segs.length < 2 || segs.length > 4) return [p];
+  const reads = segs.map(x => planReadLine(x));
+  const last = reads.at(-1);
+  if (!planHasWork(last.presc) || reads.slice(0, -1).some(r => planHasWork(r.presc) || planMatchExercise(r.name).score < PARSE_MATCH_MIN)) return [p];
+  if (planMatchExercise(last.name).score < PARSE_MATCH_MIN) return [p];
+  const join = ssLine || /\savec\s/i.test(p.text);
+  return segs.map((text, k) => ({ text, join: k ? join : p.join, share: k < segs.length - 1 ? last.presc : null }));
+}
+// Lecture d'un morceau : sa prescription, complétée par celle qu'il partage avec le suivant
+function planPieceRead(piece) {
+  const r = planReadLine(piece.text);
+  return piece.share ? { ...r, presc: planMergePresc(r.presc, piece.share) } : r;
+}
+const PARSE_PRESC_WORD = /^(?:un|une|sur|la|le|l|\d+[a-z'"]*|x|fois|series?|séries?|sets?|reps?|repetitions?|répétitions?|de|du|d'|a|à|au|avec|repos|recup|récup|récupération|recuperation|rest|pause|secondes?|sec|s|minutes?|min|mn|kg|kilos?|%|rpe|rir|tempo|par|chaque|bras|jambes?|cote|côté|max|echec|échec|entre|les|et|en|reserve|réserve|drop|set|top|back-?off|rest-pause|cluster|degressif|dégressif|derniere|dernière|toutes|serie|série|\d+-\d+(?:-\d+)*|\(|\)|-|:|,|puis|ensuite|charge|lourd|leger|léger)$/i;
 function planSplitBare(text) {
   const low = planPlain(planDigits(text));
   const re = new RegExp(PARSE_RE.setsReps.source, 'g');
@@ -303,7 +367,7 @@ function planParse(text, { learned = null } = {}) {
       continue;
     }
     // Dictée ou ligne sans deux-points : « séance push développé couché 4 fois 10 », « lundi pectoraux développé… »
-    const hs = fromTable ? null : planHeadSplit(text, learned);
+    const hs = fromTable ? null : planHeadSplit(text, learned, !draft.sessions.some(x => x.items.length) && !session?.label);
     if (hs) {
       session = { label: hs.label, src: line, items: [] }; draft.sessions.push(session); skipSection = false; pendingName = null; ssOpen = null;
       lineRec(line, 'header');
@@ -315,7 +379,7 @@ function planParse(text, { learned = null } = {}) {
     if (inl && !fromTable) {
       const hRead = planReadLine(inl[1]);
       const h2 = planHeaderOf(inl[1], hRead);
-      const r2 = planReadLine(planSplitLine(inl[2])[0].text);
+      const r2 = planPieceRead(planSplitLine(inl[2])[0]);
       const strong = PARSE_HEAD_RE.test(planBare(inl[1])) || !session?.items.length;
       if (h2 && !h2.rest && strong && planHasWork(r2.presc) && planMatchExercise(r2.name, learned).score >= PARSE_MATCH_MIN) {
         session = { label: h2.label, src: line, items: [] }; draft.sessions.push(session); skipSection = false;
@@ -328,11 +392,17 @@ function planParse(text, { learned = null } = {}) {
     if (skipSection) { lineRec(line, 'note'); continue; }
     const pieces = fromTable ? [{ text, join: false }] : planSplitLine(text);
     for (const piece of pieces) {
-      const r = piece.text === text ? read : planReadLine(piece.text);
+      const r = piece.text === text && !piece.share ? read : planPieceRead(piece);
       const m = r.name ? planMatchExercise(r.name, learned) : { name: null, score: 0, how: 'none' };
       // Un poste de circuit vaut un exercice, même hors bibliothèque (« Wall Balls ») s'il a l'air d'un nom
       const work = planHasWork(r.presc) || (!!block && !/^\s*[([]/.test(piece.text) && (m.score >= PARSE_MATCH_MIN || (r.name.match(/[a-zà-ÿ]{2,}/gi) || []).length >= 2));
       const prev = lastItem();
+      // Correction dictée (« quatre fois dix attends non trois fois dix ») : la nouvelle prescription remplace l'ancienne
+      if (work && prev && PARSE_CORRECTION.test(planBare(r.name))) {
+        prev.presc = { ...prev.presc, ...r.presc };
+        lineRec(line, 'cont', prev);
+        continue;
+      }
       // Ligne de suite : rien d'un nom, seulement du repos, un tempo, une technique, une charge (« Repos 2 min »)
       if (!m.score && !work && prev && Object.keys(r.presc).length && r.name.split(' ').filter(w => w.length > 2).length <= 2) {
         prev.presc = planMergePresc(prev.presc, r.presc);
