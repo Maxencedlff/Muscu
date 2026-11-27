@@ -1,0 +1,204 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d03-dos-ordre-libre__thomas-175",
+  "ms" : 3994,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0.28799999999999998,
+      "duration" : 0.17999999999999999,
+      "text" : "Le",
+      "timestamp" : 0
+    },
+    {
+      "confidence" : 0.65300000000000002,
+      "duration" : 0.17999999999999999,
+      "text" : "dos,",
+      "timestamp" : 0.17999999999999999
+    },
+    {
+      "confidence" : 0.76200000000000001,
+      "duration" : 0.45000000000000001,
+      "text" : "maintenant",
+      "timestamp" : 0.35999999999999999
+    },
+    {
+      "confidence" : 0.66200000000000003,
+      "duration" : 0.59999999999999998,
+      "text" : "traction",
+      "timestamp" : 0.81000000000000005
+    },
+    {
+      "confidence" : 0.627,
+      "duration" : 0.089999999999999997,
+      "text" : "en",
+      "timestamp" : 1.4099999999999999
+    },
+    {
+      "confidence" : 0.25,
+      "duration" : 0.66000000000000003,
+      "text" : "pronation,",
+      "timestamp" : 1.5
+    },
+    {
+      "confidence" : 0.90100000000000002,
+      "duration" : 0.41999999999999998,
+      "text" : "quatre",
+      "timestamp" : 2.1600000000000001
+    },
+    {
+      "confidence" : 0.93100000000000005,
+      "duration" : 0.35999999999999999,
+      "text" : "séries",
+      "timestamp" : 2.5800000000000001
+    },
+    {
+      "confidence" : 0.92500000000000004,
+      "duration" : 0.35999999999999999,
+      "text" : "jusqu'à",
+      "timestamp" : 2.9399999999999999
+    },
+    {
+      "confidence" : 0.64100000000000001,
+      "duration" : 0.089999999999999997,
+      "text" : "l'",
+      "timestamp" : 3.2999999999999998
+    },
+    {
+      "confidence" : 0.68300000000000005,
+      "duration" : 0.35999999999999999,
+      "text" : "échec",
+      "timestamp" : 3.3900000000000001
+    },
+    {
+      "confidence" : 0.91700000000000004,
+      "duration" : 0.35999999999999999,
+      "text" : "ensuite",
+      "timestamp" : 3.75
+    },
+    {
+      "confidence" : 0.71299999999999997,
+      "duration" : 0.12,
+      "text" : "du",
+      "timestamp" : 4.1100000000000003
+    },
+    {
+      "confidence" : 0.099000000000000005,
+      "duration" : 1.0800000000000001,
+      "text" : "rowing bar",
+      "timestamp" : 4.2300000000000004
+    },
+    {
+      "confidence" : 0.39200000000000002,
+      "duration" : 0.14999999999999999,
+      "text" : "huit",
+      "timestamp" : 5.3099999999999996
+    },
+    {
+      "confidence" : 0.627,
+      "duration" : 0.51000000000000001,
+      "text" : "répétition",
+      "timestamp" : 5.46
+    },
+    {
+      "confidence" : 0.77400000000000002,
+      "duration" : 0.089999999999999997,
+      "text" : "sur",
+      "timestamp" : 5.9699999999999998
+    },
+    {
+      "confidence" : 0.75800000000000001,
+      "duration" : 0.39000000000000001,
+      "text" : "quatre",
+      "timestamp" : 6.0599999999999996
+    },
+    {
+      "confidence" : 0.88700000000000001,
+      "duration" : 0.35999999999999999,
+      "text" : "séries",
+      "timestamp" : 6.4500000000000002
+    },
+    {
+      "confidence" : 0.91800000000000004,
+      "duration" : 0.29999999999999999,
+      "text" : "après",
+      "timestamp" : 6.8099999999999996
+    },
+    {
+      "confidence" : 0.92600000000000005,
+      "duration" : 0.51000000000000001,
+      "text" : "tirage",
+      "timestamp" : 7.1100000000000003
+    },
+    {
+      "confidence" : 0.70099999999999996,
+      "duration" : 0.63,
+      "text" : "horizontale",
+      "timestamp" : 7.6200000000000001
+    },
+    {
+      "confidence" : 0.52500000000000002,
+      "duration" : 0.029999999999999999,
+      "text" : "à",
+      "timestamp" : 8.25
+    },
+    {
+      "confidence" : 0.61899999999999999,
+      "duration" : 0.12,
+      "text" : "la",
+      "timestamp" : 8.2799999999999994
+    },
+    {
+      "confidence" : 0.74399999999999999,
+      "duration" : 0.35999999999999999,
+      "text" : "poulie",
+      "timestamp" : 8.4000000000000004
+    },
+    {
+      "confidence" : 0.82299999999999995,
+      "duration" : 0.39000000000000001,
+      "text" : "12",
+      "timestamp" : 8.7599999999999998
+    },
+    {
+      "confidence" : 0.65700000000000003,
+      "duration" : 0.33000000000000002,
+      "text" : "sur",
+      "timestamp" : 9.1500000000000004
+    },
+    {
+      "confidence" : 0.61599999999999999,
+      "duration" : 0.27000000000000002,
+      "text" : "trois",
+      "timestamp" : 9.4800000000000004
+    },
+    {
+      "confidence" : 0.36499999999999999,
+      "duration" : 0.71999999999999997,
+      "text" : "séries",
+      "timestamp" : 9.75
+    },
+    {
+      "confidence" : 0.065000000000000002,
+      "duration" : 1.1100000000000001,
+      "text" : "marteau Direx sur",
+      "timestamp" : 10.470000000000001
+    },
+    {
+      "confidence" : 0.83699999999999997,
+      "duration" : 0.27000000000000002,
+      "text" : "trois",
+      "timestamp" : 11.58
+    },
+    {
+      "confidence" : 0.439,
+      "duration" : 0.54000000000000004,
+      "text" : "série",
+      "timestamp" : 11.85
+    }
+  ],
+  "text" : "Le dos, maintenant traction en pronation, quatre séries jusqu'à l'échec ensuite du rowing bar huit répétition sur quatre séries après tirage horizontale à la poulie 12 sur trois séries marteau Direx sur trois série",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

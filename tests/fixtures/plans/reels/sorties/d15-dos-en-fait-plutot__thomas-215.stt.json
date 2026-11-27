@@ -1,0 +1,246 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d15-dos-en-fait-plutot__thomas-215",
+  "ms" : 4128,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "le",
+      "timestamp" : 0.20999999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "programme",
+      "timestamp" : 0.33000000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "pour",
+      "timestamp" : 0.45000000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "vendredi",
+      "timestamp" : 0.54000000000000004
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.029999999999999999,
+      "text" : "c'est du rowing",
+      "timestamp" : 0.71999999999999997
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.33000000000000002,
+      "text" : "bar T4,",
+      "timestamp" : 0.75
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.17999999999999999,
+      "text" : "séries",
+      "timestamp" : 1.0800000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 1.29
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "huit",
+      "timestamp" : 1.3500000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "à",
+      "timestamp" : 1.4099999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "10",
+      "timestamp" : 1.47
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "avec",
+      "timestamp" : 1.5600000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "deux",
+      "timestamp" : 1.6499999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "minutes",
+      "timestamp" : 1.71
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "30",
+      "timestamp" : 1.8
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 1.8899999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "repos",
+      "timestamp" : 1.98
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.45000000000000001,
+      "text" : "ensuite Tirage vertical prise",
+      "timestamp" : 2.1000000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "large",
+      "timestamp" : 2.5499999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "quatre",
+      "timestamp" : 2.7599999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "séries",
+      "timestamp" : 2.9100000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 2.9700000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "10",
+      "timestamp" : 3.0299999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "ans",
+      "timestamp" : 3.0899999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "7",
+      "timestamp" : 3.1200000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "m",
+      "timestamp" : 3.1800000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "plutôt",
+      "timestamp" : 3.27
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "trois",
+      "timestamp" : 3.4199999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "séries",
+      "timestamp" : 3.54
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.059999999999999998,
+      "text" : "ensuite",
+      "timestamp" : 3.6299999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.23999999999999999,
+      "text" : "le marteau 3",
+      "timestamp" : 3.6899999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.20999999999999999,
+      "text" : "× 12",
+      "timestamp" : 3.9300000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "pour",
+      "timestamp" : 4.29
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "terminer",
+      "timestamp" : 4.3799999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.23999999999999999,
+      "text" : "Fast,",
+      "timestamp" : 4.5
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "quatre",
+      "timestamp" : 4.7400000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "séries",
+      "timestamp" : 4.8899999999999997
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 4.9500000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 5.04,
+      "text" : "15",
+      "timestamp" : 5.04
+    }
+  ],
+  "text" : "Bon le programme pour vendredi c'est du rowing bar T4, séries de huit à 10 avec deux minutes 30 de repos ensuite Tirage vertical prise large quatre séries de 10 ans 7 m plutôt trois séries ensuite le marteau 3 × 12 pour terminer Fast, quatre séries de 15",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

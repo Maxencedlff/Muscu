@@ -1,0 +1,216 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d04-haut-bas-seance-suivante__thomas-215",
+  "ms" : 3479,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0,
+      "duration" : 0.71999999999999997,
+      "text" : "Corps développé",
+      "timestamp" : 0
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "couché",
+      "timestamp" : 0.78000000000000003
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "haltères",
+      "timestamp" : 0.98999999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "4",
+      "timestamp" : 1.05
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "×",
+      "timestamp" : 1.1399999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.41999999999999998,
+      "text" : "10 Tirage vertical prise",
+      "timestamp" : 1.23
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "large",
+      "timestamp" : 1.6499999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "4",
+      "timestamp" : 1.8600000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "×",
+      "timestamp" : 1.98
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "10",
+      "timestamp" : 2.04
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "développé",
+      "timestamp" : 2.2200000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "militaire",
+      "timestamp" : 2.3700000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "3",
+      "timestamp" : 2.46
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "×",
+      "timestamp" : 2.5499999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "10",
+      "timestamp" : 2.6099999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "séances",
+      "timestamp" : 2.7000000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.14999999999999999,
+      "text" : "suivantes,",
+      "timestamp" : 2.79
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "bas",
+      "timestamp" : 2.9399999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "du",
+      "timestamp" : 3
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "corps",
+      "timestamp" : 3.0299999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.12,
+      "text" : "car avant",
+      "timestamp" : 3.1200000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "4",
+      "timestamp" : 3.2999999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "×",
+      "timestamp" : 3.4199999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.12,
+      "text" : "6 Soulevé de terre",
+      "timestamp" : 3.5099999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "roumain",
+      "timestamp" : 3.6299999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "3",
+      "timestamp" : 3.96
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "0",
+      "timestamp" : 4.0800000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.089999999999999997,
+      "text" : "8.",
+      "timestamp" : 4.1399999999999997
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.27000000000000002,
+      "text" : "Font bulgare",
+      "timestamp" : 4.2300000000000004
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "3",
+      "timestamp" : 4.5599999999999996
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "×",
+      "timestamp" : 4.6500000000000004
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.059999999999999998,
+      "text" : "10",
+      "timestamp" : 4.71
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "par",
+      "timestamp" : 4.7699999999999996
+    },
+    {
+      "confidence" : 0,
+      "duration" : 5.04,
+      "text" : "jam.",
+      "timestamp" : 4.7999999999999998
+    }
+  ],
+  "text" : "Corps développé couché haltères 4 × 10 Tirage vertical prise large 4 × 10 développé militaire 3 × 10 séances suivantes, bas du corps car avant 4 × 6 Soulevé de terre roumain 308. Font bulgare 3 × 10 par jam.",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

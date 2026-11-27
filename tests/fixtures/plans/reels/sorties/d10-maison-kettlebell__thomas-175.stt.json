@@ -1,0 +1,192 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d10-maison-kettlebell__thomas-175",
+  "ms" : 3350,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0.28199999999999997,
+      "duration" : 0.12,
+      "text" : "À",
+      "timestamp" : 0
+    },
+    {
+      "confidence" : 0.73299999999999998,
+      "duration" : 0.14999999999999999,
+      "text" : "la",
+      "timestamp" : 0.12
+    },
+    {
+      "confidence" : 0.77000000000000002,
+      "duration" : 0.39000000000000001,
+      "text" : "maison",
+      "timestamp" : 0.27000000000000002
+    },
+    {
+      "confidence" : 0.89200000000000002,
+      "duration" : 0.29999999999999999,
+      "text" : "avec",
+      "timestamp" : 0.66000000000000003
+    },
+    {
+      "confidence" : 0.65000000000000002,
+      "duration" : 0.089999999999999997,
+      "text" : "la",
+      "timestamp" : 0.95999999999999996
+    },
+    {
+      "confidence" : 0.38400000000000001,
+      "duration" : 0.29999999999999999,
+      "text" : "quête",
+      "timestamp" : 1.05
+    },
+    {
+      "confidence" : 0.40300000000000002,
+      "duration" : 0.47999999999999998,
+      "text" : "Lebel,",
+      "timestamp" : 1.3500000000000001
+    },
+    {
+      "confidence" : 0.40300000000000002,
+      "duration" : 0.17999999999999999,
+      "text" : "Swing,",
+      "timestamp" : 1.8300000000000001
+    },
+    {
+      "confidence" : 0.78700000000000003,
+      "duration" : 0.29999999999999999,
+      "text" : "cinq",
+      "timestamp" : 2.0099999999999998
+    },
+    {
+      "confidence" : 0.77300000000000002,
+      "duration" : 0.45000000000000001,
+      "text" : "séries",
+      "timestamp" : 2.3100000000000001
+    },
+    {
+      "confidence" : 0.58999999999999997,
+      "duration" : 0.029999999999999999,
+      "text" : "de",
+      "timestamp" : 2.7599999999999998
+    },
+    {
+      "confidence" : 0.48599999999999999,
+      "duration" : 0.41999999999999998,
+      "text" : "15",
+      "timestamp" : 2.79
+    },
+    {
+      "confidence" : 0.33600000000000002,
+      "duration" : 0.54000000000000004,
+      "text" : "gobelet",
+      "timestamp" : 3.21
+    },
+    {
+      "confidence" : 0.57299999999999995,
+      "duration" : 0.029999999999999999,
+      "text" : "à",
+      "timestamp" : 3.75
+    },
+    {
+      "confidence" : 0.58099999999999996,
+      "duration" : 0.12,
+      "text" : "la",
+      "timestamp" : 3.7799999999999998
+    },
+    {
+      "confidence" : 0.47299999999999998,
+      "duration" : 0.20999999999999999,
+      "text" : "quête",
+      "timestamp" : 3.8999999999999999
+    },
+    {
+      "confidence" : 0.42899999999999999,
+      "duration" : 0.41999999999999998,
+      "text" : "Lebel,",
+      "timestamp" : 4.1100000000000003
+    },
+    {
+      "confidence" : 0.86899999999999999,
+      "duration" : 0.35999999999999999,
+      "text" : "4",
+      "timestamp" : 4.5300000000000002
+    },
+    {
+      "confidence" : 0.88,
+      "duration" : 0.20999999999999999,
+      "text" : "×",
+      "timestamp" : 4.8899999999999997
+    },
+    {
+      "confidence" : 0.068000000000000005,
+      "duration" : 0.90000000000000002,
+      "text" : "12, quatre.",
+      "timestamp" : 5.0999999999999996
+    },
+    {
+      "confidence" : 0.79900000000000004,
+      "duration" : 0.33000000000000002,
+      "text" : "Séries",
+      "timestamp" : 6
+    },
+    {
+      "confidence" : 0.73199999999999998,
+      "duration" : 0.14999999999999999,
+      "text" : "de",
+      "timestamp" : 6.3300000000000001
+    },
+    {
+      "confidence" : 0.624,
+      "duration" : 0.20999999999999999,
+      "text" : "20",
+      "timestamp" : 6.4800000000000004
+    },
+    {
+      "confidence" : 0.41599999999999998,
+      "duration" : 0.089999999999999997,
+      "text" : "et",
+      "timestamp" : 6.6900000000000004
+    },
+    {
+      "confidence" : 0.002,
+      "duration" : 0.68999999999999995,
+      "text" : "bu P. 3",
+      "timestamp" : 6.7800000000000002
+    },
+    {
+      "confidence" : 0.66600000000000004,
+      "duration" : 0.23999999999999999,
+      "text" : "×",
+      "timestamp" : 7.4699999999999998
+    },
+    {
+      "confidence" : 0.55900000000000005,
+      "duration" : 0.17999999999999999,
+      "text" : "10",
+      "timestamp" : 7.71
+    },
+    {
+      "confidence" : 0.68300000000000005,
+      "duration" : 0.29999999999999999,
+      "text" : "repos",
+      "timestamp" : 7.8899999999999997
+    },
+    {
+      "confidence" : 0.88700000000000001,
+      "duration" : 0.33000000000000002,
+      "text" : "30",
+      "timestamp" : 8.1899999999999995
+    },
+    {
+      "confidence" : 0.26500000000000001,
+      "duration" : 0.78000000000000003,
+      "text" : "secondes.",
+      "timestamp" : 8.5199999999999996
+    }
+  ],
+  "text" : "À la maison avec la quête Lebel, Swing, cinq séries de 15 gobelet à la quête Lebel, 4 × 12, quatre. Séries de 20 et bu P. 3 × 10 repos 30 secondes.",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

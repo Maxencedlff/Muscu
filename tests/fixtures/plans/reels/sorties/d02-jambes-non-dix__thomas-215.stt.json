@@ -1,0 +1,90 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d02-jambes-non-dix__thomas-215",
+  "ms" : 3435,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0,
+      "duration" : 0.68999999999999995,
+      "text" : "5.",
+      "timestamp" : 0
+    },
+    {
+      "confidence" : 0,
+      "duration" : 1.05,
+      "text" : "3. Minutes ensuite à quatre",
+      "timestamp" : 0.68999999999999995
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.059999999999999998,
+      "text" : "séries de",
+      "timestamp" : 1.8600000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.47999999999999998,
+      "text" : "12",
+      "timestamp" : 1.9199999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.089999999999999997,
+      "text" : "et 3",
+      "timestamp" : 2.3999999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "×",
+      "timestamp" : 2.52
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "15",
+      "timestamp" : 2.6099999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.029999999999999999,
+      "text" : "et les",
+      "timestamp" : 2.6400000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "mollets",
+      "timestamp" : 2.79
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.029999999999999999,
+      "text" : "de",
+      "timestamp" : 2.8199999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.20999999999999999,
+      "text" : "quatre séries",
+      "timestamp" : 2.8500000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.029999999999999999,
+      "text" : "de",
+      "timestamp" : 3.1200000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 3.2400000000000002,
+      "text" : "20.",
+      "timestamp" : 3.1800000000000002
+    }
+  ],
+  "text" : "5.3. Minutes ensuite à quatre séries de 12 et 3 × 15 et les mollets de quatre séries de 20.",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

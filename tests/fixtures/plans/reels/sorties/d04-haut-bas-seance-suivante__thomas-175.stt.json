@@ -1,0 +1,270 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d04-haut-bas-seance-suivante__thomas-175",
+  "ms" : 4765,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0.26000000000000001,
+      "duration" : 0.47999999999999998,
+      "text" : "Première",
+      "timestamp" : 0
+    },
+    {
+      "confidence" : 0.92000000000000004,
+      "duration" : 0.51000000000000001,
+      "text" : "séance",
+      "timestamp" : 0.47999999999999998
+    },
+    {
+      "confidence" : 0.77700000000000002,
+      "duration" : 0.23999999999999999,
+      "text" : "du",
+      "timestamp" : 0.98999999999999999
+    },
+    {
+      "confidence" : 0.82599999999999996,
+      "duration" : 0.33000000000000002,
+      "text" : "corps",
+      "timestamp" : 1.23
+    },
+    {
+      "confidence" : 0.69399999999999995,
+      "duration" : 0.46999999999999997,
+      "text" : "Développé",
+      "timestamp" : 1.5600000000000001
+    },
+    {
+      "confidence" : 0.69399999999999995,
+      "duration" : 0.46999999999999997,
+      "text" : "couché",
+      "timestamp" : 2.0299999999999998
+    },
+    {
+      "confidence" : 0.69399999999999995,
+      "duration" : 0.46999999999999997,
+      "text" : "haltères",
+      "timestamp" : 2.5
+    },
+    {
+      "confidence" : 0.84299999999999997,
+      "duration" : 0.45000000000000001,
+      "text" : "4",
+      "timestamp" : 2.9700000000000002
+    },
+    {
+      "confidence" : 0.83599999999999997,
+      "duration" : 0.35999999999999999,
+      "text" : "×",
+      "timestamp" : 3.4199999999999999
+    },
+    {
+      "confidence" : 0.79100000000000004,
+      "duration" : 0.14999999999999999,
+      "text" : "10",
+      "timestamp" : 3.7799999999999998
+    },
+    {
+      "confidence" : 0.68600000000000005,
+      "duration" : 0.45000000000000001,
+      "text" : "Tirage",
+      "timestamp" : 3.9300000000000002
+    },
+    {
+      "confidence" : 0.68600000000000005,
+      "duration" : 0.45000000000000001,
+      "text" : "vertical",
+      "timestamp" : 4.3799999999999999
+    },
+    {
+      "confidence" : 0.68600000000000005,
+      "duration" : 0.45000000000000001,
+      "text" : "prise",
+      "timestamp" : 4.8300000000000001
+    },
+    {
+      "confidence" : 0.68600000000000005,
+      "duration" : 0.45000000000000001,
+      "text" : "large",
+      "timestamp" : 5.2800000000000002
+    },
+    {
+      "confidence" : 0.76900000000000002,
+      "duration" : 0.33000000000000002,
+      "text" : "4",
+      "timestamp" : 5.7300000000000004
+    },
+    {
+      "confidence" : 0.60899999999999999,
+      "duration" : 0.12,
+      "text" : "×",
+      "timestamp" : 6.0599999999999996
+    },
+    {
+      "confidence" : 0.51700000000000002,
+      "duration" : 0.23999999999999999,
+      "text" : "10",
+      "timestamp" : 6.1799999999999997
+    },
+    {
+      "confidence" : 0.55600000000000005,
+      "duration" : 0.56999999999999995,
+      "text" : "développé",
+      "timestamp" : 6.4199999999999999
+    },
+    {
+      "confidence" : 0.78300000000000003,
+      "duration" : 0.54000000000000004,
+      "text" : "militaire",
+      "timestamp" : 6.9900000000000002
+    },
+    {
+      "confidence" : 0.84499999999999997,
+      "duration" : 0.17999999999999999,
+      "text" : "3",
+      "timestamp" : 7.5300000000000002
+    },
+    {
+      "confidence" : 0.85699999999999998,
+      "duration" : 0.20999999999999999,
+      "text" : "×",
+      "timestamp" : 7.71
+    },
+    {
+      "confidence" : 0.72399999999999998,
+      "duration" : 0.17999999999999999,
+      "text" : "10",
+      "timestamp" : 7.9199999999999999
+    },
+    {
+      "confidence" : 0.78300000000000003,
+      "duration" : 0.39000000000000001,
+      "text" : "séances",
+      "timestamp" : 8.0999999999999996
+    },
+    {
+      "confidence" : 0.70999999999999996,
+      "duration" : 0.33000000000000002,
+      "text" : "suivantes",
+      "timestamp" : 8.4900000000000002
+    },
+    {
+      "confidence" : 0.57199999999999995,
+      "duration" : 0.12,
+      "text" : "bas",
+      "timestamp" : 8.8200000000000003
+    },
+    {
+      "confidence" : 0.625,
+      "duration" : 0.17999999999999999,
+      "text" : "du",
+      "timestamp" : 8.9399999999999995
+    },
+    {
+      "confidence" : 0.34000000000000002,
+      "duration" : 0.78000000000000003,
+      "text" : "corps avant",
+      "timestamp" : 9.1199999999999992
+    },
+    {
+      "confidence" : 0.81999999999999995,
+      "duration" : 0.39000000000000001,
+      "text" : "4",
+      "timestamp" : 9.9000000000000004
+    },
+    {
+      "confidence" : 0.82899999999999996,
+      "duration" : 0.23999999999999999,
+      "text" : "×",
+      "timestamp" : 10.289999999999999
+    },
+    {
+      "confidence" : 0.67500000000000004,
+      "duration" : 0.23999999999999999,
+      "text" : "6",
+      "timestamp" : 10.529999999999999
+    },
+    {
+      "confidence" : 0.58199999999999996,
+      "duration" : 0.28999999999999998,
+      "text" : "Soulevé",
+      "timestamp" : 10.77
+    },
+    {
+      "confidence" : 0.58199999999999996,
+      "duration" : 0.28999999999999998,
+      "text" : "de",
+      "timestamp" : 11.06
+    },
+    {
+      "confidence" : 0.33900000000000002,
+      "duration" : 0.28999999999999998,
+      "text" : "terre,",
+      "timestamp" : 11.35
+    },
+    {
+      "confidence" : 0.58199999999999996,
+      "duration" : 0.28999999999999998,
+      "text" : "roumain",
+      "timestamp" : 11.65
+    },
+    {
+      "confidence" : 0.80600000000000005,
+      "duration" : 0.27000000000000002,
+      "text" : "3",
+      "timestamp" : 11.94
+    },
+    {
+      "confidence" : 0.70299999999999996,
+      "duration" : 0.27000000000000002,
+      "text" : "×",
+      "timestamp" : 12.210000000000001
+    },
+    {
+      "confidence" : 0.52800000000000002,
+      "duration" : 0.54000000000000004,
+      "text" : "8",
+      "timestamp" : 12.48
+    },
+    {
+      "confidence" : 0.083000000000000004,
+      "duration" : 0.90000000000000002,
+      "text" : "fente Bulgare,",
+      "timestamp" : 13.02
+    },
+    {
+      "confidence" : 0.85899999999999999,
+      "duration" : 0.23999999999999999,
+      "text" : "3",
+      "timestamp" : 13.92
+    },
+    {
+      "confidence" : 0.89100000000000001,
+      "duration" : 0.23999999999999999,
+      "text" : "×",
+      "timestamp" : 14.16
+    },
+    {
+      "confidence" : 0.81699999999999995,
+      "duration" : 0.29999999999999999,
+      "text" : "10",
+      "timestamp" : 14.4
+    },
+    {
+      "confidence" : 0.82599999999999996,
+      "duration" : 0.20999999999999999,
+      "text" : "par",
+      "timestamp" : 14.699999999999999
+    },
+    {
+      "confidence" : 0.50800000000000001,
+      "duration" : 0.59999999999999998,
+      "text" : "jambe",
+      "timestamp" : 14.91
+    }
+  ],
+  "text" : "Première séance du corps Développé couché haltères 4 × 10 Tirage vertical prise large 4 × 10 développé militaire 3 × 10 séances suivantes bas du corps avant 4 × 6 Soulevé de terre, roumain 3 × 8 fente Bulgare, 3 × 10 par jambe",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

@@ -1,0 +1,174 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d09-full-body-rpe__thomas-215",
+  "ms" : 3146,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "body",
+      "timestamp" : 0.29999999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "du",
+      "timestamp" : 0.39000000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.089999999999999997,
+      "text" : "mercredi,",
+      "timestamp" : 0.47999999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.23999999999999999,
+      "text" : "Cabar,",
+      "timestamp" : 0.56999999999999995
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "trois",
+      "timestamp" : 0.81000000000000005
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.059999999999999998,
+      "text" : "séries de",
+      "timestamp" : 0.93000000000000005
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "1",
+      "timestamp" : 0.98999999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "48",
+      "timestamp" : 1.2
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "développé",
+      "timestamp" : 1.3799999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.17999999999999999,
+      "text" : "couché,",
+      "timestamp" : 1.4099999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "trois",
+      "timestamp" : 1.5900000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "séries",
+      "timestamp" : 1.6499999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 1.74
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "cinq",
+      "timestamp" : 1.77
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.27000000000000002,
+      "text" : "48. Rowing,",
+      "timestamp" : 1.95
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.029999999999999999,
+      "text" : "haltère,",
+      "timestamp" : 2.2200000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "un",
+      "timestamp" : 2.25
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.089999999999999997,
+      "text" : "bras,",
+      "timestamp" : 2.3100000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "trois",
+      "timestamp" : 2.3999999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "séries",
+      "timestamp" : 2.52
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 2.5499999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.089999999999999997,
+      "text" : "10",
+      "timestamp" : 2.6099999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.17999999999999999,
+      "text" : "par bras, gainage",
+      "timestamp" : 2.7000000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "3",
+      "timestamp" : 2.9700000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "×",
+      "timestamp" : 3.0600000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "45",
+      "timestamp" : 3.27
+    },
+    {
+      "confidence" : 0,
+      "duration" : 3.48,
+      "text" : "secondes.",
+      "timestamp" : 3.3599999999999999
+    }
+  ],
+  "text" : "Full body du mercredi, Cabar, trois séries de 148 développé couché, trois séries de cinq 48. Rowing, haltère, un bras, trois séries de 10 par bras, gainage 3 × 45 secondes.",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

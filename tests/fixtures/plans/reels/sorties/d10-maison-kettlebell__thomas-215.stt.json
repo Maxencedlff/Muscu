@@ -1,0 +1,186 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d10-maison-kettlebell__thomas-215",
+  "ms" : 3498,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "la",
+      "timestamp" : 0.20999999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "maison",
+      "timestamp" : 0.23999999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "avec",
+      "timestamp" : 0.33000000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "la",
+      "timestamp" : 0.39000000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "quête",
+      "timestamp" : 0.47999999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.059999999999999998,
+      "text" : "Lebel,",
+      "timestamp" : 0.59999999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.14999999999999999,
+      "text" : "Swing,",
+      "timestamp" : 0.66000000000000003
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "cinq",
+      "timestamp" : 0.81000000000000005
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "séries",
+      "timestamp" : 0.95999999999999996
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 1.02
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "15",
+      "timestamp" : 1.05
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "gobelet",
+      "timestamp" : 1.0800000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "à",
+      "timestamp" : 1.3200000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "la",
+      "timestamp" : 1.3500000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "carte",
+      "timestamp" : 1.3799999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.14999999999999999,
+      "text" : "Lebel,",
+      "timestamp" : 1.4399999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "4",
+      "timestamp" : 1.5900000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "×",
+      "timestamp" : 1.6799999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.059999999999999998,
+      "text" : "12,",
+      "timestamp" : 1.77
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.27000000000000002,
+      "text" : "30, quatre",
+      "timestamp" : 1.8300000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "séries",
+      "timestamp" : 2.1000000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 2.1600000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "20",
+      "timestamp" : 2.1899999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "et",
+      "timestamp" : 2.25
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.17999999999999999,
+      "text" : "P3,",
+      "timestamp" : 2.3399999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.089999999999999997,
+      "text" : "fois",
+      "timestamp" : 2.52
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "10",
+      "timestamp" : 2.6099999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.089999999999999997,
+      "text" : "30",
+      "timestamp" : 2.7000000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 3,
+      "text" : "secondes",
+      "timestamp" : 2.8799999999999999
+    }
+  ],
+  "text" : "À la maison avec la quête Lebel, Swing, cinq séries de 15 gobelet à la carte Lebel, 4 × 12, 30, quatre séries de 20 et P3, fois 10 30 secondes",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

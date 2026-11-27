@@ -1,0 +1,168 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d05-epaules-fourchettes__thomas-215",
+  "ms" : 3343,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0,
+      "duration" : 0.29999999999999999,
+      "text" : "Séance Développé militaire",
+      "timestamp" : 0
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.63,
+      "text" : "haltères trois",
+      "timestamp" : 0.29999999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "séries",
+      "timestamp" : 1.02
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 1.0800000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "huit",
+      "timestamp" : 1.1100000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "à",
+      "timestamp" : 1.2
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "12",
+      "timestamp" : 1.23
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.059999999999999998,
+      "text" : "repos,",
+      "timestamp" : 1.3799999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "une",
+      "timestamp" : 1.4399999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "minute",
+      "timestamp" : 1.5
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.20999999999999999,
+      "text" : "30 Élévations",
+      "timestamp" : 1.5900000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.27000000000000002,
+      "text" : "latérales",
+      "timestamp" : 1.8
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "quatre",
+      "timestamp" : 2.0699999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "séries",
+      "timestamp" : 2.1899999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 2.25
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "12",
+      "timestamp" : 2.3100000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "à",
+      "timestamp" : 2.3700000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "15",
+      "timestamp" : 2.4300000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.059999999999999998,
+      "text" : "oiseaux,",
+      "timestamp" : 2.5499999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "trois",
+      "timestamp" : 2.6099999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "séries",
+      "timestamp" : 2.73
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 2.79
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "15",
+      "timestamp" : 2.8500000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.29999999999999999,
+      "text" : "faces, 3 ×",
+      "timestamp" : 2.9100000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.39000000000000001,
+      "text" : "15, 4",
+      "timestamp" : 3.27
+    },
+    {
+      "confidence" : 0,
+      "duration" : 4.1399999999999997,
+      "text" : "× 12",
+      "timestamp" : 3.7799999999999998
+    }
+  ],
+  "text" : "Séance Développé militaire haltères trois séries de huit à 12 repos, une minute 30 Élévations latérales quatre séries de 12 à 15 oiseaux, trois séries de 15 faces, 3 × 15, 4 × 12",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

@@ -1,0 +1,210 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d13-epaules-abdos-nom-corrige__thomas-175",
+  "ms" : 3701,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0.20100000000000001,
+      "duration" : 0.51000000000000001,
+      "text" : "Séance",
+      "timestamp" : 0
+    },
+    {
+      "confidence" : 0.89000000000000001,
+      "duration" : 0.33000000000000002,
+      "text" : "épaule",
+      "timestamp" : 0.51000000000000001
+    },
+    {
+      "confidence" : 0.443,
+      "duration" : 0.089999999999999997,
+      "text" : "et",
+      "timestamp" : 0.83999999999999997
+    },
+    {
+      "confidence" : 0.38600000000000001,
+      "duration" : 0.83999999999999997,
+      "text" : "abdo développé",
+      "timestamp" : 0.93000000000000005
+    },
+    {
+      "confidence" : 0.89700000000000002,
+      "duration" : 0.47999999999999998,
+      "text" : "Arnold",
+      "timestamp" : 1.77
+    },
+    {
+      "confidence" : 0.83399999999999996,
+      "duration" : 0.17999999999999999,
+      "text" : "non",
+      "timestamp" : 2.25
+    },
+    {
+      "confidence" : 0.73899999999999999,
+      "duration" : 0.54000000000000004,
+      "text" : "développé",
+      "timestamp" : 2.4300000000000002
+    },
+    {
+      "confidence" : 0.90500000000000003,
+      "duration" : 0.51000000000000001,
+      "text" : "militaire",
+      "timestamp" : 2.9700000000000002
+    },
+    {
+      "confidence" : 0.53500000000000003,
+      "duration" : 0.029999999999999999,
+      "text" : "à",
+      "timestamp" : 3.48
+    },
+    {
+      "confidence" : 0.56599999999999995,
+      "duration" : 0.12,
+      "text" : "la",
+      "timestamp" : 3.5099999999999998
+    },
+    {
+      "confidence" : 0.77000000000000002,
+      "duration" : 0.29999999999999999,
+      "text" : "barre",
+      "timestamp" : 3.6299999999999999
+    },
+    {
+      "confidence" : 0.90400000000000003,
+      "duration" : 0.29999999999999999,
+      "text" : "cinq",
+      "timestamp" : 3.9300000000000002
+    },
+    {
+      "confidence" : 0.90400000000000003,
+      "duration" : 0.39000000000000001,
+      "text" : "séries",
+      "timestamp" : 4.2300000000000004
+    },
+    {
+      "confidence" : 0.64200000000000002,
+      "duration" : 0.089999999999999997,
+      "text" : "de",
+      "timestamp" : 4.6200000000000001
+    },
+    {
+      "confidence" : 0.60299999999999998,
+      "duration" : 0.27000000000000002,
+      "text" : "cinq",
+      "timestamp" : 4.71
+    },
+    {
+      "confidence" : 0.69799999999999995,
+      "duration" : 0.90000000000000002,
+      "text" : "élévation",
+      "timestamp" : 4.9800000000000004
+    },
+    {
+      "confidence" : 0.46000000000000002,
+      "duration" : 0.51000000000000001,
+      "text" : "frontale",
+      "timestamp" : 5.8799999999999999
+    },
+    {
+      "confidence" : 0.83599999999999997,
+      "duration" : 0.27000000000000002,
+      "text" : "3",
+      "timestamp" : 6.3899999999999997
+    },
+    {
+      "confidence" : 0.89200000000000002,
+      "duration" : 0.23999999999999999,
+      "text" : "×",
+      "timestamp" : 6.6600000000000001
+    },
+    {
+      "confidence" : 0.90400000000000003,
+      "duration" : 0.12,
+      "text" : "12",
+      "timestamp" : 6.9000000000000004
+    },
+    {
+      "confidence" : 0.70799999999999996,
+      "duration" : 0.27000000000000002,
+      "text" : "Crunch",
+      "timestamp" : 7.0199999999999996
+    },
+    {
+      "confidence" : 0.61699999999999999,
+      "duration" : 0.059999999999999998,
+      "text" : "à",
+      "timestamp" : 7.29
+    },
+    {
+      "confidence" : 0.59699999999999998,
+      "duration" : 0.14999999999999999,
+      "text" : "la",
+      "timestamp" : 7.3499999999999996
+    },
+    {
+      "confidence" : 0.51100000000000001,
+      "duration" : 0.29999999999999999,
+      "text" : "poulie,",
+      "timestamp" : 7.5
+    },
+    {
+      "confidence" : 0.91900000000000004,
+      "duration" : 0.27000000000000002,
+      "text" : "trois",
+      "timestamp" : 7.7999999999999998
+    },
+    {
+      "confidence" : 0.92700000000000005,
+      "duration" : 0.33000000000000002,
+      "text" : "séries",
+      "timestamp" : 8.0700000000000003
+    },
+    {
+      "confidence" : 0.81399999999999995,
+      "duration" : 0.14999999999999999,
+      "text" : "de",
+      "timestamp" : 8.4000000000000004
+    },
+    {
+      "confidence" : 0.79400000000000004,
+      "duration" : 0.29999999999999999,
+      "text" : "15",
+      "timestamp" : 8.5500000000000007
+    },
+    {
+      "confidence" : 0.89600000000000002,
+      "duration" : 0.33000000000000002,
+      "text" : "relevés",
+      "timestamp" : 8.8499999999999996
+    },
+    {
+      "confidence" : 0.10000000000000001,
+      "duration" : 0.68999999999999995,
+      "text" : "de gens, trois",
+      "timestamp" : 9.1799999999999997
+    },
+    {
+      "confidence" : 0.88400000000000001,
+      "duration" : 0.33000000000000002,
+      "text" : "séries",
+      "timestamp" : 9.8699999999999992
+    },
+    {
+      "confidence" : 0.79700000000000004,
+      "duration" : 0.14999999999999999,
+      "text" : "de",
+      "timestamp" : 10.199999999999999
+    },
+    {
+      "confidence" : 0.46000000000000002,
+      "duration" : 0.59999999999999998,
+      "text" : "12",
+      "timestamp" : 10.35
+    }
+  ],
+  "text" : "Séance épaule et abdo développé Arnold non développé militaire à la barre cinq séries de cinq élévation frontale 3 × 12 Crunch à la poulie, trois séries de 15 relevés de gens, trois séries de 12",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

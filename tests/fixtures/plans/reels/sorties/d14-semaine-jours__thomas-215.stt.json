@@ -1,0 +1,156 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d14-semaine-jours__thomas-215",
+  "ms" : 3353,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0,
+      "duration" : 0.23999999999999999,
+      "text" : "prochain développé",
+      "timestamp" : 0.23999999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.089999999999999997,
+      "text" : "couché,",
+      "timestamp" : 0.56999999999999995
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "bar",
+      "timestamp" : 0.66000000000000003
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "4",
+      "timestamp" : 0.78000000000000003
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "×",
+      "timestamp" : 0.87
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.20999999999999999,
+      "text" : "3",
+      "timestamp" : 0.90000000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.089999999999999997,
+      "text" : "× 10",
+      "timestamp" : 1.1699999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.12,
+      "text" : "mardi soustraction",
+      "timestamp" : 1.3200000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "4",
+      "timestamp" : 1.6799999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "×",
+      "timestamp" : 1.77
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "6",
+      "timestamp" : 1.8600000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.14999999999999999,
+      "text" : "Rowing,",
+      "timestamp" : 1.9199999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "bar",
+      "timestamp" : 2.0699999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "4",
+      "timestamp" : 2.1899999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "×",
+      "timestamp" : 2.2799999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.14999999999999999,
+      "text" : "8 mercredi",
+      "timestamp" : 2.3700000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.12,
+      "text" : "mercredi repos,",
+      "timestamp" : 2.52
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.089999999999999997,
+      "text" : "repos jusqu'à",
+      "timestamp" : 2.6400000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.12,
+      "text" : "bar, 4",
+      "timestamp" : 3
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.059999999999999998,
+      "text" : "× 8",
+      "timestamp" : 3.21
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.12,
+      "text" : "Molet, debout,",
+      "timestamp" : 3.2999999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "4",
+      "timestamp" : 3.4199999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "×",
+      "timestamp" : 3.6600000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 3.8100000000000001,
+      "text" : "15",
+      "timestamp" : 3.75
+    }
+  ],
+  "text" : "Lundi prochain développé couché, bar 4 × 3 × 10 mardi soustraction 4 × 6 Rowing, bar 4 × 8 mercredi mercredi repos, repos jusqu'à bar, 4 × 8 Molet, debout, 4 × 15",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

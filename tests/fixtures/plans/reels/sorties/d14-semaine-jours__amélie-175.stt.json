@@ -1,0 +1,222 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d14-semaine-jours__amélie-175",
+  "ms" : 3988,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0.033000000000000002,
+      "duration" : 0.39000000000000001,
+      "text" : "Lundi,",
+      "timestamp" : 0
+    },
+    {
+      "confidence" : 0.499,
+      "duration" : 0.23999999999999999,
+      "text" : "puis-je",
+      "timestamp" : 0.39000000000000001
+    },
+    {
+      "confidence" : 0.32300000000000001,
+      "duration" : 0.78000000000000003,
+      "text" : "développer couché",
+      "timestamp" : 0.63
+    },
+    {
+      "confidence" : 0.68899999999999995,
+      "duration" : 0.23999999999999999,
+      "text" : "bar",
+      "timestamp" : 1.4099999999999999
+    },
+    {
+      "confidence" : 0.89300000000000002,
+      "duration" : 0.35999999999999999,
+      "text" : "4",
+      "timestamp" : 1.6499999999999999
+    },
+    {
+      "confidence" : 0.84999999999999998,
+      "duration" : 0.17999999999999999,
+      "text" : "×",
+      "timestamp" : 2.0099999999999998
+    },
+    {
+      "confidence" : 0.42199999999999999,
+      "duration" : 0.14999999999999999,
+      "text" : "8,",
+      "timestamp" : 2.1899999999999999
+    },
+    {
+      "confidence" : 0.439,
+      "duration" : 0.17999999999999999,
+      "text" : "dit",
+      "timestamp" : 2.3399999999999999
+    },
+    {
+      "confidence" : 0.64800000000000002,
+      "duration" : 0.27000000000000002,
+      "text" : "3",
+      "timestamp" : 2.52
+    },
+    {
+      "confidence" : 0.878,
+      "duration" : 0.20999999999999999,
+      "text" : "×",
+      "timestamp" : 2.79
+    },
+    {
+      "confidence" : 0.71199999999999997,
+      "duration" : 0.23999999999999999,
+      "text" : "10,",
+      "timestamp" : 3
+    },
+    {
+      "confidence" : 0.82799999999999996,
+      "duration" : 0.35999999999999999,
+      "text" : "mardi,",
+      "timestamp" : 3.2400000000000002
+    },
+    {
+      "confidence" : 0.215,
+      "duration" : 0.20999999999999999,
+      "text" : "pile,",
+      "timestamp" : 3.6000000000000001
+    },
+    {
+      "confidence" : 0.33200000000000002,
+      "duration" : 0.45000000000000001,
+      "text" : "traction",
+      "timestamp" : 3.8100000000000001
+    },
+    {
+      "confidence" : 0.80000000000000004,
+      "duration" : 0.35999999999999999,
+      "text" : "4",
+      "timestamp" : 4.2599999999999998
+    },
+    {
+      "confidence" : 0.88400000000000001,
+      "duration" : 0.20999999999999999,
+      "text" : "×",
+      "timestamp" : 4.6200000000000001
+    },
+    {
+      "confidence" : 0.012999999999999999,
+      "duration" : 0.78000000000000003,
+      "text" : "6 Wink,",
+      "timestamp" : 4.8300000000000001
+    },
+    {
+      "confidence" : 0.26000000000000001,
+      "duration" : 0.27000000000000002,
+      "text" : "bar",
+      "timestamp" : 5.6100000000000003
+    },
+    {
+      "confidence" : 0.71399999999999997,
+      "duration" : 0.33000000000000002,
+      "text" : "4",
+      "timestamp" : 5.8799999999999999
+    },
+    {
+      "confidence" : 0.83999999999999997,
+      "duration" : 0.20999999999999999,
+      "text" : "×",
+      "timestamp" : 6.21
+    },
+    {
+      "confidence" : 0.73399999999999999,
+      "duration" : 0.20999999999999999,
+      "text" : "8",
+      "timestamp" : 6.4199999999999999
+    },
+    {
+      "confidence" : 0.76300000000000001,
+      "duration" : 0.59999999999999998,
+      "text" : "mercredi",
+      "timestamp" : 6.6299999999999999
+    },
+    {
+      "confidence" : 0.80600000000000005,
+      "duration" : 0.27000000000000002,
+      "text" : "repos",
+      "timestamp" : 7.2300000000000004
+    },
+    {
+      "confidence" : 0.623,
+      "duration" : 0.33000000000000002,
+      "text" : "jeudi,",
+      "timestamp" : 7.5
+    },
+    {
+      "confidence" : 0.21299999999999999,
+      "duration" : 0.23999999999999999,
+      "text" : "jambe,",
+      "timestamp" : 7.8300000000000001
+    },
+    {
+      "confidence" : 0.25900000000000001,
+      "duration" : 0.27000000000000002,
+      "text" : "squat,",
+      "timestamp" : 8.0700000000000003
+    },
+    {
+      "confidence" : 0.64300000000000002,
+      "duration" : 0.23999999999999999,
+      "text" : "bar",
+      "timestamp" : 8.3399999999999999
+    },
+    {
+      "confidence" : 0.90600000000000003,
+      "duration" : 0.35999999999999999,
+      "text" : "4",
+      "timestamp" : 8.5800000000000001
+    },
+    {
+      "confidence" : 0.873,
+      "duration" : 0.20999999999999999,
+      "text" : "×",
+      "timestamp" : 8.9399999999999995
+    },
+    {
+      "confidence" : 0.75700000000000001,
+      "duration" : 0.20999999999999999,
+      "text" : "8",
+      "timestamp" : 9.1500000000000004
+    },
+    {
+      "confidence" : 0.59899999999999998,
+      "duration" : 0.23999999999999999,
+      "text" : "mollet,",
+      "timestamp" : 9.3599999999999994
+    },
+    {
+      "confidence" : 0.377,
+      "duration" : 0.29999999999999999,
+      "text" : "debout,",
+      "timestamp" : 9.5999999999999996
+    },
+    {
+      "confidence" : 0.90100000000000002,
+      "duration" : 0.35999999999999999,
+      "text" : "4",
+      "timestamp" : 9.9000000000000004
+    },
+    {
+      "confidence" : 0.89200000000000002,
+      "duration" : 0.20999999999999999,
+      "text" : "×",
+      "timestamp" : 10.26
+    },
+    {
+      "confidence" : 0.56899999999999995,
+      "duration" : 0.59999999999999998,
+      "text" : "15",
+      "timestamp" : 10.470000000000001
+    }
+  ],
+  "text" : "Lundi, puis-je développer couché bar 4 × 8, dit 3 × 10, mardi, pile, traction 4 × 6 Wink, bar 4 × 8 mercredi repos jeudi, jambe, squat, bar 4 × 8 mollet, debout, 4 × 15",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

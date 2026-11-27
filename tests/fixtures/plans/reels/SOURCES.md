@@ -13,6 +13,9 @@ bruit simulé (`tests/unit/plan-corpus-lib.mjs`).
 - `sorties/` : ce que rendent Apple Vision (`*.ocr.json`), SFSpeechRecognizer (`*.stt.json`) et whisper.cpp
   (`*.whisper.json`) sur la machine macOS de GitHub (`.github/workflows/corpus-reel.yml`).
 
+Les vraies photos et dictées faites sur un iPhone avec la build ont leur propre dossier (`photos/`, `dictees/`,
+`README.md`, `tools/plan-corpus/reels.mjs`) : ce corpus-ci les complète sans attendre la build.
+
 ## Mesurer
 
 ```sh

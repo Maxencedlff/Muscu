@@ -1,0 +1,108 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d08-pecs-superset__thomas-215",
+  "ms" : 2594,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0,
+      "duration" : 0.12,
+      "text" : "Séance",
+      "timestamp" : 0
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.35999999999999999,
+      "text" : "pectoraux,",
+      "timestamp" : 0.12
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "développé",
+      "timestamp" : 0.47999999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.17999999999999999,
+      "text" : "couché,",
+      "timestamp" : 0.87
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "haltères",
+      "timestamp" : 1.05
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.14999999999999999,
+      "text" : "et",
+      "timestamp" : 1.0800000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.059999999999999998,
+      "text" : "écartées poulie",
+      "timestamp" : 1.23
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "vis-à-vis",
+      "timestamp" : 1.4399999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "quatre",
+      "timestamp" : 1.5900000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.059999999999999998,
+      "text" : "séries de",
+      "timestamp" : 1.74
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.029999999999999999,
+      "text" : "10",
+      "timestamp" : 1.8
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "chacun",
+      "timestamp" : 1.8300000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.35999999999999999,
+      "text" : "trois",
+      "timestamp" : 1.8899999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "séries",
+      "timestamp" : 2.2799999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "au",
+      "timestamp" : 2.4300000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "maximum",
+      "timestamp" : 2.5499999999999998
+    }
+  ],
+  "text" : "Séance pectoraux, développé couché, haltères et écartées poulie vis-à-vis quatre séries de 10 chacun trois séries au maximum",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

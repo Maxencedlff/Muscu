@@ -1,0 +1,192 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d03-dos-ordre-libre__thomas-215",
+  "ms" : 3608,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0,
+      "duration" : 0.12,
+      "text" : "dos,",
+      "timestamp" : 0.20999999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.059999999999999998,
+      "text" : "maintenant,",
+      "timestamp" : 0.33000000000000002
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "traction",
+      "timestamp" : 0.39000000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "en",
+      "timestamp" : 0.59999999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.12,
+      "text" : "pronation,",
+      "timestamp" : 0.75
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "quatre",
+      "timestamp" : 0.87
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "séries",
+      "timestamp" : 1.02
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "jusqu'à",
+      "timestamp" : 1.1699999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "l'",
+      "timestamp" : 1.23
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "échec",
+      "timestamp" : 1.3200000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "ensuite",
+      "timestamp" : 1.3799999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.029999999999999999,
+      "text" : "du rowing",
+      "timestamp" : 1.4399999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.20999999999999999,
+      "text" : "bar",
+      "timestamp" : 1.47
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.23999999999999999,
+      "text" : "répétition,",
+      "timestamp" : 1.6799999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "répétition",
+      "timestamp" : 1.9199999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "sur",
+      "timestamp" : 2.0099999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "quatre",
+      "timestamp" : 2.0699999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.089999999999999997,
+      "text" : "séries.",
+      "timestamp" : 2.25
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "Après",
+      "timestamp" : 2.3399999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "tirage",
+      "timestamp" : 2.46
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.12,
+      "text" : "horizontal à",
+      "timestamp" : 2.6099999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.029999999999999999,
+      "text" : "la poly",
+      "timestamp" : 2.73
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.23999999999999999,
+      "text" : "12 sur trois",
+      "timestamp" : 2.9100000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "séries",
+      "timestamp" : 3.27
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.12,
+      "text" : "que le",
+      "timestamp" : 3.2999999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "marteau",
+      "timestamp" : 3.54
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "direct",
+      "timestamp" : 3.6299999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "sur",
+      "timestamp" : 3.75
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "trois",
+      "timestamp" : 3.8399999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 3.9300000000000002,
+      "text" : "série.",
+      "timestamp" : 3.9300000000000002
+    }
+  ],
+  "text" : "Le dos, maintenant, traction en pronation, quatre séries jusqu'à l'échec ensuite du rowing bar répétition, répétition sur quatre séries. Après tirage horizontal à la poly 12 sur trois séries que le marteau direct sur trois série.",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

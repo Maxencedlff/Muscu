@@ -1,0 +1,282 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d01-push-hesitation__amélie-175",
+  "ms" : 5995,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0.184,
+      "duration" : 0.35999999999999999,
+      "text" : "Alors",
+      "timestamp" : 0
+    },
+    {
+      "confidence" : 0.77900000000000003,
+      "duration" : 0.14999999999999999,
+      "text" : "pour",
+      "timestamp" : 0.35999999999999999
+    },
+    {
+      "confidence" : 0.626,
+      "duration" : 0.12,
+      "text" : "la",
+      "timestamp" : 0.51000000000000001
+    },
+    {
+      "confidence" : 0.024,
+      "duration" : 0.83999999999999997,
+      "text" : "séance pêche, on",
+      "timestamp" : 0.63
+    },
+    {
+      "confidence" : 0.63400000000000001,
+      "duration" : 0.45000000000000001,
+      "text" : "commence",
+      "timestamp" : 1.47
+    },
+    {
+      "confidence" : 0.872,
+      "duration" : 0.14999999999999999,
+      "text" : "par",
+      "timestamp" : 1.9199999999999999
+    },
+    {
+      "confidence" : 0.69699999999999995,
+      "duration" : 0.089999999999999997,
+      "text" : "le",
+      "timestamp" : 2.0699999999999998
+    },
+    {
+      "confidence" : 0.49199999999999999,
+      "duration" : 0.45000000000000001,
+      "text" : "développé",
+      "timestamp" : 2.1600000000000001
+    },
+    {
+      "confidence" : 0.85299999999999998,
+      "duration" : 0.39000000000000001,
+      "text" : "couché",
+      "timestamp" : 2.6099999999999999
+    },
+    {
+      "confidence" : 0.63200000000000001,
+      "duration" : 0.029999999999999999,
+      "text" : "à",
+      "timestamp" : 3
+    },
+    {
+      "confidence" : 0.59899999999999998,
+      "duration" : 0.12,
+      "text" : "la",
+      "timestamp" : 3.0299999999999998
+    },
+    {
+      "confidence" : 0.69199999999999995,
+      "duration" : 0.27000000000000002,
+      "text" : "barre",
+      "timestamp" : 3.1499999999999999
+    },
+    {
+      "confidence" : 0.91800000000000004,
+      "duration" : 0.33000000000000002,
+      "text" : "quatre",
+      "timestamp" : 3.4199999999999999
+    },
+    {
+      "confidence" : 0.92600000000000005,
+      "duration" : 0.27000000000000002,
+      "text" : "séries",
+      "timestamp" : 3.75
+    },
+    {
+      "confidence" : 0.79600000000000004,
+      "duration" : 0.14999999999999999,
+      "text" : "de",
+      "timestamp" : 4.0199999999999996
+    },
+    {
+      "confidence" : 0.77900000000000003,
+      "duration" : 0.17999999999999999,
+      "text" : "huit",
+      "timestamp" : 4.1699999999999999
+    },
+    {
+      "confidence" : 0.91400000000000003,
+      "duration" : 0.27000000000000002,
+      "text" : "avec",
+      "timestamp" : 4.3499999999999996
+    },
+    {
+      "confidence" : 0.79300000000000004,
+      "duration" : 0.14999999999999999,
+      "text" : "deux",
+      "timestamp" : 4.6200000000000001
+    },
+    {
+      "confidence" : 0.83599999999999997,
+      "duration" : 0.29999999999999999,
+      "text" : "minutes",
+      "timestamp" : 4.7699999999999996
+    },
+    {
+      "confidence" : 0.76900000000000002,
+      "duration" : 0.12,
+      "text" : "de",
+      "timestamp" : 5.0700000000000003
+    },
+    {
+      "confidence" : 0.56399999999999995,
+      "duration" : 0.39000000000000001,
+      "text" : "repos,",
+      "timestamp" : 5.1900000000000004
+    },
+    {
+      "confidence" : 0.91200000000000003,
+      "duration" : 0.35999999999999999,
+      "text" : "ensuite",
+      "timestamp" : 5.5800000000000001
+    },
+    {
+      "confidence" : 0.091999999999999998,
+      "duration" : 0.83999999999999997,
+      "text" : "développé incliné",
+      "timestamp" : 5.9400000000000004
+    },
+    {
+      "confidence" : 0.752,
+      "duration" : 0.17999999999999999,
+      "text" : "aux",
+      "timestamp" : 6.7800000000000002
+    },
+    {
+      "confidence" : 0.69299999999999995,
+      "duration" : 0.35999999999999999,
+      "text" : "haltères",
+      "timestamp" : 6.96
+    },
+    {
+      "confidence" : 0.90500000000000003,
+      "duration" : 0.27000000000000002,
+      "text" : "trois",
+      "timestamp" : 7.3200000000000003
+    },
+    {
+      "confidence" : 0.91000000000000003,
+      "duration" : 0.27000000000000002,
+      "text" : "séries",
+      "timestamp" : 7.5899999999999999
+    },
+    {
+      "confidence" : 0.67900000000000005,
+      "duration" : 0.089999999999999997,
+      "text" : "de",
+      "timestamp" : 7.8600000000000003
+    },
+    {
+      "confidence" : 0.57199999999999995,
+      "duration" : 0.29999999999999999,
+      "text" : "10",
+      "timestamp" : 7.9500000000000002
+    },
+    {
+      "confidence" : 0.83499999999999996,
+      "duration" : 0.33000000000000002,
+      "text" : "12.",
+      "timestamp" : 8.25
+    },
+    {
+      "confidence" : 0.95499999999999996,
+      "duration" : 0.23999999999999999,
+      "text" : "Pardon",
+      "timestamp" : 8.5800000000000001
+    },
+    {
+      "confidence" : 0.92300000000000004,
+      "duration" : 0.41999999999999998,
+      "text" : "ensuite",
+      "timestamp" : 8.8200000000000003
+    },
+    {
+      "confidence" : 0.52700000000000002,
+      "duration" : 0.029999999999999999,
+      "text" : "et",
+      "timestamp" : 9.2400000000000002
+    },
+    {
+      "confidence" : 0.58899999999999997,
+      "duration" : 0.53000000000000003,
+      "text" : "Élévations",
+      "timestamp" : 9.2699999999999996
+    },
+    {
+      "confidence" : 0.58899999999999997,
+      "duration" : 0.53000000000000003,
+      "text" : "latérales",
+      "timestamp" : 9.8000000000000007
+    },
+    {
+      "confidence" : 0.89700000000000002,
+      "duration" : 0.33000000000000002,
+      "text" : "4",
+      "timestamp" : 10.32
+    },
+    {
+      "confidence" : 0.86199999999999999,
+      "duration" : 0.20999999999999999,
+      "text" : "×",
+      "timestamp" : 10.65
+    },
+    {
+      "confidence" : 0.501,
+      "duration" : 0.66000000000000003,
+      "text" : "15,",
+      "timestamp" : 10.859999999999999
+    },
+    {
+      "confidence" : 0.54200000000000004,
+      "duration" : 0.14999999999999999,
+      "text" : "et",
+      "timestamp" : 11.52
+    },
+    {
+      "confidence" : 0.68600000000000005,
+      "duration" : 0.14999999999999999,
+      "text" : "pour",
+      "timestamp" : 11.67
+    },
+    {
+      "confidence" : 0.89400000000000002,
+      "duration" : 0.35999999999999999,
+      "text" : "finir",
+      "timestamp" : 11.82
+    },
+    {
+      "confidence" : 0.104,
+      "duration" : 0.54000000000000004,
+      "text" : "les 10 trois",
+      "timestamp" : 12.18
+    },
+    {
+      "confidence" : 0.66000000000000003,
+      "duration" : 0.29999999999999999,
+      "text" : "séries",
+      "timestamp" : 12.720000000000001
+    },
+    {
+      "confidence" : 0.53000000000000003,
+      "duration" : 0.089999999999999997,
+      "text" : "au",
+      "timestamp" : 13.02
+    },
+    {
+      "confidence" : 0.28599999999999998,
+      "duration" : 0.68999999999999995,
+      "text" : "max",
+      "timestamp" : 13.109999999999999
+    }
+  ],
+  "text" : "Alors pour la séance pêche, on commence par le développé couché à la barre quatre séries de huit avec deux minutes de repos, ensuite développé incliné aux haltères trois séries de 10 12. Pardon ensuite et Élévations latérales 4 × 15, et pour finir les 10 trois séries au max",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

@@ -1,0 +1,246 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d01-push-hesitation__thomas-215",
+  "ms" : 3950,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0,
+      "duration" : 0.23999999999999999,
+      "text" : "Alors pour",
+      "timestamp" : 0
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.059999999999999998,
+      "text" : "la",
+      "timestamp" : 0.23999999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.089999999999999997,
+      "text" : "séance, l'on",
+      "timestamp" : 0.39000000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "commence",
+      "timestamp" : 0.75
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "par",
+      "timestamp" : 0.81000000000000005
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "le",
+      "timestamp" : 0.87
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "développé",
+      "timestamp" : 1.05
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "couché",
+      "timestamp" : 1.1100000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.029999999999999999,
+      "text" : "à la",
+      "timestamp" : 1.2
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "barre",
+      "timestamp" : 1.23
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "quatre",
+      "timestamp" : 1.3799999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "séries",
+      "timestamp" : 1.47
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 1.5900000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "huit",
+      "timestamp" : 1.6499999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "avec",
+      "timestamp" : 1.74
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "deux",
+      "timestamp" : 1.8300000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "minutes",
+      "timestamp" : 1.8899999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "de",
+      "timestamp" : 1.95
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.089999999999999997,
+      "text" : "repos,",
+      "timestamp" : 2.0699999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.17999999999999999,
+      "text" : "ensuite, Développé",
+      "timestamp" : 2.1600000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.33000000000000002,
+      "text" : "incliné aux haltères",
+      "timestamp" : 2.3399999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "trois",
+      "timestamp" : 2.73
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.059999999999999998,
+      "text" : "séries de",
+      "timestamp" : 2.8500000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "10",
+      "timestamp" : 2.9100000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.14999999999999999,
+      "text" : "12. Pardon",
+      "timestamp" : 3
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.35999999999999999,
+      "text" : "ensuite Élévations",
+      "timestamp" : 3.1499999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.14999999999999999,
+      "text" : "latérales",
+      "timestamp" : 3.5099999999999998
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "4",
+      "timestamp" : 3.75
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "×",
+      "timestamp" : 3.8700000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0.14999999999999999,
+      "text" : "15,",
+      "timestamp" : 3.96
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "et",
+      "timestamp" : 4.1100000000000003
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "pour",
+      "timestamp" : 4.1699999999999999
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "finir",
+      "timestamp" : 4.2300000000000004
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "les",
+      "timestamp" : 4.3499999999999996
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "10",
+      "timestamp" : 4.4100000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "trois",
+      "timestamp" : 4.5
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "séries",
+      "timestamp" : 4.6200000000000001
+    },
+    {
+      "confidence" : 0,
+      "duration" : 0,
+      "text" : "ou",
+      "timestamp" : 4.6500000000000004
+    },
+    {
+      "confidence" : 0,
+      "duration" : 4.7999999999999998,
+      "text" : "max",
+      "timestamp" : 4.7400000000000002
+    }
+  ],
+  "text" : "Alors pour la séance, l'on commence par le développé couché à la barre quatre séries de huit avec deux minutes de repos, ensuite, Développé incliné aux haltères trois séries de 10 12. Pardon ensuite Élévations latérales 4 × 15, et pour finir les 10 trois séries ou max",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

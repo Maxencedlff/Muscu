@@ -1,4 +1,4 @@
-# Mesure de l'import de programme sur du réel (docs/IMPORT_PROGRAMME.md, « Mesure sur du réel »)
+# Mesure de l'import de programme sur du réel (tests/fixtures/plans/reels/SOURCES.md)
 # Sur une machine macOS : vraie OCR Apple Vision sur les documents libres du corpus (tests/fixtures/plans/reels/),
 # vraies dictées (voix françaises de macOS) transcrites par SFSpeechRecognizer et, en repli, par whisper.cpp.
 # Les sorties (JSON) sont rendues en artefact ; on les recopie dans tests/fixtures/plans/reels/sorties/ et

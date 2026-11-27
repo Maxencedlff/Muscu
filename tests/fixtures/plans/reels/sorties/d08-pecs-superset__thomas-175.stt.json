@@ -1,0 +1,132 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d08-pecs-superset__thomas-175",
+  "ms" : 2565,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0.25,
+      "duration" : 0.51000000000000001,
+      "text" : "Séance",
+      "timestamp" : 0
+    },
+    {
+      "confidence" : 0.91000000000000003,
+      "duration" : 0.47999999999999998,
+      "text" : "pectoraux",
+      "timestamp" : 0.51000000000000001
+    },
+    {
+      "confidence" : 0.66400000000000003,
+      "duration" : 0.12,
+      "text" : "en",
+      "timestamp" : 0.98999999999999999
+    },
+    {
+      "confidence" : 0.52600000000000002,
+      "duration" : 0.59999999999999998,
+      "text" : "Super C,",
+      "timestamp" : 1.1100000000000001
+    },
+    {
+      "confidence" : 0.67800000000000005,
+      "duration" : 0.44,
+      "text" : "Développé",
+      "timestamp" : 1.71
+    },
+    {
+      "confidence" : 0.67800000000000005,
+      "duration" : 0.44,
+      "text" : "couché",
+      "timestamp" : 2.1499999999999999
+    },
+    {
+      "confidence" : 0.67800000000000005,
+      "duration" : 0.44,
+      "text" : "haltères",
+      "timestamp" : 2.5899999999999999
+    },
+    {
+      "confidence" : 0.57099999999999995,
+      "duration" : 0.089999999999999997,
+      "text" : "et",
+      "timestamp" : 3.0299999999999998
+    },
+    {
+      "confidence" : 0.17100000000000001,
+      "duration" : 1.29,
+      "text" : "Écarté poulie vis-à-vis",
+      "timestamp" : 3.1200000000000001
+    },
+    {
+      "confidence" : 0.92100000000000004,
+      "duration" : 0.39000000000000001,
+      "text" : "quatre",
+      "timestamp" : 4.4100000000000001
+    },
+    {
+      "confidence" : 0.91200000000000003,
+      "duration" : 0.33000000000000002,
+      "text" : "séries",
+      "timestamp" : 4.7999999999999998
+    },
+    {
+      "confidence" : 0.73699999999999999,
+      "duration" : 0.12,
+      "text" : "de",
+      "timestamp" : 5.1299999999999999
+    },
+    {
+      "confidence" : 0.74199999999999999,
+      "duration" : 0.27000000000000002,
+      "text" : "10",
+      "timestamp" : 5.25
+    },
+    {
+      "confidence" : 0.90000000000000002,
+      "duration" : 0.41999999999999998,
+      "text" : "chacun",
+      "timestamp" : 5.5199999999999996
+    },
+    {
+      "confidence" : 0.90000000000000002,
+      "duration" : 0.39000000000000001,
+      "text" : "ensuite",
+      "timestamp" : 5.9400000000000004
+    },
+    {
+      "confidence" : 0.84199999999999997,
+      "duration" : 0.23999999999999999,
+      "text" : "pompe",
+      "timestamp" : 6.3300000000000001
+    },
+    {
+      "confidence" : 0.89400000000000002,
+      "duration" : 0.23999999999999999,
+      "text" : "trois",
+      "timestamp" : 6.5700000000000003
+    },
+    {
+      "confidence" : 0.74099999999999999,
+      "duration" : 0.39000000000000001,
+      "text" : "séries",
+      "timestamp" : 6.8099999999999996
+    },
+    {
+      "confidence" : 0.65600000000000003,
+      "duration" : 0.059999999999999998,
+      "text" : "au",
+      "timestamp" : 7.2000000000000002
+    },
+    {
+      "confidence" : 0.50900000000000001,
+      "duration" : 0.87,
+      "text" : "maximum",
+      "timestamp" : 7.2599999999999998
+    }
+  ],
+  "text" : "Séance pectoraux en Super C, Développé couché haltères et Écarté poulie vis-à-vis quatre séries de 10 chacun ensuite pompe trois séries au maximum",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-//  Mesure du moteur d'import sur du RÉEL (docs/IMPORT_PROGRAMME.md, « Mesure sur du réel »)
+//  Mesure du moteur d'import sur du RÉEL (tests/fixtures/plans/reels/SOURCES.md)
 //  - documents réels (photos, tableaux, manuscrits, PDF) : sortie d'Apple Vision sur macOS (vision-ocr.swift)
 //    → planTextFromPages → planParse, comparée à la vérité écrite à la main ;
 //  - dictées : vrai son (voix françaises de macOS, `say`) transcrit par SFSpeechRecognizer (speech-transcribe.swift)
@@ -209,6 +209,18 @@ function table(r, md) {
       out.push('', `Erreurs les plus fréquentes, ${title} :`);
       list.forEach((t, i) => out.push(`${String(i + 1).padStart(2)}. ${t.family} : ${t.n} fois, ${t.docs} docs\n    ex. ${t.ex.id} (${SOURCE[t.ex.source]}) « ${String(t.ex.line).slice(0, 70).replace(/\t/g, ' ')} » → ${t.ex.why}`));
     }
+  }
+  // Dictée par voix et par reconnaissance : la voix de synthèse pèse lourd (Eddy et Flo, synthèse Eloquence, robotiques)
+  const voices = {};
+  for (const c of r.cases.filter(x => x.kind === 'dictee' && x.variant)) {
+    const b = (voices[`${SOURCE[c.source]} · ${c.variant.replace('frenchfrance', '')}`] ||= { lines: 0, ok: 0, exOk: 0, prOk: 0, extra: 0 });
+    b.lines += c.lines; b.ok += c.ok; b.exOk += c.exOk; b.prOk += c.prOk; b.extra += c.extra;
+  }
+  const vrows = Object.entries(voices).sort().map(([k, b]) => [k, pct(b.ok / Math.max(1, b.lines + b.extra)), pct(b.exOk / Math.max(1, b.lines)), pct(b.prOk / Math.max(1, b.lines))]);
+  if (vrows.length) {
+    out.push('', md ? '**Dictée par voix (mots/min)**' : 'Dictée par voix (mots/min) :');
+    if (md) out.push('', '| Reconnaissance · voix | Justes | Exercice | Prescription |', '|---|---|---|---|', ...vrows.map(x => `| ${x.join(' | ')} |`));
+    else out.push(...vrows.map(x => `  ${x[0].padEnd(34)} ${x[1].padStart(7)}  ${x[2].padStart(7)}  ${x[3].padStart(7)}`));
   }
   const local = r.docs.filter(d => d.where === 'local');
   out.push('', `Documents : ${r.docs.length} (${r.docs.length - local.length} versionnés, ${local.length} locaux non libres) ; dictées : ${r.dictations.length} scripts.`);

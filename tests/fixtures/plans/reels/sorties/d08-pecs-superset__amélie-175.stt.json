@@ -1,0 +1,132 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d08-pecs-superset__amélie-175",
+  "ms" : 2578,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0.18099999999999999,
+      "duration" : 0.41999999999999998,
+      "text" : "Séance",
+      "timestamp" : 0
+    },
+    {
+      "confidence" : 0.70399999999999996,
+      "duration" : 0.54000000000000004,
+      "text" : "pectoraux",
+      "timestamp" : 0.41999999999999998
+    },
+    {
+      "confidence" : 0.34699999999999998,
+      "duration" : 0.41999999999999998,
+      "text" : "super,",
+      "timestamp" : 0.95999999999999996
+    },
+    {
+      "confidence" : 0.504,
+      "duration" : 0.14999999999999999,
+      "text" : "c'est",
+      "timestamp" : 1.3799999999999999
+    },
+    {
+      "confidence" : 0.57499999999999996,
+      "duration" : 0.39000000000000001,
+      "text" : "Développé",
+      "timestamp" : 1.53
+    },
+    {
+      "confidence" : 0.57499999999999996,
+      "duration" : 0.39000000000000001,
+      "text" : "couché",
+      "timestamp" : 1.9199999999999999
+    },
+    {
+      "confidence" : 0.57499999999999996,
+      "duration" : 0.39000000000000001,
+      "text" : "haltères",
+      "timestamp" : 2.3100000000000001
+    },
+    {
+      "confidence" : 0.36499999999999999,
+      "duration" : 0.089999999999999997,
+      "text" : "et",
+      "timestamp" : 2.7000000000000002
+    },
+    {
+      "confidence" : 0.070000000000000007,
+      "duration" : 0.68999999999999995,
+      "text" : "écarté poulie",
+      "timestamp" : 2.79
+    },
+    {
+      "confidence" : 0.61599999999999999,
+      "duration" : 0.45000000000000001,
+      "text" : "vis-à-vis",
+      "timestamp" : 3.48
+    },
+    {
+      "confidence" : 0.878,
+      "duration" : 0.33000000000000002,
+      "text" : "quatre",
+      "timestamp" : 3.9300000000000002
+    },
+    {
+      "confidence" : 0.92200000000000004,
+      "duration" : 0.27000000000000002,
+      "text" : "séries",
+      "timestamp" : 4.2599999999999998
+    },
+    {
+      "confidence" : 0.76700000000000002,
+      "duration" : 0.089999999999999997,
+      "text" : "de",
+      "timestamp" : 4.5300000000000002
+    },
+    {
+      "confidence" : 0.64100000000000001,
+      "duration" : 0.17999999999999999,
+      "text" : "10",
+      "timestamp" : 4.6200000000000001
+    },
+    {
+      "confidence" : 0.81000000000000005,
+      "duration" : 0.41999999999999998,
+      "text" : "chacun",
+      "timestamp" : 4.7999999999999998
+    },
+    {
+      "confidence" : 0.93300000000000005,
+      "duration" : 0.41999999999999998,
+      "text" : "ensuite",
+      "timestamp" : 5.2199999999999998
+    },
+    {
+      "confidence" : 0.876,
+      "duration" : 0.47999999999999998,
+      "text" : "trois",
+      "timestamp" : 5.6399999999999997
+    },
+    {
+      "confidence" : 0.88300000000000001,
+      "duration" : 0.29999999999999999,
+      "text" : "séries",
+      "timestamp" : 6.1200000000000001
+    },
+    {
+      "confidence" : 0.68100000000000005,
+      "duration" : 0.059999999999999998,
+      "text" : "au",
+      "timestamp" : 6.4199999999999999
+    },
+    {
+      "confidence" : 0.51200000000000001,
+      "duration" : 0.90000000000000002,
+      "text" : "maximum",
+      "timestamp" : 6.4800000000000004
+    }
+  ],
+  "text" : "Séance pectoraux super, c'est Développé couché haltères et écarté poulie vis-à-vis quatre séries de 10 chacun ensuite trois séries au maximum",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

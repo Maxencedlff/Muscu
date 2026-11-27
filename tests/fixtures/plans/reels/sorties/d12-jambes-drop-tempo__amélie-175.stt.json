@@ -1,0 +1,210 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d12-jambes-drop-tempo__amélie-175",
+  "ms" : 3554,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0.183,
+      "duration" : 0.33000000000000002,
+      "text" : "Jambes",
+      "timestamp" : 0
+    },
+    {
+      "confidence" : 0.56200000000000006,
+      "duration" : 0.12,
+      "text" : "du",
+      "timestamp" : 0.33000000000000002
+    },
+    {
+      "confidence" : 0.66100000000000003,
+      "duration" : 0.35999999999999999,
+      "text" : "jeudi",
+      "timestamp" : 0.45000000000000001
+    },
+    {
+      "confidence" : 0.90000000000000002,
+      "duration" : 0.51000000000000001,
+      "text" : "extension",
+      "timestamp" : 0.81000000000000005
+    },
+    {
+      "confidence" : 0.38,
+      "duration" : 0.41999999999999998,
+      "text" : "K3",
+      "timestamp" : 1.3200000000000001
+    },
+    {
+      "confidence" : 0.501,
+      "duration" : 0.12,
+      "text" : "et",
+      "timestamp" : 1.74
+    },
+    {
+      "confidence" : 0.46800000000000003,
+      "duration" : 0.35999999999999999,
+      "text" : "quatre",
+      "timestamp" : 1.8600000000000001
+    },
+    {
+      "confidence" : 0.80300000000000005,
+      "duration" : 0.27000000000000002,
+      "text" : "séries",
+      "timestamp" : 2.2200000000000002
+    },
+    {
+      "confidence" : 0.76200000000000001,
+      "duration" : 0.12,
+      "text" : "de",
+      "timestamp" : 2.4900000000000002
+    },
+    {
+      "confidence" : 0.82799999999999996,
+      "duration" : 0.27000000000000002,
+      "text" : "12",
+      "timestamp" : 2.6099999999999999
+    },
+    {
+      "confidence" : 0.90600000000000003,
+      "duration" : 0.27000000000000002,
+      "text" : "avec",
+      "timestamp" : 2.8799999999999999
+    },
+    {
+      "confidence" : 0.61299999999999999,
+      "duration" : 0.059999999999999998,
+      "text" : "un",
+      "timestamp" : 3.1499999999999999
+    },
+    {
+      "confidence" : 0.252,
+      "duration" : 0.29999999999999999,
+      "text" : "drop,",
+      "timestamp" : 3.21
+    },
+    {
+      "confidence" : 0.68600000000000005,
+      "duration" : 0.20999999999999999,
+      "text" : "sept",
+      "timestamp" : 3.5099999999999998
+    },
+    {
+      "confidence" : 0.78800000000000003,
+      "duration" : 0.14999999999999999,
+      "text" : "sur",
+      "timestamp" : 3.7200000000000002
+    },
+    {
+      "confidence" : 0.746,
+      "duration" : 0.14999999999999999,
+      "text" : "la",
+      "timestamp" : 3.8700000000000001
+    },
+    {
+      "confidence" : 0.80100000000000005,
+      "duration" : 0.45000000000000001,
+      "text" : "dernière",
+      "timestamp" : 4.0199999999999996
+    },
+    {
+      "confidence" : 0.25900000000000001,
+      "duration" : 0.23000000000000001,
+      "text" : "Presse,",
+      "timestamp" : 4.4699999999999998
+    },
+    {
+      "confidence" : 0.50900000000000001,
+      "duration" : 0.23000000000000001,
+      "text" : "à",
+      "timestamp" : 4.7000000000000002
+    },
+    {
+      "confidence" : 0.50900000000000001,
+      "duration" : 0.23000000000000001,
+      "text" : "cuisses",
+      "timestamp" : 4.9299999999999997
+    },
+    {
+      "confidence" : 0.82599999999999996,
+      "duration" : 0.35999999999999999,
+      "text" : "quatre",
+      "timestamp" : 5.1600000000000001
+    },
+    {
+      "confidence" : 0.67200000000000004,
+      "duration" : 0.23999999999999999,
+      "text" : "séries",
+      "timestamp" : 5.5199999999999996
+    },
+    {
+      "confidence" : 0.68600000000000005,
+      "duration" : 0.12,
+      "text" : "de",
+      "timestamp" : 5.7599999999999998
+    },
+    {
+      "confidence" : 0.504,
+      "duration" : 0.23999999999999999,
+      "text" : "10",
+      "timestamp" : 5.8799999999999999
+    },
+    {
+      "confidence" : 0.36499999999999999,
+      "duration" : 0.35999999999999999,
+      "text" : "tempo",
+      "timestamp" : 6.1200000000000001
+    },
+    {
+      "confidence" : 0.86699999999999999,
+      "duration" : 0.27000000000000002,
+      "text" : "3",
+      "timestamp" : 6.4800000000000004
+    },
+    {
+      "confidence" : 0.89800000000000002,
+      "duration" : 0.33000000000000002,
+      "text" : "0",
+      "timestamp" : 6.75
+    },
+    {
+      "confidence" : 0.64800000000000002,
+      "duration" : 0.029999999999999999,
+      "text" : "1",
+      "timestamp" : 7.0800000000000001
+    },
+    {
+      "confidence" : 0.58899999999999997,
+      "duration" : 0.27000000000000002,
+      "text" : "0",
+      "timestamp" : 7.1100000000000003
+    },
+    {
+      "confidence" : 0.66900000000000004,
+      "duration" : 0.089999999999999997,
+      "text" : "le",
+      "timestamp" : 7.3799999999999999
+    },
+    {
+      "confidence" : 0.0040000000000000001,
+      "duration" : 0.71999999999999997,
+      "text" : "cure six, 3",
+      "timestamp" : 7.4699999999999998
+    },
+    {
+      "confidence" : 0.78900000000000003,
+      "duration" : 0.20999999999999999,
+      "text" : "×",
+      "timestamp" : 8.1899999999999995
+    },
+    {
+      "confidence" : 0.38,
+      "duration" : 0.51000000000000001,
+      "text" : "12",
+      "timestamp" : 8.4000000000000004
+    }
+  ],
+  "text" : "Jambes du jeudi extension K3 et quatre séries de 12 avec un drop, sept sur la dernière Presse, à cuisses quatre séries de 10 tempo 3010 le cure six, 3 × 12",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}

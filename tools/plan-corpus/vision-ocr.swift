@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-//  Lecture Apple Vision des documents du corpus réel, sur macOS (docs/IMPORT_PROGRAMME.md, « Mesure sur du réel »)
+//  Lecture Apple Vision des documents du corpus réel, sur macOS (tests/fixtures/plans/reels/SOURCES.md)
 //
 //  Mêmes réglages que ios/App/App/PlanReaderPlugin.swift (VNRecognizeTextRequest) :
 //    .accurate, usesLanguageCorrection, recognitionLanguages fr-FR puis en-US, customWords = noms d'exercices

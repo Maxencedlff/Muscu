@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════
-//  Transcription des dictées du corpus réel par SFSpeechRecognizer, sur macOS (docs/IMPORT_PROGRAMME.md,
-//  « Mesure sur du réel »). Vraie reconnaissance vocale sur un vrai son (voix de synthèse de macOS, `say`).
+//  Transcription des dictées du corpus réel par SFSpeechRecognizer, sur macOS (tests/fixtures/plans/reels/SOURCES.md).
+//  Vraie reconnaissance vocale sur un vrai son (voix de synthèse de macOS, `say`).
 //
 //  Mêmes réglages que ios/App/App/PlanDictationPlugin.swift : fr-FR, taskHint .dictation, addsPunctuation,
 //  contextualStrings = planDictationWords('tout') (300 au plus), sur l'appareil dès que supportsOnDeviceRecognition.

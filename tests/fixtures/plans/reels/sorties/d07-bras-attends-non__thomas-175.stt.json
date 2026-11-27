@@ -1,0 +1,216 @@
+{
+  "contextualStrings" : 300,
+  "error" : null,
+  "id" : "d07-bras-attends-non__thomas-175",
+  "ms" : 4044,
+  "onDevice" : false,
+  "os" : "Version 15.8.2 (Build 24H232)",
+  "segments" : [
+    {
+      "confidence" : 0.035000000000000003,
+      "duration" : 0.33000000000000002,
+      "text" : "Bras,",
+      "timestamp" : 0
+    },
+    {
+      "confidence" : 0.22700000000000001,
+      "duration" : 0.51000000000000001,
+      "text" : "biceps,",
+      "timestamp" : 0.33000000000000002
+    },
+    {
+      "confidence" : 0.188,
+      "duration" : 0.47999999999999998,
+      "text" : "triceps,",
+      "timestamp" : 0.83999999999999997
+    },
+    {
+      "confidence" : 0.073999999999999996,
+      "duration" : 0.35999999999999999,
+      "text" : "obscur,",
+      "timestamp" : 1.3200000000000001
+    },
+    {
+      "confidence" : 0.35499999999999998,
+      "duration" : 0.59999999999999998,
+      "text" : "biceps,",
+      "timestamp" : 1.6799999999999999
+    },
+    {
+      "confidence" : 0.71399999999999997,
+      "duration" : 0.23999999999999999,
+      "text" : "bar",
+      "timestamp" : 2.2799999999999998
+    },
+    {
+      "confidence" : 0.73799999999999999,
+      "duration" : 0.41999999999999998,
+      "text" : "4",
+      "timestamp" : 2.52
+    },
+    {
+      "confidence" : 0.82699999999999996,
+      "duration" : 0.23999999999999999,
+      "text" : "×",
+      "timestamp" : 2.9399999999999999
+    },
+    {
+      "confidence" : 0.40400000000000003,
+      "duration" : 0.41999999999999998,
+      "text" : "17",
+      "timestamp" : 3.1800000000000002
+    },
+    {
+      "confidence" : 0.33400000000000002,
+      "duration" : 0.12,
+      "text" : "ans",
+      "timestamp" : 3.6000000000000001
+    },
+    {
+      "confidence" : 0.378,
+      "duration" : 0.14999999999999999,
+      "text" : "non",
+      "timestamp" : 3.7200000000000002
+    },
+    {
+      "confidence" : 0.75900000000000001,
+      "duration" : 0.27000000000000002,
+      "text" : "3",
+      "timestamp" : 3.8700000000000001
+    },
+    {
+      "confidence" : 0.872,
+      "duration" : 0.27000000000000002,
+      "text" : "×",
+      "timestamp" : 4.1399999999999997
+    },
+    {
+      "confidence" : 0.63700000000000001,
+      "duration" : 0.17999999999999999,
+      "text" : "10",
+      "timestamp" : 4.4100000000000001
+    },
+    {
+      "confidence" : 0.441,
+      "duration" : 0.23999999999999999,
+      "text" : "barres",
+      "timestamp" : 4.5899999999999999
+    },
+    {
+      "confidence" : 0.32500000000000001,
+      "duration" : 0.059999999999999998,
+      "text" : "au",
+      "timestamp" : 4.8300000000000001
+    },
+    {
+      "confidence" : 0.20200000000000001,
+      "duration" : 0.20999999999999999,
+      "text" : "front,",
+      "timestamp" : 4.8899999999999997
+    },
+    {
+      "confidence" : 0.86099999999999999,
+      "duration" : 0.33000000000000002,
+      "text" : "3",
+      "timestamp" : 5.0999999999999996
+    },
+    {
+      "confidence" : 0.72099999999999997,
+      "duration" : 0.66000000000000003,
+      "text" : "×",
+      "timestamp" : 5.4299999999999997
+    },
+    {
+      "confidence" : 0.71699999999999997,
+      "duration" : 0.12,
+      "text" : "12,",
+      "timestamp" : 6.0899999999999999
+    },
+    {
+      "confidence" : 0.41399999999999998,
+      "duration" : 0.20999999999999999,
+      "text" : "cure",
+      "timestamp" : 6.21
+    },
+    {
+      "confidence" : 0.35599999999999998,
+      "duration" : 0.029999999999999999,
+      "text" : "l'",
+      "timestamp" : 6.4199999999999999
+    },
+    {
+      "confidence" : 0.51500000000000001,
+      "duration" : 0.17999999999999999,
+      "text" : "incliné",
+      "timestamp" : 6.4500000000000002
+    },
+    {
+      "confidence" : 0.84799999999999998,
+      "duration" : 0.54000000000000004,
+      "text" : "3",
+      "timestamp" : 6.6299999999999999
+    },
+    {
+      "confidence" : 0.90300000000000002,
+      "duration" : 0.33000000000000002,
+      "text" : "×",
+      "timestamp" : 7.1699999999999999
+    },
+    {
+      "confidence" : 0.84499999999999997,
+      "duration" : 0.23999999999999999,
+      "text" : "12,",
+      "timestamp" : 7.5
+    },
+    {
+      "confidence" : 0.72399999999999998,
+      "duration" : 0.56999999999999995,
+      "text" : "extension",
+      "timestamp" : 7.7400000000000002
+    },
+    {
+      "confidence" : 0.049000000000000002,
+      "duration" : 1.02,
+      "text" : "triceps poulie, trois",
+      "timestamp" : 8.3100000000000005
+    },
+    {
+      "confidence" : 0.82399999999999995,
+      "duration" : 0.33000000000000002,
+      "text" : "séries",
+      "timestamp" : 9.3300000000000001
+    },
+    {
+      "confidence" : 0.71599999999999997,
+      "duration" : 0.14999999999999999,
+      "text" : "de",
+      "timestamp" : 9.6600000000000001
+    },
+    {
+      "confidence" : 0.79800000000000004,
+      "duration" : 0.29999999999999999,
+      "text" : "15",
+      "timestamp" : 9.8100000000000005
+    },
+    {
+      "confidence" : 0.82099999999999995,
+      "duration" : 0.33000000000000002,
+      "text" : "repos,",
+      "timestamp" : 10.109999999999999
+    },
+    {
+      "confidence" : 0.82299999999999995,
+      "duration" : 0.14999999999999999,
+      "text" : "une",
+      "timestamp" : 10.44
+    },
+    {
+      "confidence" : 0.54800000000000004,
+      "duration" : 0.59999999999999998,
+      "text" : "minute",
+      "timestamp" : 10.59
+    }
+  ],
+  "text" : "Bras, biceps, triceps, obscur, biceps, bar 4 × 17 ans non 3 × 10 barres au front, 3 × 12, cure l'incliné 3 × 12, extension triceps poulie, trois séries de 15 repos, une minute",
+  "tool" : "SFSpeechRecognizer fr-FR (SFSpeechURLRecognitionRequest, taskHint .dictation, addsPunctuation)"
+}
