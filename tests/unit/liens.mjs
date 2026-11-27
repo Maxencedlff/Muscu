@@ -14,8 +14,9 @@ const ALLOWED = {
   // État choisi (segment, onglet, bouton enfoncé) : la couleur marque le choix, pas un lien
   state: ['.onb__body--on', '.ck-seg--on', '.tabbar__btn--active', '.ed-ss-btn[aria-pressed="true"]',
     '.cell.is-loading[data-action="coach-poster-open"] .cell__sub'],
-  // Boutons de barre de navigation, de feuille et de dialogue (convention iOS : graisse propre, place fixe), bouton à fond
-  bar: ['.navbar__back', '.navbar__text', '.sheet__btn', '.ios-dialog__btn', '.btn--secondary'],
+  // Boutons de barre de navigation, de feuille et de dialogue (convention iOS : graisse propre, place fixe), bouton à fond,
+  // « Modifier » d'un en-tête de groupe (À battre aujourd'hui : en demi-gras il passait sous le titre sur iPhone SE)
+  bar: ['.navbar__back', '.navbar__text', '.sheet__btn', '.ios-dialog__btn', '.btn--secondary', '.targets__edit'],
 };
 
 export default function ({ test, assert, ROOT }) {

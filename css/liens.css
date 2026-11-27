@@ -20,5 +20,5 @@ body:not(.links-color) :is(
   .trash-view .cell__value, .btn-more, .info-btn, .cal__nav, .rs__collapse, .link-inline, .imp-pick--keep,
   .pcmp__sel, .pv-link, .ex-card__more, .ex-rest-link, .rest-mini .rest-mini__skip, .rs__done, .ax__cancel,
   .ax__item--create, .sum-hint, .tech__x, .social-choose, .social-find, .comments__more, .cph-row__link,
-  .bump-chip, .rs__done:not(.rs__done--primary), .water-gs__btn, .targets__edit
+  .bump-chip, .rs__done:not(.rs__done--primary), .water-gs__btn
 ) { font-weight: 600; }

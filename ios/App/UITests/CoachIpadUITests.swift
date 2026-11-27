@@ -62,7 +62,8 @@ final class CoachIpadUITests: XCTestCase {
 
         // Onglet Coach, carte « Ouvrir le mode grand écran »
         tap("Coach")
-        let open = app.buttons["Ouvrir le mode grand écran"]
+        // Libellé lu par VoiceOver : le titre suivi de sa ligne d'explication (« Tes élèves sur tout l'écran… »)
+        let open = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Ouvrir le mode grand écran")).firstMatch
         XCTAssertTrue(open.waitForExistence(timeout: 20), "carte du mode grand écran dans l'onglet Coach")
         shot("2 onglet Coach")
         open.tap()
