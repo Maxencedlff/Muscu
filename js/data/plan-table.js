@@ -17,12 +17,18 @@ const PARSE_COLS = [
   ['name', /^(?:exercices?|exercise?s?|mouvements?|movements?|exos?|nom|name|lift)$/],
   ['setsReps', /^(?:series?\s*(?:x|×|\*)\s*(?:reps?|repetitions?)|sets?\s*(?:x|×|\*)\s*reps?|volume|prescription|schema|s\s*x\s*r)$/],
   ['sets', /^(?:series?|sets?|nb\.?\s*(?:de\s*)?series?|nombre\s+de\s+series|s|tours?)$/],
-  ['reps', /^(?:reps?|repetitions?|rep\.?|r|nb\.?\s*reps?|reps?\s*(?:cible|vise)s?|duree|temps|time)$/],
+  ['reps', /^(?:reps?|repetitions?|rep\.?|repet\.?|r|nb\.?\s*reps?|reps?\s*(?:cible|vise)s?|duree|temps|time)$/],
   ['rest', /^(?:repos|recup(?:eration)?\.?|rest|pause|repos\s*\(s\)|repos\s*\(min\))$/],
   ['load', /^(?:charges?|poids|kg|load|weight|intensite|%\s*1rm|%|%\s*max|charge\s*\(kg\))$/],
   ['tempo', /^tempo$/], ['rpe', /^rpe$/], ['rir', /^rir$/],
-  ['notes', /^(?:notes?|remarques?|consignes?|commentaires?|comments?|technique|methode|conseils?|details?|info)$/],
+  ['notes', /^(?:notes?|remarques?|consignes?|commentaires?|comments?|technique|methode|conseils?|details?|info|modalites?)$/],
+  // Numéro de machine ou de fiche (« N° 21 ») : jamais des séries ni des reps
+  ['num', /^(?:n°|no|n|num(?:ero)?|#|ref|machine|poste)$/],
+  // Colonne qui forme les groupes (« Muscles (superset) », « Biset ») : les rangées qui la partagent sont enchaînées
+  ['group', /\b(?:super\s*-?\s*sets?|bi\s*-?\s*sets?|tri\s*-?\s*sets?|circuit)\b/],
 ];
+// Colonnes qui prescrivent : une rangée de tableau sans aucune d'elles n'est pas un exercice prescrit
+const PARSE_TABLE_DOSE = ['sets', 'reps', 'setsReps', 'rest', 'load', 'tempo', 'rpe', 'rir'];
 // Mots d'en-tête reconnus malgré une faute de lecture (« Sérles », « Repo5 », « Exerclce »)
 const PARSE_COL_WORDS = { exercice: 'name', exercices: 'name', exercise: 'name', mouvement: 'name', series: 'sets', sets: 'sets', reps: 'reps',
   repetitions: 'reps', repos: 'rest', recup: 'rest', recuperation: 'rest', charge: 'load', poids: 'load', tempo: 'tempo', notes: 'notes', remarques: 'notes', seance: 'session' };
@@ -73,7 +79,28 @@ function planTableHeader(line) {
     const first = cols.findIndex(c => !c.kind);
     if (first >= 0) cols[first].kind = 'name'; else if (cols[0].kind !== 'sets') cols.unshift({ kind: 'name', at: 0 });
   }
-  return { cols, sep };
+  // Pas une colonne qui prescrit (« Jours | Groupes musculaires ») : un planning de la semaine, pas des exercices
+  const schedule = !cols.some(c => PARSE_TABLE_DOSE.includes(c.kind) || c.kind === 'week1');
+  return { cols, sep, schedule, dosed: !schedule };
+}
+// Nom coupé sur deux rangées (« Développé incliné » puis « haltères  3  10 ») : la suite commence par une minuscule ; une
+// rangée suivante qui commence par une majuscule, c'est un autre exercice (fiche de salle : catalogue sans prescription
+// au-dessus de l'exercice prescrit)
+function planTableJoin(pending, name) {
+  if (/^\s*\p{Lu}/u.test(name) && /^\s*\p{Lu}/u.test(pending)) return name;
+  return `${pending} ${name}`.trim();
+}
+// Case fusionnée sur tout un tableau (repos « 1 min » écrit une fois, au milieu de la colonne) : quand un seul exercice
+// du tableau a un repos, pris dans sa case, et qu'il n'est pas le premier de trois exercices ou plus, ce repos vaut
+// pour tous les exercices du tableau
+function planTableMergedRest(items) {
+  const byTable = new Map();
+  items.forEach(it => { if (it.tbl) { if (!byTable.has(it.tbl)) byTable.set(it.tbl, []); byTable.get(it.tbl).push(it); } });
+  for (const list of byTable.values()) {
+    const withRest = list.filter(it => it.tblRest && it.presc.rest !== undefined);
+    if (list.length < 3 || withRest.length !== 1 || withRest[0] === list[0]) continue;
+    list.forEach(it => { if (it.presc.rest === undefined) it.presc.rest = withRest[0].presc.rest; });
+  }
 }
 
 // Case → colonne de l'en-tête : par rang (tabulations, « | »), par position la plus proche (espaces alignés)
@@ -156,7 +183,9 @@ function planRowText(row) {
     if (row.reps) bits.push(/^(?:max|amrap|échec|echec)/i.test(row.reps) ? `${row.reps} reps` : /\d\s*$/.test(row.reps) ? `${row.reps} reps` : row.reps);
   }
   if (row.rest) {
-    const r = String(row.rest).trim();
+    // Case de repos : seulement sa durée (« 15 sec max » donne 15 s ; « max » n'est pas une rep)
+    const r0 = String(row.rest).trim(), tm = planPlain(r0).match(new RegExp(PARSE_TIME_SRC));
+    const r = tm && tm[0].trim() !== r0 ? r0.slice(tm.index, tm.index + tm[0].length).trim() : r0;
     bits.push(bare(r) ? `repos ${planDec(r) <= 10 ? `${r.replace(',', '.')} min` : `${r} s`}` : /repos|rest|r[ée]cup/i.test(r) ? r : `repos ${r}`);
   }
   if (row.load) bits.push(bare(row.load) ? `${row.load} kg` : row.load);

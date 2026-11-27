@@ -70,6 +70,8 @@ function planLabel(line) {
   return t.slice(0, PARSE_LABEL_MAX).trim();
 }
 
+// Sous-titre fait seulement de groupes musculaires (« PECTORAUX », « CUISSES / FESSIERS », « Pectoraux, biceps et abdos »)
+const planSplitOnly = b => { const w = b.split(/[\s/+&,()-]+/).filter(Boolean); return w.length > 0 && w.length <= 6 && w.every(x => PARSE_SPLIT_WORDS.has(x)); };
 // En-tête collé à son premier exercice, sans deux-points : mots de séance en tête (« séance suivante jambes »), puis un
 // exercice reconnu qui prescrit un travail. { label, rest } ou null
 function planHeadSplit(text, learned) {
@@ -206,26 +208,44 @@ function planParse(text, { learned = null } = {}) {
     if (!line.trim()) { lineRec(line, 'blank'); table = null; ssOpen = null; if (block?.used) block = null; continue; }
     // Tableau : en-tête, puis rangées jusqu'à la prochaine ligne vide ou sans colonnes
     const head = planTableHeader(line);
-    if (head) { table = head; lineRec(line, 'table-head'); continue; }
-    let text = line, fromTable = false;
+    if (head) { table = { ...head, id: ++seq }; lineRec(line, 'table-head'); continue; }
+    let text = line, fromTable = false, tableGroup = null, tableRest = false;
     if (table) {
       const row = planRowCells(line, table);
-      const keys = row ? Object.keys(row).filter(k => row[k] && k !== 'single') : [];
+      const keys = row ? Object.keys(row).filter(k => row[k] && k !== 'single' && k !== 'num') : [];
+      if (row && keys.length && table.schedule) { lineRec(line, 'note'); continue; }   // planning de la semaine
       if (row && keys.length) {
-        // Rangée qui ne porte qu'un nom : en-tête de séance (« | Jour 1 : Haut | | | »), ou nom coupé sur deux lignes
+        const dosed = PARSE_TABLE_DOSE.some(k => row[k]);
+        // Rangée qui ne porte qu'un nom (ou un nom et un commentaire, sans séries ni reps) : en-tête de séance
+        // (« | Jour 1 : Haut | | | »), ligne de groupe (« Superset modifié »), ou nom coupé sur deux lignes
         // (« Développé incliné » puis « haltères  3  10 ») gardé pour la rangée suivante
         if (keys.length === 1 && row.name && planGroupLine(row.name)) { lineRec(line, 'note'); continue; }
-        if (keys.length === 1 && row.name) {
+        if (row.name && !row.group && !dosed && (keys.length === 1 || table.dosed)) {
           const hr = planReadLine(row.name);
           if (planHeaderOf(row.name, hr)) { text = row.name; table = { ...table, pendingName: null }; }
-          else { table.pendingName = table.pendingName ? `${table.pendingName} ${row.name}` : row.name; lineRec(line, 'cont'); continue; }
+          else {
+            // Fiche de salle : un exercice du catalogue sans prescription (« Pullover », « Presse 31 ») n'est pas un
+            // début de nom quand la rangée suivante commence par une majuscule (planTableJoin)
+            table.pendingName = table.pendingName ? `${table.pendingName} ${row.name}` : row.name;
+            lineRec(line, 'cont');
+            continue;
+          }
         } else if (!row.name && !row.session && lastItem() && !keys.some(k => k !== 'notes')) { lineRec(line, 'note'); continue; }
         else {
-          if (table.pendingName) { row.name = `${table.pendingName} ${row.name || ''}`.trim(); table.pendingName = null; }
+          if (table.pendingName) { row.name = planTableJoin(table.pendingName, row.name || ''); table.pendingName = null; }
           // Colonne « Séance » : une nouvelle séance quand elle est remplie
           if (row.session && planBare(row.session) !== planBare(session?.label || '')) {
             session = { label: planLabel(row.session), src: line, items: [] }; draft.sessions.push(session);
           }
+          // Colonne de groupe (« Muscles (superset) ») ou première case vide : la rangée continue le groupe d'avant, et
+          // ses cases vides fusionnées (repos) reprennent la valeur du groupe
+          if (table.cols.some(c => c.kind === 'group')) {
+            const lead = planCells(line).cells[0]?.text;
+            if (row.group || !table.grp || lead) table.grp = { key: `t${++seq}`, rest: null };
+            if (row.rest) table.grp.rest = row.rest; else if (table.grp.rest) row.rest = table.grp.rest;
+            tableGroup = table.grp.key;
+          }
+          tableRest = !!row.rest;
           text = planRowText(row); fromTable = true;
         }
       } else table = null;
@@ -265,8 +285,12 @@ function planParse(text, { learned = null } = {}) {
       if (PARSE_SKIP_SECTION_RE.test(b)) { skipSection = true; lineRec(line, 'note'); continue; }
       skipSection = false;
       // « Lundi : DC 4x8, squat 5x5 » : en-tête puis exercices sur la même ligne
-      if (session && !session.items.length && !session.label) session.label = hd.label;
-      else { session = { label: hd.label, src: line, items: [] }; draft.sessions.push(session); }
+      // Sous-titre d'une séance déjà nommée (« JOUR 1 » puis « PECTORAUX », « BICEPS ») : une partie de la séance, pas une
+      // nouvelle séance ; sans en-tête fort au-dessus, ces sous-titres restent des séances (« PECTORAUX : », « DOS : »)
+      const strong = PARSE_HEAD_RE.test(b);
+      if (!strong && session?.strong && planSplitOnly(b)) { lineRec(line, 'note'); continue; }
+      if (session && !session.items.length && !session.label) { session.label = hd.label; session.strong = strong; }
+      else { session = { label: hd.label, src: line, items: [], strong }; draft.sessions.push(session); }
       session.src = line;
       lineRec(line, 'header');
       continue;
@@ -315,6 +339,8 @@ function planParse(text, { learned = null } = {}) {
         lineRec(line, 'cont', prev);
         continue;
       }
+      // « 1	Pectoraux, biceps et abdos » (planning) : un nombre devant des groupes musculaires n'est pas un exercice
+      if (r.marks.lead && planSplitOnly(planBare(r.name)) && r.name.split(/[\s,]+/).length >= 2) { lineRec(line, 'note'); continue; }
       if (!work && m.score < PARSE_MATCH_MIN) {
         // Ni nom ni travail : note (titre du programme si c'est la première ligne)
         if (!draft.title && !draft.sessions.length && planBare(piece.text).length <= 60 && /[a-z]{3}/.test(planBare(piece.text))) { draft.title = planLabel(piece.text); lineRec(line, 'title'); }
@@ -327,6 +353,8 @@ function planParse(text, { learned = null } = {}) {
       if (r.marks.plus && prev) item.joinPrev = true;
       if (prev?.marks?.plusAfter) item.joinPrev = true;
       if (/\b(?:avec|and)\s+(?:la\s+)?(?:ligne|exercice|exo)\s+suivant(?:e)?\b|\bwith\s+next\b/i.test(planPlain(r.text))) item.marks = { ...item.marks, plusAfter: true };
+      if (fromTable && table?.id) { item.tbl = table.id; item.tblRest = tableRest; }
+      if (tableGroup) item.ssKey = tableGroup;
       if (joinNext && prev && prev !== item) item.joinPrev = true;
       joinNext = false;
       if (ssOpen && ssOpen.left > 0) { item.ssKey = ssOpen.key; ssOpen.left--; if (!ssOpen.left) ssOpen = null; }
@@ -356,6 +384,7 @@ function planFinish(draft) {
   });
   draft.sessions = draft.sessions.filter(s => s.items.length);
   if (draft.sessions.length > PARSE_MAX_SESSIONS) { if (draft.cut) draft.cut.sessions = true; draft.sessions = draft.sessions.slice(0, PARSE_MAX_SESSIONS); }
+  planTableMergedRest(draft.sessions.flatMap(s => s.items));
   draft.sessions.forEach((s, i) => {
     if (!s.label) s.label = draft.sessions.length > 1 ? `Séance ${String.fromCharCode(65 + i)}` : 'Séance';
     planGroupSupersets(s.items);

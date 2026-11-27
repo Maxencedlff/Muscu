@@ -40,7 +40,8 @@ const PARSE_EXTRA_ALIASES = [
   ['Squat barre', 'squat|squats|squat libre|back squat barre|squat complet|squat arriere barre|high bar squat|low bar squat'],
   ['Tractions pronation', 'tractions|traction pronation|tractions larges|tractions lestees|tractions barre fixe|pullup|chin up pronation'],
   ['Rowing barre', 'rowing|rowing penche|rowing buste penche|rowing barre droite|barbell rows'],
-  ['Tirage vertical prise large', 'tirage vertical|tirage haut|tirage devant|lat pull down|tirage poitrine prise large|tirage vertical large|tirage vertical poulie'],
+  ['Tirage vertical prise serrée', 'tirage poulie haute prise serree|tirage poulie haute serre'],
+  ['Tirage vertical prise large', 'tirage poulie haute|tirage vertical|tirage haut|tirage devant|lat pull down|tirage poitrine prise large|tirage vertical large|tirage vertical poulie'],
   ['Tirage horizontal câble', 'tirage bas|rowing poulie|tirage horizontal assis|rowing assis poulie|tirage horizontal prise serree'],
   ['Mollets debout', 'mollets|extension mollets|extensions mollets|mollets machine|calf|calves|standing calf|mollets a la machine|mollets debout machine'],
   ['Crunch', 'abdos|crunchs|crunch abdos|abdominaux'],
@@ -49,7 +50,7 @@ const PARSE_EXTRA_ALIASES = [
   ['Curl biceps haltères', 'curl|curl biceps|curl alterne|curl alterne halteres|curl biceps alterne|biceps halteres|curl halteres alterne'],
   ['Curl biceps barre', 'curl barre droite|curl biceps barre ez|curl a la barre'],
   ['Développé militaire haltères', 'developpe epaules|shoulder press|developpe assis halteres|developpe militaire assis'],
-  ['Développé militaire barre', 'developpe militaire debout|military|developpe nuque|press militaire'],
+  ['Développé militaire barre', 'developpe devant|developpe militaire debout|military|developpe nuque|press militaire'],
   ['Élévations latérales', 'elevations laterales|lateral raises|elevation laterale|laterales|elevations'],
   ['Soulevé de terre roumain', 'souleve de terre roumain barre|sdt roumain|roumain'],
   ['Soulevé de terre', 'souleve de terre classique|deadlifts|souleve terre'],
@@ -66,6 +67,7 @@ const PARSE_EXTRA_ALIASES = [
   ['Fentes', 'fente|fentes avant|fentes alternees|fentes halteres|fentes statiques'],
   ['Développé décliné', 'developpe decline barre'],
   ['Écarté haltères plat', 'ecarte|ecartes|ecarte plat|ecartes couche|ecarte halteres couche'],
+  ['Tirage horizontal câble', 'low cable row|seated cable row|cable row|seated row'],
   ['Pompes', 'pompe|push ups|pushups|push up|pushup|press ups|press up'],
   ['Barre au front', 'skull crushers|barre front ez'],
   // Formes CrossFit et anglaises d'exercices de la bibliothèque (le même mouvement, pas un voisin)
@@ -147,15 +149,16 @@ function planWordSim(q, c) {
 function planFormScore(qWords, qJoined, f) {
   if (!f.words.length || !qWords.length) return 0;
   const used = new Set();
-  let got = 0;
-  const weight = i => (i === 0 ? 2 : 1);
+  let got = 0, qTotal = 0;
   qWords.forEach((w, i) => {
     let best = 0, bj = -1;
     f.words.forEach((c, j) => { if (!used.has(j)) { const s = planWordSim(w, c); if (s > best) { best = s; bj = j; } } });
     if (bj >= 0) used.add(bj);
-    got += best * weight(i);
+    // Un matériel écrit mais absent de la forme (« barre » de « Rowing menton barre ») coûte moitié moins qu'un mot du
+    // mouvement : c'est un rowing menton avant d'être un rowing barre
+    const wt = i === 0 ? 2 : !best && PARSE_EQUIP_WORDS.has(w) ? 0.5 : 1;
+    got += best * wt; qTotal += wt;
   });
-  const qTotal = qWords.reduce((s, _, i) => s + weight(i), 0);
   const missing = f.words.length - used.size;
   // Part des mots cherchés trouvés, rabattue par les mots de la forme absents de la recherche et par les mots en trop
   let score = Math.min(1, got / qTotal) * (f.words.length / (f.words.length + missing * 0.6 + Math.max(0, qWords.length - f.words.length) * 0.35));
@@ -166,9 +169,10 @@ function planFormScore(qWords, qJoined, f) {
   return score * f.weight;
 }
 
+const PARSE_EQUIP_WORDS = new Set(['barre', 'halteres', 'haltere', 'poulie', 'machine', 'cable', 'smith', 'kettlebell', 'elastique', 'ez', 'banc']);
 const PARSE_MATCH_MIN = 0.62;   // en dessous : pas reconnu (gardé sous son nom, « Pas compris »)
 // Précisions qui ne changent pas la fiche (« Dips lestés », « Squat pause », « Tractions strictes ») : retirées en dernier recours
-const PARSE_MODIFIERS = /\b(?:rings?|anneaux|aux\s+anneaux|lest[ée]e?s?|lourde?s?|l[ée]g[eè]re?s?|explosi(?:f|ve)s?|strict(?:e|es|s)?|partiel(?:le)?s?|lents?|lente?s?|tempo|pause|avec\s+pause|weighted|paused|heavy|light)\b/gi;
+const PARSE_MODIFIERS = /\b(?:alternating|alternate|rings?|anneaux|aux\s+anneaux|lest[ée]e?s?|lourde?s?|l[ée]g[eè]re?s?|explosi(?:f|ve)s?|strict(?:e|es|s)?|partiel(?:le)?s?|lents?|lente?s?|tempo|pause|avec\s+pause|weighted|paused|heavy|light)\b/gi;
 const PARSE_MATCH_CACHE = new Map();
 // Reconnaissance du nom brut. learned : dictionnaire appris { clé : nom } (planAliasKey, js/data/plan-aliases.js), lu
 // d'abord ; le reste ne dépend que du texte et de la bibliothèque, mémorisé
@@ -190,7 +194,9 @@ function planMatchExercise(raw, learned = null) {
 function planMatchVariants(text) {
   return [...new Set([text, text.replace(/\([^)]*\)|\[[^\]]*\]/g, ' ').trim(), text.replace(/[()[\]]/g, ' ').trim(),
     text.split(/\s*:\s*/).slice(1).join(' ').trim(), text.split(/\s+[-–/]\s+|\s*:\s*/)[0].trim(),
-    text.replace(PARSE_MODIFIERS, ' ').replace(/\s+/g, ' ').trim()].filter(v => v && /[a-z]/i.test(v)))];
+    text.replace(PARSE_MODIFIERS, ' ').replace(/\s+/g, ' ').trim(),
+    // Choix « Développé couché ou Dips », « Rowing barre ou Rameur » : la première option
+    text.split(/\s+(?:ou|or)\s+/i)[0].trim()].filter(v => v && /[a-z]/i.test(v)))];
 }
 function planMatchLibrary(text, none) {
   const variants = planMatchVariants(text);

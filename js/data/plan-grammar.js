@@ -106,7 +106,7 @@ const PARSE_RE = {
   setsDist: /(?<![0-9.,])(\d{1,2})\s*x\s*(\d{1,4}(?:[.,]\d)?)\s*(m|km)(?![a-z0-9'])/,
   dist: /(?<![0-9.,:/x])(\d{2,5}|\d{1,3}[.,]\d{1,2}|\d{1,3}(?=\s*(?:km|mi|miles?)))\s*(m|km|mi|miles?|yd|yards?|metres?|meters?)(?![a-z0-9'])/,
   // Reps en tête, avant le nom (« 10 PUSHUPS », « 36 BOX JUMPS », « 30-AIRSQUATS »), sans autre prescription
-  lead: /^\s*(\d{1,3})(?:\s*-\s*|\s+)(?=[a-z]{2})(?!(?:min|mn|sec|secondes?|kgs?|kilos?|lbs?|livres|reps?|repetitions?|series?|sets?|fois|tours?|rounds?|rft|ans?|jours?|semaines?|heures?|cm|km|mi|miles?|metres?|meters?|minutes?|seances?|exercices?|mouvements?|calories?|cal)\b)/,
+  lead: /^\s*(\d{1,3})(?:\s*-\s*|\s+)(?=[a-z]{2})(?!(?:min|mn|sec|secondes?|kgs?|kilos?|lbs?|livres|repos|rest|off|reps?|repetitions?|series?|sets?|fois|tours?|rounds?|rft|ans?|jours?|semaines?|heures?|cm|km|mi|miles?|metres?|meters?|minutes?|seances?|exercices?|mouvements?|calories?|cal)\b)/,
   // Reps en chaîne sans séries (« 12-10-8 TIRAGE », « SNATCH 1-1-1-1-1 », « 21-15-9 ») : une série par nombre
   chain: /(?<![0-9.,/:-])(\d{1,3})((?:\s*[-/]\s*\d{1,3}){2,9})(?![0-9/:-])/,
   // Charges à l'aveugle (« @ 245/250/250 » d'un carnet, « 95/65 » homme / femme) : sans unité, ôtées du nom
@@ -282,7 +282,7 @@ function planTempo(m) { return m.slice(1, 5).filter(x => x !== undefined).map(x 
 // Reps : un nombre (fixes), une fourchette « 8-12 », une pyramide « 12/10/8 » (de la plus basse à la plus haute), ou « max »
 function planReps(presc, word, first, rest) {
   if (word) { presc.amrap = true; return; }
-  const nums = [first, ...String(rest || '').split(/-|\/|\ba\b|à|\bto\b|\bou\b/)].map(x => clampInt(String(x ?? '').trim(), 1, PARSE_REPS_MAX)).filter(x => x !== null);
+  const nums = [first, ...String(rest || '').split(/-|\/|(?<![a-z])a(?![a-z])|à|\bto\b|\bou\b/)].map(x => clampInt(String(x ?? '').trim(), 1, PARSE_REPS_MAX)).filter(x => x !== null);
   if (!nums.length) return;
   const lo = Math.min(...nums), hi = Math.max(...nums);
   presc.repMin = lo; presc.repMax = hi;
