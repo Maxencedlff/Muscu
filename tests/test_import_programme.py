@@ -143,4 +143,70 @@ def t_pdf(bench):
             R.check(not page.errors, f'{dev} PDF : aucune erreur JS {page.errors}')
 
 
-run_main(R, [t_import_texte], once=[t_corriger_enregistrer, t_pdf])
+# Faux pont de lecture (js/platform/plan-reader.js, branche import-natif) : même forme de réponses que le vrai
+FAKE_READER = """window.PlanReader = {
+  available: true,
+  sources: async () => ({ photos: true, camera: true, scan: true }),
+  pick: async (source, o) => { window.__pick = { source, words: (o.customWords || []).length };
+    const w = (text, x, y) => ({ text, box: { x, y, w: text.length * 0.012, h: 0.02 } });
+    return { ok: true, source, pages: [{ width: 1000, height: 1400, lines: [
+      { text: 'Lundi - Pecs', box: { x: 0.05, y: 0.05, w: 0.2, h: 0.02 }, words: [] },
+      { text: 'Dévelopé couche 4x1O', box: { x: 0.05, y: 0.1, w: 0.4, h: 0.02 }, words: [w('Dévelopé', 0.05, 0.1), w('couche', 0.16, 0.1), w('4x1O', 0.3, 0.1)] },
+      { text: 'Ecarté poulie 3x15 repos 1min', box: { x: 0.05, y: 0.14, w: 0.5, h: 0.02 }, words: [] } ] }] }; },
+  readFile: async () => ({ ok: false, reason: 'failed', message: 'La lecture a échoué, réessaie' }),
+  dictation: { available: true,
+    start: async o => { window.__dict = (window.__dict || 0) + 1; return { ok: true, onDevice: true }; },
+    stop: async () => ({ ok: true, text: ['développé couché', '4 séries de 8 repos 2 minutes'][(window.__dict - 1) % 2], segments: [] }),
+    cancel: async () => ({ ok: true }) },
+};"""
+
+
+def t_photo_dictee(bench):
+    """Avec le module de lecture de l'iPhone : « Photo », « Scanner » et « Dicter » proposés ; photo bruitée comprise,
+    dictée pas à pas (exercice puis séries). Sans module (navigateur) : seulement Coller et Choisir un fichier."""
+    with bench.page('webkit', 'iPhone 13', 'dark') as page:
+        seed(page, 'dark', None)
+        skip_questions(page)
+        open_paste(page)
+        R.check(page.locator('[data-action="pimp-photo"], [data-action="pimp-dictate"]').count() == 0, 'sans module : ni Photo ni Dicter')
+    for theme in ('dark', 'light'):
+        with bench.page('webkit', 'iPhone 13', theme) as page:
+            page.add_init_script(FAKE_READER)
+            seed(page, theme, None)
+            skip_questions(page)
+            open_paste(page)
+            acts = [page.locator(f'[data-action="{a}"]').count() for a in ('pimp-photo', 'pimp-scan', 'pimp-dictate', 'pimp-file')]
+            R.check(acts == [1, 1, 1, 1], f'{theme} module : Photo, Scanner, Dicter, Fichier {acts}')
+            shot(page, LOT, f'coller-module-iPhone_13-{theme}')
+            page.click('[data-action="pimp-scan"]')
+            page.wait_for_selector('.pimp-row')
+            settle(page)
+            rows = page.locator('.pimp-row .cell__title').all_inner_texts()
+            subs = page.locator('.pimp-row .cell__sub.num').all_inner_texts()
+            R.check(rows == ['Développé couché barre', 'Écarté poulie vis-à-vis'], f'{theme} scan bruité : {rows}')
+            R.check(subs[:1] == ['4 × 10'], f'{theme} scan : « 4x1O » lu 4 × 10 {subs}')
+            R.check(page.evaluate('window.__pick.source') == 'scan' and page.evaluate('window.__pick.words') > 100, 'scan : vocabulaire de la bibliothèque donné à Vision')
+            if theme == 'dark':
+                page.click('[data-action="pimp-edit-text"]')
+                page.wait_for_selector('[data-action="pimp-dictate"]')
+                page.click('[data-action="pimp-dictate"]')
+                page.wait_for_selector('.ios-dialog')
+                page.locator('.ios-dialog button', has_text='Pas à pas').click()
+                page.wait_for_selector('#pimpDict')
+                settle(page)
+                R.check(page.locator('.sheet-root:not(.sheet-root--out) .sheet__title').inner_text() == 'Quel exercice ?', 'dictée guidée : 1re question')
+                shot(page, LOT, 'dictee-guidee-iPhone_13-dark')
+                page.click('.sheet-root:not(.sheet-root--out) .sheet__btn--confirm')
+                page.locator('.sheet-root:not(.sheet-root--out) .sheet__title', has_text='Combien de séries').wait_for()
+                page.click('.sheet-root:not(.sheet-root--out) .sheet__btn--confirm')
+                page.locator('.sheet-root:not(.sheet-root--out) [data-action="pimp-dict-end"]').wait_for()
+                page.click('.sheet-root:not(.sheet-root--out) [data-action="pimp-dict-end"]')
+                page.wait_for_selector('.pimp-row')
+                settle(page)
+                rows = page.locator('.pimp-row .cell__title').all_inner_texts()
+                subs = page.locator('.pimp-row .cell__sub.num').all_inner_texts()
+                R.check(rows == ['Développé couché barre'] and subs[:1] == ['4 × 8 · repos 2:00'], f'dictée guidée : {rows} {subs}')
+            R.check(not page.errors, f'{theme} module : aucune erreur JS {page.errors}')
+
+
+run_main(R, [t_import_texte], once=[t_corriger_enregistrer, t_pdf, t_photo_dictee])

@@ -24,6 +24,11 @@ function openPlanImport(student = null) {
   navigate(makeRoute('plan-import', 'texte', ...(student ? [student] : [])));
 }
 
+// Lecture par l'iPhone (Apple Vision, dictée sur l'appareil : js/platform/plan-reader.js, vague 2) : proposée seulement
+// quand le module natif est là ; sinon l'écran reste sur Coller et Choisir un fichier
+const pimpReader = () => typeof PlanReader !== 'undefined' && PlanReader.available === true;
+const pimpDictation = () => typeof PlanReader !== 'undefined' && PlanReader.dictation?.available === true;
+
 // ── Écran 1 : coller le texte ou choisir un fichier ──────────
 function renderPimpText(student) {
   const st = pimpState(student || null);
@@ -43,9 +48,12 @@ function renderPimpText(student) {
           <button class="btn btn--primary btn--full" data-action="pimp-read">Lire le programme</button>
         </div>
         <div class="group group--gap">
+          ${pimpReader() ? `<button class="cell cell--action" data-action="pimp-photo">${icon('camera', 20)}<span>Photo</span></button>
+          <button class="cell cell--action" data-action="pimp-scan">${icon('doc.on.doc', 20)}<span>Scanner une feuille</span></button>` : ''}
+          ${pimpDictation() ? `<button class="cell cell--action" data-action="pimp-dictate">${icon('waveform', 20)}<span>Dicter</span></button>` : ''}
           <button class="cell cell--action" data-action="pimp-file">${icon('doc.text', 20)}<span>Choisir un fichier</span></button>
         </div>
-        <div class="group-foot">PDF, texte, ou export de Hevy ou Strong. Tout est lu sur ${esc(thisPhone())}, rien n'est envoyé.</div>
+        <div class="group-foot">${pimpReader() ? 'Photo ou scan d\'une feuille, même écrite à la main, dictée, ' : ''}PDF, texte, ou export de Hevy ou Strong. Tout est lu sur ${esc(thisPhone())}, rien n'est envoyé.</div>
       </div>
     </div>`;
 }
@@ -243,16 +251,28 @@ function pimpSave() {
 function pimpChooseFile() {
   const inp = document.createElement('input');
   inp.type = 'file';
-  inp.accept = '.pdf,application/pdf,.txt,text/plain,.csv,text/csv,.md';
+  inp.accept = `.pdf,application/pdf,.txt,text/plain,.csv,text/csv,.md${pimpReader() ? ',image/*' : ''}`;
   inp.onchange = async ev => {
     const file = ev.target.files?.[0];
     if (!file) return;
     if (file.size > PIMP_FILE_MAX) { showToast('Fichier trop gros (15 Mo au plus)', { error: true }); return; }
     const isPdf = /\.pdf$/i.test(file.name) || file.type === 'application/pdf';
     try {
+      // Image (capture d'écran, photo enregistrée) : lue par Vision
+      if (/^image\//.test(file.type) && pimpReader()) {
+        const r = await PlanReader.readFile(file, { customWords: planDictationWords('exercice') });
+        if (r.ok) pimpRead(planTextFromPages(r.pages), 'photo'); else if (r.message) showToast(r.message, { error: true });
+        return;
+      }
       if (isPdf) {
         showToast('Lecture du PDF…');
         const r = await planPdfText(await file.arrayBuffer());
+        if (!r.text.trim() && pimpReader()) {
+          const scan = await PlanReader.readFile(file, { customWords: planDictationWords('exercice') });
+          if (scan.ok) { pimpRead(planTextFromPages(scan.pages), 'scan'); return; }
+          if (scan.message) showToast(scan.message, { error: true });
+          return;
+        }
         if (!r.text.trim()) { await dialog({ title: 'Pas de texte dans ce PDF', message: 'C\'est sans doute une photo ou un scan. La lecture des photos arrive dans une prochaine version. En attendant, copie le texte du programme et colle-le ici.', actions: [{ label: 'OK', style: 'preferred' }] }); return; }
         pimpRead(r.text, 'pdf');
         return;
@@ -267,7 +287,59 @@ function pimpChooseFile() {
   inp.click();
 }
 
+// Photo, appareil photo ou feuille numérisée : pages lues par Vision, mises en lignes et colonnes par planTextFromPages
+async function pimpFromReader(source) {
+  const r = await PlanReader.pick(source, { limit: 5, customWords: planDictationWords('exercice') });
+  if (!r.ok) { if (r.message) showToast(r.message, { error: r.reason !== 'canceled' }); return; }
+  const text = planTextFromPages(r.pages);
+  if (!text.trim()) { showToast('Aucun texte lu sur cette image'); return; }
+  pimpRead(text, source);
+}
+// Dictée : « Tout d'un coup » (le texte reconnu au fil de la voix), ou « Pas à pas » : l'app demande « Quel exercice ? »
+// puis « Combien de séries et de reps ? », avec un vocabulaire réduit à chaque question (dictée plus fiable)
+const PIMP_STEPS = [{ q: 'Quel exercice ?', words: 'exercice', hint: 'Exemple : développé couché' },
+  { q: 'Combien de séries et de reps ?', words: 'prescription', hint: 'Exemple : 4 séries de 10, repos 2 minutes' }];
+async function pimpDictate() {
+  const mode = await dialog({ type: 'sheet', title: 'Dicter le programme', message: 'Sur ton iPhone, sans Internet.', actions: [
+    { label: 'Pas à pas', value: 'guide', style: 'preferred', sub: 'L\'app te demande l\'exercice, puis les séries et les reps' },
+    { label: 'Tout d\'un coup', value: 'libre', sub: 'Dis « séance push », puis chaque exercice' },
+    { label: 'Annuler', style: 'cancel' }] });
+  if (!mode) return;
+  const lines = [];
+  let step = 0;
+  for (;;) {
+    const guide = mode === 'guide', st = PIMP_STEPS[step % 2];
+    let partial = '';
+    const go = await PlanReader.dictation.start({ contextualStrings: planDictationWords(guide ? st.words : 'tout'),
+      onPartial: t => { partial = t; const el = $('#pimpDict'); if (el) el.textContent = t; } });
+    if (!go.ok) { if (go.message) showToast(go.message, { error: go.reason !== 'canceled' }); return; }
+    const done = await sheet({ title: guide ? st.q : 'Dicte ton programme', cancel: 'Annuler', confirm: guide ? 'Suivant' : 'Terminé',
+      body: `<p class="imp__lead">${esc(guide ? st.hint : 'Exemple : séance push, développé couché 4 séries de 10, ensuite élévations latérales 3 fois 15.')}</p>
+        <p class="pimp-dict" id="pimpDict" role="status" aria-live="polite">${esc(lines.length ? `${lines.length} ligne${lines.length > 1 ? 's' : ''} dictée${lines.length > 1 ? 's' : ''}` : '')}</p>
+        ${guide && lines.length ? '<button class="imp-pick imp-pick--keep" data-action="pimp-dict-end">J\'ai fini</button>' : ''}` });
+    // Annuler, ou « J'ai fini » à la question suivante : ce qui vient d'être dit n'est pas gardé
+    if (done === null) { await PlanReader.dictation.cancel(); if (!pimpDictEnd && !lines.length) return; break; }
+    const r = await PlanReader.dictation.stop();
+    const said = (r.ok ? r.text : partial).trim();
+    if (said) lines.push(said);
+    if (!guide) break;
+    step++;
+  }
+  pimpDictEnd = false;
+  if (!lines.length) return;
+  pimpRead(lines.join('\n'), 'dictee');
+}
+let pimpDictEnd = false;
+
 registerActions({
+  'pimp-photo': async () => {
+    const v = await dialog({ type: 'sheet', title: 'Photo du programme', actions: [{ label: 'Prendre une photo', value: 'camera', style: 'preferred' },
+      { label: 'Choisir dans Photos', value: 'photos' }, { label: 'Annuler', style: 'cancel' }] });
+    if (v) await pimpFromReader(v);
+  },
+  'pimp-scan': () => pimpFromReader('scan'),
+  'pimp-dictate': () => pimpDictate(),
+  'pimp-dict-end': () => { pimpDictEnd = true; closeTopSheet(); },
   'plan-import': (e, el) => openPlanImport(el?.dataset?.uid || null),
   'pimp-read': () => {
     const t = ($('#pimpText')?.value ?? pimp?.text ?? '').slice(0, PIMP_TEXT_MAX);

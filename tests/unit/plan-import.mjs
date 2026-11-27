@@ -110,6 +110,19 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     assert.equal(d.sessions[0].items[1].level, 'check', 'reps non lues : à vérifier');
   });
 
+  test('import de programme : pages d\'Apple Vision (boîtes de 0 à 1, mots placés) remises en tableau', () => {
+    const w = (text, x, y) => ({ text, box: { x, y, w: text.length * 0.012, h: 0.02 } });
+    // Une ligne de Vision qui traverse les colonnes : ses mots gardent leur place
+    const pages = [{ width: 1000, height: 1400, lines: [
+      { text: 'Séance A', box: { x: 0.05, y: 0.05, w: 0.1, h: 0.02 }, words: [] },
+      { text: 'Exercice Séries Reps Repos', box: { x: 0.05, y: 0.1, w: 0.7, h: 0.02 }, words: [w('Exercice', 0.05, 0.1), w('Séries', 0.4, 0.1), w('Reps', 0.55, 0.1), w('Repos', 0.7, 0.1)] },
+      { text: 'Squat barre 5 5 3 min', box: { x: 0.05, y: 0.14, w: 0.7, h: 0.02 }, words: [w('Squat', 0.05, 0.14), w('barre', 0.12, 0.14), w('5', 0.4, 0.14), w('5', 0.55, 0.14), w('3', 0.7, 0.14), w('min', 0.715, 0.14)] },
+    ] }];
+    const d = parse(run(`planTextFromPages(${JSON.stringify(pages)})`));
+    sameJSON(d.sessions.map(s => [s.label, s.items.map(i => [i.name, i.presc.sets, i.presc.repMax, i.presc.rest])]), [['Séance A', [['Squat barre', 5, 5, 180]]]]);
+    assert.ok(run('planDictationWords("exercice").length') <= 300 && run('planDictationWords("exercice").includes("Développé couché barre")'));
+  });
+
   test('import de programme : confiance par ligne et programme créé (valide après nettoyage)', () => {
     reset();
     const d = parse('Push\nDC 4x8-10 2min\nÉlév lat 4x15 (dernière série en drop set)\nTruc bizarre 3x10\nA1. Curl 3x12 tempo 3-1-1\nA2. Barre au front 3x12 70%');

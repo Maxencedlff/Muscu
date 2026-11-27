@@ -30,3 +30,4 @@
   font: inherit; font-size: var(--fs-footnote); font-weight: 600; text-transform: none; cursor: pointer;
 }
 .pimp-notes .cell { min-height: 0; padding-top: 8px; padding-bottom: 8px; }
+.pimp-dict { min-height: 3.2em; margin: 8px 0 12px; color: var(--label); font-size: var(--fs-body); line-height: 1.4; }

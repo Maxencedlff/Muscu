@@ -19,8 +19,14 @@ des corrections.
 | Android : photo | ML Kit Text Recognition (sur l'appareil, gratuit) | plus tard |
 
 La partie native de la vague 2 (modules `PlanReaderPlugin`, `PlanDictationPlugin`, pont `js/platform/plan-reader.js`)
-est préparée sur la branche `import-natif`. Le moteur l'attend déjà : `planTextFromBoxes(items)` prend des boîtes
-`{ text, x, y, w, h }` (origine en haut à gauche) et rend le texte, cases d'un tableau séparées par des tabulations.
+est préparée sur la branche `import-natif`. Le moteur la lit déjà : `planTextFromPages(pages)` prend les pages de
+`PlanReader` (lignes et mots, boîtes de 0 à 1, origine en haut à gauche) et `planTextFromBoxes(items)` des boîtes
+`{ text, x, y, w, h }` ; le texte rendu garde les cases d'un tableau séparées par des tabulations. L'écran propose
+« Photo », « Scanner une feuille » et « Dicter » seulement quand `PlanReader.available` (et
+`PlanReader.dictation.available`) ; sinon il reste sur Coller et Choisir un fichier. Un PDF sans texte passe par
+`PlanReader.readFile` (scan). Dictée : « Tout d'un coup », ou « Pas à pas » (« Quel exercice ? » puis « Combien de
+séries et de reps ? », vocabulaire réduit à chaque question, `planDictationWords`). Testé avec un faux pont de même
+forme (`tests/test_import_programme.py`).
 
 ## Le moteur (`js/data/plan-*.js`)
 

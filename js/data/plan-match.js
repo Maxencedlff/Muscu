@@ -215,3 +215,15 @@ function planMatchLibrary(text, none) {
   if (!best || best.score < PARSE_MATCH_MIN) return { ...none, guess: best && best.score >= 0.45 ? best.name : null };
   return { name: best.name, score: Math.round(Math.min(0.94, best.score) * 100) / 100, how: 'fuzzy', raw: text };
 }
+
+// Vocabulaire donné à la dictée (contextualStrings de SFSpeechRecognizer, 300 mots au plus côté pont) : step 'exercice'
+// = noms de la bibliothèque puis leurs alias français les plus courts ; step 'prescription' = mots des séries et du repos
+const PARSE_DICT_PRESC = ['séries', 'série', 'reps', 'répétitions', 'fois', 'repos', 'récupération', 'minutes', 'minute', 'secondes',
+  'max', 'drop set', 'dégressif', 'rest-pause', 'superset', 'tempo', 'kilos', 'RPE', 'RIR', 'par bras', 'par jambe', 'séance', 'ensuite'];
+function planDictationWords(step = 'tout') {
+  const names = EXERCISE_CATALOGUE.map(e => e.name);
+  const fr = EXERCISE_CATALOGUE.flatMap(e => e.aliases).filter(a => /[éèàçù]|^(?:dc|sdt|rdl|ohp)$/i.test(a) || a.split(' ').length <= 2);
+  if (step === 'prescription') return PARSE_DICT_PRESC.slice();
+  const words = [...new Set([...names, ...fr])];
+  return step === 'exercice' ? words.slice(0, 300) : [...PARSE_DICT_PRESC, ...words].slice(0, 300);
+}

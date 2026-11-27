@@ -205,3 +205,21 @@ function planColumnAnchors(xs, gap) {
   }
   return groups.map(g => g.reduce((s, v) => s + v, 0) / g.length);
 }
+
+// Pages lues par Apple Vision (PlanReader, js/platform/plan-reader.js) : { width, height, lines: [{ text, box, words }] },
+// boîtes de 0 à 1, origine en haut à gauche. Les mots gardent leur place (une ligne de Vision peut traverser deux
+// colonnes d'un tableau) ; une ligne sans mots compte d'un bloc. Pages mises l'une sous l'autre, séparées d'une ligne vide
+function planTextFromPages(pages) {
+  const items = [];
+  let top = 0;
+  for (const p of (Array.isArray(pages) ? pages : []).slice(0, 50)) {
+    const W = p?.width > 0 ? p.width : 1000, H = p?.height > 0 ? p.height : 1400;
+    const put = (t, b) => { if (t && b) items.push({ text: t, x: b.x * W, y: top + b.y * H, w: b.w * W, h: b.h * H }); };
+    for (const l of Array.isArray(p?.lines) ? p.lines : []) {
+      const words = Array.isArray(l?.words) ? l.words.filter(w => w?.text && w.box) : [];
+      if (words.length) words.forEach(w => put(String(w.text), w.box)); else put(String(l?.text ?? ''), l?.box);
+    }
+    top += H + 60;
+  }
+  return planTextFromBoxes(items);
+}
