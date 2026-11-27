@@ -362,6 +362,46 @@ Références Apple : « Requesting people's age range information in your app »
 `AgeRangeService.requestAgeRange(ageGates:_:_:in:)`, `AgeRangeService.Response`, `AgeRangeService.AgeRange`,
 `AgeRangeService.Error`, entitlement `com.apple.developer.declared-age-range`.
 
+### Import d'un programme : lecture et dictée sur l'iPhone (`PlanReaderPlugin.swift`, `PlanDictationPlugin.swift`)
+
+Deux modules gratuits, sans réseau, qui fournissent le TEXTE d'un programme au moteur d'analyse
+(`js/data/plan-parser.js`). Côté web : `js/platform/plan-reader.js` (`PlanReader`), chargé après `native.js`. Aucune
+fonction ne lève : `{ ok: true, … }` ou `{ ok: false, reason, message }` (message prêt à afficher ; `web` :
+« Disponible dans l'app iPhone », `unsupported` sur Android, `outdated` sur une build d'avant les modules).
+
+| Pont (`PlanReader.*`) | Module Swift | Réponse |
+|---|---|---|
+| `sources()` | `MdlfPlanReader.sources` | `{ photos, camera, scan }` (simulateur : photos seul) |
+| `pick(source, { limit, customWords })` | `pick` : `photos` (PHPicker, sans autorisation, 1 à 10), `camera` (UIImagePickerController), `scan` (VNDocumentCameraViewController : feuille détourée et redressée, 30 pages au plus) | `{ ok, source, pages }` |
+| `readImage({ path \| base64, customWords })` | `readImage` | `{ ok, pages: [page] }` |
+| `readPdfScan({ path \| base64, maxPages, customWords })` | `readPdfScan` : chaque page rendue (PDFKit, ~300 ppp) puis lue | `{ ok, pages, pageCount, truncated, hasTextLayer }` |
+| `readFile(file, opts)` | `readImage` ou `readPdfScan` | fichier d'un `<input type="file">`, envoyé en base64 (40 Mo au plus) |
+| `dictation.status()` / `authorize()` | `MdlfPlanDictation.status` / `authorize` | `{ available, onDevice, speech, microphone }` (`authorized`, `denied`, `restricted`, `notDetermined`) |
+| `dictation.start({ contextualStrings, allowServer, onPartial, onFinal, onError })` | `start` | `{ ok, onDevice }` ; puis `onPartial(texte)`, `onFinal({ text, segments, onDevice })` |
+| `dictation.stop()` / `cancel()` | `stop` (attend le texte définitif, 3 s au plus) / `cancel` | `{ ok, text, segments }` / `{ ok }` |
+
+`page = { width, height, text, lines: [{ text, confidence, box, words: [{ text, box }] }] }` ; `box = { x, y, w, h }`
+de 0 à 1, origine en haut à gauche (Vision compte depuis le bas : converti dans le Swift). Les mots (suites sans
+espace : « 4x10 » et « 90s » restent entiers) servent à reconstruire les colonnes d'un tableau.
+
+- **Vision** : `VNRecognizeTextRequest` en mode `.accurate` (le seul qui lit l'écriture manuscrite), `fr-FR` puis
+  `en-US`, correction linguistique, `customWords` = noms d'exercices envoyés par le JS (300 au plus).
+- **Dictée** : `SFSpeechRecognizer` `fr-FR`, `requiresOnDeviceRecognition` dès que `supportsOnDeviceRecognition`.
+  Sinon refus `OFFLINE_UNAVAILABLE`, « Dictée hors ligne indisponible sur cet appareil » : **jamais de bascule
+  silencieuse** vers les serveurs d'Apple. `allowServer: true` (seule valeur acceptée) ne doit être envoyé qu'après
+  un accord explicite donné dans l'app. `contextualStrings` : noms et alias de la bibliothèque (300 au plus). Arrêt
+  automatique après 5 min, à un appel ou en arrière-plan ; la session audio est rendue telle qu'elle était.
+- **Entrées** : un `path` n'est lu que dans le conteneur de l'app (une mise à jour à chaud compromise ne lit rien
+  d'autre) ; lecture par `FileHandle` bornée, sans API à motif déclaré.
+- **Autorisations** : `NSCameraUsageDescription` (texte complété), `NSMicrophoneUsageDescription`,
+  `NSSpeechRecognitionUsageDescription`. Photos passe par PHPicker : aucune autorisation.
+- **Confidentialité** : rien ne quitte l'iPhone (images, voix, texte), donc rien de « collecté » au sens d'App Store
+  Connect et rien à ajouter à `PrivacyInfo.xcprivacy`. Le programme créé est ensuite une donnée de l'app comme une
+  autre (déjà déclarée). Si `allowServer` est un jour proposé, la voix part chez Apple (pas chez nous) : le dire dans
+  `privacy.html` et dans l'écran d'accord.
+- **Tests** : `tests/unit/plan-reader.mjs` (pont et contrat lu dans le vrai Swift), faux modules
+  `tests/fake_plan_reader.py`, `tests/test_plan_reader.py` (pont dans la vraie page, sous la CSP).
+
 ## Mises à jour à chaud (sans repasser par Apple)
 
 Le contenu web de l'app (js/, css/, index.html) peut être mis à jour sans nouvelle version

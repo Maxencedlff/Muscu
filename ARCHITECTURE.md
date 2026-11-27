@@ -46,6 +46,7 @@ privacy.html, mentions-legales.html, cgu.html, cgv.html, legal.css
                       pages juridiques publiques (mdlf.app, publiées par le job deploy via web-public/), sans script ; docs/JURIDIQUE.md
 store/                fiche App Store (captures.py) et captures de revue des abonnements (captures_revue.py → docs/revue/)
 js/platform/native.js pont vers les modules natifs (iOS, Android) ; sans effet dans le navigateur ; `isIPad()`, seule règle « est-ce un iPad » de l'app ; `byPlatform()`, seule règle « quel système » des textes
+js/platform/plan-reader.js pont `PlanReader` vers la lecture d'un programme sur l'iPhone (texte d'une image ou d'un PDF scanné par Apple Vision, dictée hors ligne) ; « Disponible dans l'app iPhone » ailleurs ; contrat dans IOS.md, « Import d'un programme »
 vendor/pdfjs/          pdf.js 4.10.38 (Mozilla, Apache 2.0, LICENSE), version figée embarquée : lecture des PDF de l'import de programme
 ios/                  coquille iOS (Capacitor, modules Swift, extension Live Activity) : IOS.md
 android/              coquille Android en préparation (Capacitor, modules Kotlin) : docs/ANDROID.md

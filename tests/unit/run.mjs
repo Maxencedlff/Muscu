@@ -1484,7 +1484,8 @@ test('iOS : SceneDelegate → MainViewController → chaque module Swift, noms i
   assert.match(ios('SceneDelegate.swift'), /presentingViewController/, 'fermeture depuis le contrôleur qui présente la feuille');
   const main = ios('MainViewController.swift');
   const pbx = fs.readFileSync(path.join(ROOT, 'ios/App/App.xcodeproj/project.pbxproj'), 'utf8');
-  const native = fs.readFileSync(path.join(ROOT, 'js/platform/native.js'), 'utf8');
+  // Ponts vers le natif : native.js, plus plan-reader.js pour la lecture et la dictée d'un programme
+  const native = ['native.js', 'plan-reader.js'].map(f => fs.readFileSync(path.join(ROOT, 'js/platform', f), 'utf8')).join('\n');
   // Tous les fichiers *Plugin.swift (10 au 02/11/2026, dont Store et Vault ; les 3 d'AppExtras ont leur test) : une fusion qui perdrait
   // une ligne registerPluginInstance doit casser ce test.
   const plugins = fs.readdirSync(path.join(ROOT, 'ios/App/App')).filter(f => f.endsWith('Plugin.swift'));
@@ -1497,7 +1498,7 @@ test('iOS : SceneDelegate → MainViewController → chaque module Swift, noms i
     // Régression du 17/10/2026 : un module présent sur le disque mais absent de la cible App
     // (« cannot find 'LiveActivityPlugin' in scope » à la compilation)
     assert.match(pbx, new RegExp(`${file} in Sources \\*/,`), `${file} compilé dans la cible App`);
-    assert.match(native, new RegExp(`plugin\\('${jsName}'\\)`), `native.js appelle ${jsName}`);
+    assert.match(native, new RegExp(`(?:p|registerP)lugin\\('${jsName}'\\)`), `js/platform appelle ${jsName}`);
     // Chaque méthode appelée par native.js est déclarée par le module Swift
     const declared = [...src.matchAll(/CAPPluginMethod\(name: "(\w+)"/g)].map(m => m[1]);
     for (const m of declared) assert.match(src, new RegExp(`@objc func ${m}\\(`), `${file} : ${m} implémentée`);
@@ -2318,6 +2319,8 @@ test('Diagnostic du son : verdict, action courte, cause, aide, « Joué » ou «
 (await import('./social.mjs')).default({ test, run, assert, sameJSON, ROOT });
 // ── Tranche d'âge partagée par Apple, effets sur le social (tests dans age-range.mjs) ──
 (await import('./age-range.mjs')).default({ test, run, assert, sameJSON });
+// ── Lecture et dictée d'un programme sur l'iPhone : pont js/platform/plan-reader.js, contrat du Swift (plan-reader.mjs) ──
+(await import('./plan-reader.mjs')).default({ test, assert, sameJSON, ROOT });
 // ── Prise d'un exercice et ordre de la séance (tests dans grips.mjs) ──
 (await import('./grips.mjs')).default({ test, run, reset, assert, sameJSON });
 // ── Coach : nettoyage, programmes envoyés, import et mise à jour (tests dans coach.mjs) ──

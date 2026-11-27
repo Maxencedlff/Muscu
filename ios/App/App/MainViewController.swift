@@ -3,7 +3,7 @@ import Capacitor
 import WebKit
 
 /// Contrôleur principal de l'app : la vue web Capacitor, plus les modules natifs propres à l'app
-/// (Santé, Apple Music, Live Activity du repos, icône de l'app, copie iCloud, bips, compte, abonnement, notifications push, Apple Watch, widget, Siri, coffre à photos, tranche d'âge, lecteur de code-barres), enregistrés ici car ils ne viennent
+/// (Santé, Apple Music, Live Activity du repos, icône de l'app, copie iCloud, bips, compte, abonnement, notifications push, Apple Watch, widget, Siri, coffre à photos, tranche d'âge, lecteur de code-barres, lecture et dictée d'un programme), enregistrés ici car ils ne viennent
 /// pas d'un paquet npm. Un module absent de cette liste n'existe pas côté JS.
 class MainViewController: CAPBridgeViewController {
     /// iPad (docs/COACH_IPAD.md) : la vue web d'iPadOS se présente par défaut comme Safari sur Mac (« Macintosh »,
@@ -37,6 +37,8 @@ class MainViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(VaultPlugin())
         bridge?.registerPluginInstance(AgeRangePlugin())
         bridge?.registerPluginInstance(ScannerPlugin())
+        bridge?.registerPluginInstance(PlanReaderPlugin())
+        bridge?.registerPluginInstance(PlanDictationPlugin())
     }
 
     /// Canal natif de Capacitor (« bridge ») réservé à la fenêtre principale (docs/COACH_IPAD.md, audit M1) : Capacitor
