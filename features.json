@@ -1,0 +1,339 @@
+{
+ "_doc": "Fonctions visibles de l'app (docs/REVUE_APPLE.md, section 6.2). Toute nouvelle fonction y entre ; la mise à jour à chaud (ota.yml, scripts/check-features-ota.mjs) refuse une fonction absente de store/derniere-build.json. Un écran (SCREENS.set) non déclaré fait échouer tests/unit/features.mjs.",
+ "features": [
+  {
+   "id": "ecran.account",
+   "screens": [
+    "account"
+   ]
+  },
+  {
+   "id": "ecran.checkin",
+   "screens": [
+    "checkin"
+   ]
+  },
+  {
+   "id": "ecran.coach",
+   "screens": [
+    "coach"
+   ]
+  },
+  {
+   "id": "ecran.coach-chat",
+   "screens": [
+    "coach-chat"
+   ]
+  },
+  {
+   "id": "ecran.coach-devices",
+   "screens": [
+    "coach-devices"
+   ]
+  },
+  {
+   "id": "ecran.coach-ex-progress",
+   "screens": [
+    "coach-ex-progress"
+   ]
+  },
+  {
+   "id": "ecran.coach-join",
+   "screens": [
+    "coach-join"
+   ]
+  },
+  {
+   "id": "ecran.coach-measure",
+   "screens": [
+    "coach-measure"
+   ]
+  },
+  {
+   "id": "ecran.coach-measures",
+   "screens": [
+    "coach-measures"
+   ]
+  },
+  {
+   "id": "ecran.coach-mine",
+   "screens": [
+    "coach-mine"
+   ]
+  },
+  {
+   "id": "ecran.coach-photos",
+   "screens": [
+    "coach-photos"
+   ]
+  },
+  {
+   "id": "ecran.coach-photos-mine",
+   "screens": [
+    "coach-photos-mine"
+   ]
+  },
+  {
+   "id": "ecran.coach-plan",
+   "screens": [
+    "coach-plan"
+   ]
+  },
+  {
+   "id": "ecran.coach-planning",
+   "screens": [
+    "coach-planning"
+   ]
+  },
+  {
+   "id": "ecran.coach-presc",
+   "screens": [
+    "coach-presc"
+   ]
+  },
+  {
+   "id": "ecran.coach-request",
+   "screens": [
+    "coach-request"
+   ]
+  },
+  {
+   "id": "ecran.coach-send",
+   "screens": [
+    "coach-send"
+   ]
+  },
+  {
+   "id": "ecran.coach-send-many",
+   "screens": [
+    "coach-send-many"
+   ]
+  },
+  {
+   "id": "ecran.coach-session",
+   "screens": [
+    "coach-session"
+   ]
+  },
+  {
+   "id": "ecran.coach-share",
+   "screens": [
+    "coach-share"
+   ]
+  },
+  {
+   "id": "ecran.coach-student",
+   "screens": [
+    "coach-student"
+   ]
+  },
+  {
+   "id": "ecran.coach-students",
+   "screens": [
+    "coach-students"
+   ]
+  },
+  {
+   "id": "ecran.defi",
+   "screens": [
+    "defi"
+   ]
+  },
+  {
+   "id": "ecran.defis-ended",
+   "screens": [
+    "defis-ended"
+   ]
+  },
+  {
+   "id": "ecran.diet-foods",
+   "screens": [
+    "diet-foods"
+   ]
+  },
+  {
+   "id": "ecran.diet-plan",
+   "screens": [
+    "diet-plan"
+   ]
+  },
+  {
+   "id": "ecran.diet-plans",
+   "screens": [
+    "diet-plans"
+   ]
+  },
+  {
+   "id": "ecran.diet-send",
+   "screens": [
+    "diet-send"
+   ]
+  },
+  {
+   "id": "ecran.diet-settings",
+   "screens": [
+    "diet-settings"
+   ]
+  },
+  {
+   "id": "ecran.friends",
+   "screens": [
+    "friends"
+   ]
+  },
+  {
+   "id": "ecran.guide",
+   "screens": [
+    "guide"
+   ]
+  },
+  {
+   "id": "ecran.guide-topic",
+   "screens": [
+    "guide-topic"
+   ]
+  },
+  {
+   "id": "ecran.lib-pick",
+   "screens": [
+    "lib-pick"
+   ]
+  },
+  {
+   "id": "ecran.library",
+   "screens": [
+    "library"
+   ]
+  },
+  {
+   "id": "ecran.library-ex",
+   "screens": [
+    "library-ex"
+   ]
+  },
+  {
+   "id": "ecran.muscles-unknown",
+   "screens": [
+    "muscles-unknown"
+   ]
+  },
+  {
+   "id": "ecran.notifications",
+   "screens": [
+    "notifications"
+   ]
+  },
+  {
+   "id": "ecran.nutrition",
+   "screens": [
+    "nutrition"
+   ]
+  },
+  {
+   "id": "ecran.paywall",
+   "screens": [
+    "paywall"
+   ]
+  },
+  {
+   "id": "ecran.prog-gen",
+   "screens": [
+    "prog-gen"
+   ]
+  },
+  {
+   "id": "ecran.social-manage",
+   "screens": [
+    "social-manage"
+   ]
+  },
+  {
+   "id": "ecran.social-me",
+   "screens": [
+    "social-me"
+   ]
+  },
+  {
+   "id": "ecran.social-people",
+   "screens": [
+    "social-people"
+   ]
+  },
+  {
+   "id": "ecran.social-profile",
+   "screens": [
+    "social-profile"
+   ]
+  },
+  {
+   "id": "ecran.social-rules",
+   "screens": [
+    "social-rules"
+   ]
+  },
+  {
+   "id": "ecran.social-session",
+   "screens": [
+    "social-session"
+   ]
+  },
+  {
+   "id": "ecran.stats-muscles",
+   "screens": [
+    "stats-muscles"
+   ]
+  },
+  {
+   "id": "ecran.strava",
+   "screens": [
+    "strava"
+   ]
+  },
+  {
+   "id": "ecran.subscription",
+   "screens": [
+    "subscription"
+   ]
+  },
+  {
+   "id": "ecran.water-cups",
+   "screens": [
+    "water-cups"
+   ]
+  },
+  {
+   "id": "programme.import-texte-pdf",
+   "screens": [
+    "plan-import"
+   ],
+   "actions": [
+    "plan-import",
+    "pimp-read",
+    "pimp-file",
+    "pimp-save"
+   ],
+   "desc": "Importer un programme : texte collé, PDF, fichier, écran Vérifier l'import, corrections retenues"
+  },
+  {
+   "id": "programme.import-photo-dictee",
+   "actions": [
+    "pimp-photo",
+    "pimp-scan",
+    "pimp-dictate"
+   ],
+   "desc": "Importer un programme : photo, scan d'une feuille (Apple Vision) et dictée hors ligne (modules natifs)"
+  },
+  {
+   "id": "reglages.corrections-retenues",
+   "actions": [
+    "go-plan-aliases",
+    "pimp-alias",
+    "pimp-aliases-forget"
+   ],
+   "desc": "Réglages : liste et effacement des corrections retenues à l'import d'un programme",
+   "screens": [
+    "plan-aliases"
+   ]
+  }
+ ]
+}

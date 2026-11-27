@@ -367,7 +367,7 @@ Références Apple : « Requesting people's age range information in your app »
 Deux modules gratuits, sans réseau, qui fournissent le TEXTE d'un programme au moteur d'analyse
 (`js/data/plan-parser.js`). Côté web : `js/platform/plan-reader.js` (`PlanReader`), chargé après `native.js`. Aucune
 fonction ne lève : `{ ok: true, … }` ou `{ ok: false, reason, message }` (message prêt à afficher ; `web` :
-« Disponible dans l'app iPhone », `unsupported` sur Android, `outdated` sur une build d'avant les modules).
+« Disponible dans l'app iPhone et iPad », `unsupported` sur Android, `outdated` sur une build d'avant les modules).
 
 | Pont (`PlanReader.*`) | Module Swift | Réponse |
 |---|---|---|
@@ -376,6 +376,8 @@ fonction ne lève : `{ ok: true, … }` ou `{ ok: false, reason, message }` (mes
 | `readImage({ path \| base64, customWords })` | `readImage` | `{ ok, pages: [page] }` |
 | `readPdfScan({ path \| base64, maxPages, customWords })` | `readPdfScan` : chaque page rendue (PDFKit, ~300 ppp) puis lue | `{ ok, pages, pageCount, truncated, hasTextLayer }` |
 | `readFile(file, opts)` | `readImage` ou `readPdfScan` | fichier d'un `<input type="file">`, envoyé en base64 (40 Mo au plus) |
+| option `onProgress({ done, total })` de `pick`, `readImage`, `readPdfScan`, `readFile` | événement `progress` `{ done, total }`, émis au début (`done` 0) puis après chaque page | écouteur posé avant l'appel, retiré après ; valeurs bornées ; une erreur de l'écran ne remonte pas |
+| `cancelRead()` | `cancelRead` : drapeau lu entre deux pages | `{ ok: true }` ; la lecture en cours rejette `CANCELED` (`reason: 'canceled'`) ; `outdated` sur une build sans la méthode |
 | `dictation.status()` / `authorize()` | `MdlfPlanDictation.status` / `authorize` | `{ available, onDevice, speech, microphone }` (`authorized`, `denied`, `restricted`, `notDetermined`) |
 | `dictation.start({ contextualStrings, allowServer, onPartial, onFinal, onError })` | `start` | `{ ok, onDevice }` ; puis `onPartial(texte)`, `onFinal({ text, segments, onDevice })` |
 | `dictation.stop()` / `cancel()` | `stop` (attend le texte définitif, 3 s au plus) / `cancel` | `{ ok, text, segments }` / `{ ok }` |
@@ -391,6 +393,11 @@ espace : « 4x10 » et « 90s » restent entiers) servent à reconstruire les co
   silencieuse** vers les serveurs d'Apple. `allowServer: true` (seule valeur acceptée) ne doit être envoyé qu'après
   un accord explicite donné dans l'app. `contextualStrings` : noms et alias de la bibliothèque (300 au plus). Arrêt
   automatique après 5 min, à un appel ou en arrière-plan ; la session audio est rendue telle qu'elle était.
+- **Mémoire** : aucune image décodée en pleine taille. Octets (photothèque, fichier) → miniature ImageIO
+  (`CGImageSourceCreateThumbnailAtIndex`, `kCGImageSourceThumbnailMaxPixelSize` 3 000, orientation EXIF appliquée) ;
+  photo de l'appareil et page numérisée → 3 000 px au plus, dessinées une fois à cette taille ; page de PDF rendue à
+  300 ppp bornée à 3 000 px, à l'échelle 1. Une page à la fois (`autoreleasepool`), les pages numérisées chargées à
+  leur tour. Fond blanc sous une image transparente.
 - **Entrées** : un `path` n'est lu que dans le conteneur de l'app (une mise à jour à chaud compromise ne lit rien
   d'autre) ; lecture par `FileHandle` bornée, sans API à motif déclaré.
 - **Autorisations** : `NSCameraUsageDescription` (texte complété), `NSMicrophoneUsageDescription`,

@@ -91,7 +91,9 @@ function planSourceLines(text) {
   if (long.length) {
     s = lines.map(l => (l.length > 160 || (lines.length <= 3 && l.length > 80) ? planPlainSafe(l) : l)).join('\n');
   }
-  return s.split('\n').slice(0, PARSE_MAX_LINES);
+  const all = s.split('\n'), out = all.slice(0, PARSE_MAX_LINES);
+  out.cut = all.length > PARSE_MAX_LINES || String(text ?? '').length > PARSE_MAX_CHARS;   // texte coupé : dit à l'écran
+  return out;
 }
 // Coupe sur une copie sans accents mais garde le texte d'origine : on repère les positions sur la forme simple
 function planPlainSafe(l) {
@@ -159,7 +161,8 @@ function planSplitBare(text) {
 // item : { id, src (ligne source), raw (nom lu), name (fiche ou null), score, how, presc, level, ssKey? }
 function planParse(text, { learned = null } = {}) {
   const src = planSourceLines(text);
-  const draft = { title: null, sessions: [], lines: [], notes: [] };
+  // cut : limites atteintes (texte, exercices, séances), dites à l'écran « Vérifier l'import »
+  const draft = { title: null, sessions: [], lines: [], notes: [], cut: { text: !!src.cut, items: false, sessions: false } };
   let session = null, skipSection = false, table = null, pendingName = null, ssOpen = null, nItems = 0, seq = 0;
   const lineRec = (txt, role, item = null) => { const r = { text: txt, role }; if (item) r.item = item; draft.lines.push(r); return r; };
   const ensureSession = () => {
@@ -167,9 +170,11 @@ function planParse(text, { learned = null } = {}) {
     return session;
   };
   const pushItem = (srcLine, read, m) => {
-    if (nItems >= PARSE_MAX_ITEMS) return null;
+    if (nItems >= PARSE_MAX_ITEMS) { draft.cut.items = true; return null; }
     const item = { id: `l${++seq}`, src: srcLine, raw: read.name.slice(0, PARSE_NAME_MAX), name: m.name, score: m.score, how: m.how,
       guess: m.guess || null, presc: { ...read.presc }, marks: read.marks };
+    // « Weighted dips », « Dips lestés » : la fiche est « Dips », le lest reste dans la consigne
+    if (PARSE_WEIGHTED.test(read.name) && !/lest|weighted/i.test(m.name || '')) item.presc.weighted = true;
     ensureSession().items.push(item);
     nItems++;
     return item;
@@ -314,7 +319,8 @@ function planFinish(draft) {
       return !weak;
     });
   });
-  draft.sessions = draft.sessions.filter(s => s.items.length).slice(0, PARSE_MAX_SESSIONS);
+  draft.sessions = draft.sessions.filter(s => s.items.length);
+  if (draft.sessions.length > PARSE_MAX_SESSIONS) { if (draft.cut) draft.cut.sessions = true; draft.sessions = draft.sessions.slice(0, PARSE_MAX_SESSIONS); }
   draft.sessions.forEach((s, i) => {
     if (!s.label) s.label = draft.sessions.length > 1 ? `Séance ${String.fromCharCode(65 + i)}` : 'Séance';
     planGroupSupersets(s.items);
@@ -339,10 +345,12 @@ function planGroupSupersets(items) {
   items.forEach(it => { if (it.ss && items.filter(x => x.ss === it.ss).length < 2) delete it.ss; });
 }
 // Confiance : sûr (nom reconnu et séries × reps lues), à vérifier (nom approché ou prescription incomplète), pas compris
+const PARSE_WEIGHTED = /\blest[ée]e?s?\b|\bweighted\b|\bavec\s+(?:du\s+)?lest\b/i;
 function planGrade(it) {
   const why = [];
   if (!it.name) why.push('exercice');
   else if (it.score < 0.85) why.push('nom');
+  else if (it.how !== 'manual' && it.how !== 'learned' && planEquipMismatch(it.raw, it.name)) why.push('matériel');
   if (!planWorkComplete(it.presc)) why.push(it.presc.sets === undefined ? 'séries' : 'reps');
   it.level = !it.name ? 'unknown' : why.length ? 'check' : 'sure';
   it.why = why;
@@ -352,6 +360,7 @@ function planGrade(it) {
 // Consigne écrite pour ce que le programme ne porte pas en champ (pourcentage, RPE, RIR, max, par bras, pyramide, durée)
 function planConsigne(p) {
   const bits = [];
+  if (p.weighted) bits.push('Lesté');
   if (p.pct) bits.push(`${fmtNum(p.pct)} % du max`);
   if (p.rpe) bits.push(`RPE ${fmtNum(p.rpe)}`);
   if (p.rir !== undefined) bits.push(`RIR ${p.rir}`);

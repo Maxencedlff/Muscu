@@ -176,6 +176,7 @@ ${renderAppleServicesGroup(switchHtml)}
         </div>
 ${renderCoachSettingsGroup()}
 ${renderConnectionsGroup()}
+${planAliasesSettingsHtml()}
 
         <div class="group-title">Données</div>
         <div class="group">

@@ -29,14 +29,16 @@
 // dietPlans, dietActive, dietFoods (js/data/nutrition.js) : plans diète (les miens et ceux reçus d'un coach),
 // plan suivi et aliments perso (dietFoodsGone : identifiants de ceux retirés de Mes aliments, pour qu'un autre appareil
 // ne les fasse pas revenir) : seulement avec l'accord (SYNC_DIET_CONSENT_KEYS) ; dietConsent : cet accord daté.
-// planAliases (js/data/plan-aliases.js) : corrections apprises à l'import d'un programme, fusionnées par union, pour qu'un
-// import fait sur l'iPad reconnaisse ce que le coach a corrigé sur son iPhone. Des noms d'exercices, rien de personnel.
+// planAliases, planAliasesAt (js/data/plan-aliases.js) : corrections retenues à l'import d'un programme (mots lus et nom de
+// l'exercice) et leurs dates, pour qu'un import fait sur l'iPad reconnaisse ce que le coach a corrigé sur son iPhone ;
+// fusionnées clé par clé, la plus récente gagne (mergePlanAliases), une correction oubliée ne revient pas. Écrit dans
+// privacy.html ; liste et effacement : Réglages › Programmes › Corrections retenues.
 // appVersion / appSeenAt (noteAppVersion) : version du contenu de l'app et date où elle a été vue,
 // pour savoir côté serveur qui a quelle version ; le dernier appareil lancé l'emporte, rien d'autre ne part.
 const SYNC_PROFILE_KEYS = ['activeProgramme', 'programmes', 'userProgrammes', 'customSessions', 'defaultRest', 'unit',
   'weeklyGoal', 'exEquip', 'onboarded', 'exerciseMuscles', 'exerciseMusclesSecondary', 'exerciseEquip', 'sideFirst', 'silhouette', 'myProgrammes',
   'level', 'sessionVisibleDefault', 'appVersion', 'appSeenAt', 'dietPlans', 'dietActive', 'dietFoods', 'dietFoodsGone', 'dietConsent',
-  'defis', 'defisRecap', 'design', 'planAliases'];
+  'defis', 'defisRecap', 'design', 'planAliases', 'planAliasesAt'];
 // defis (js/data/defis.js, docs/DEFIS.md) : toujours fusionnés (mergeDefis : réglages au plus récent, ajouts réunis
 // moins ceux retirés), jamais recopiés tels quels, dans toutes les branches de applyRemoteProfile ; defisRecap
 // (« Défis dans les récaps », { on, at }) : le choix le plus récent gagne, absent du compte il reste tel quel ici.
@@ -46,7 +48,9 @@ const SYNC_DEFIS_KEYS = ['defis', 'defisRecap'];
 // design (Réglages › Apparence › Design, { accent, at }, js/data/design.js) : même règle que defisRecap, le choix le plus
 // récent gagne (mergeDesign) ; absent du compte (appareil resté sur une version d'avant), il reste tel quel ici. Hors de
 // l'empreinte « modifié ici » : changer de couleur ne fait pas gagner cet appareil sur le reste du profil
-const SYNC_CHOICE_KEYS = ['design'];
+// planAliases et planAliasesAt : même chose, fusion datée clé par clé (mergePlanAliases, js/data/plan-aliases.js) ; une
+// correction faite à l'import ne fait pas gagner cet appareil sur le reste du profil
+const SYNC_CHOICE_KEYS = ['design', 'planAliases', 'planAliasesAt'];
 // Clés de nutrition copiées seulement avec l'accord de la personne (dietConsent.on, js/data/nutrition.js) :
 // sans accord, ou accord retiré, elles ne partent pas et le profil envoyé les efface du serveur. L'accord
 // lui-même ({ on, at }) part toujours : un refus fait sur un appareil vaut pour les autres.
@@ -77,7 +81,7 @@ const SYNC_LOCAL_ONLY = ['history', 'trash', 'bodyWeightKg', 'bodyWeightLog', 'b
 // connaît pas encore (myProgrammes, silhouette) renvoie un profil sans elles, il ne les a pas effacées.
 const SYNC_ABSENT_IS_CHOICE = ['weeklyGoal', 'exerciseMuscles', 'exerciseMusclesSecondary'];
 // Dictionnaires du profil fusionnés élément par élément (programmes, exercices perso…) : rien n'est perdu
-const SYNC_UNION_KEYS = ['programmes', 'userProgrammes', 'customSessions', 'exerciseMuscles', 'exerciseMusclesSecondary', 'exerciseEquip', 'planAliases'];   // nutrition : mergeDietProfile
+const SYNC_UNION_KEYS = ['programmes', 'userProgrammes', 'customSessions', 'exerciseMuscles', 'exerciseMusclesSecondary', 'exerciseEquip'];   // nutrition : mergeDietProfile
 
 // État de synchro vide d'un compte : curseur serveur, empreintes envoyées, profil
 function emptySyncMeta(userId) { return { userId, cursor: null, pushed: {}, pushedCore: {}, profileHash: null, profileCore: null, profileAt: null }; }
@@ -423,6 +427,7 @@ function mergeDefisProfile(d, local, remoteDoc, now = Date.now()) {
 function mergeChoiceProfile(d, local, remoteDoc) {
   const v = mergeDesign(local.design, remoteDoc.design);
   if (v) d.design = v; else delete d.design;
+  planAliasesStore(d, mergePlanAliases(local, remoteDoc));
 }
 
 function applyRemoteProfile(d, remote, meta) {
@@ -434,7 +439,7 @@ function applyRemoteProfile(d, remote, meta) {
   if (localHash === remoteHash) { meta.profileHash = localHash; meta.profileCore = profileCoreHash(doc); meta.dietPlans = dietPlanHashes(doc.dietPlans); return false; }
   const localDiet = Object.fromEntries(SYNC_DIET_ALL_KEYS.map(k => [k, d[k]]));
   const localDefis = { defis: d.defis, defisRecap: d.defisRecap };
-  const localChoice = { design: d.design };
+  const localChoice = { design: d.design, planAliases: d.planAliases, planAliasesAt: d.planAliasesAt };
   const blank = isBlankData(d);
   const before = Object.fromEntries(Object.entries(d.userProgrammes || {}).filter(([, up]) => Array.isArray(up?.order)).map(([k, up]) => [k, up.order.slice()]));
   // Inchangé ici : empreinte égale, ou égale sans l'ordre des séances ajouté par une version précédente,

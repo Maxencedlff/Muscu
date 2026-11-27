@@ -98,7 +98,8 @@ export const REGISTRE = [
   { cle: 'features/import-ui.js:createElement:file', nom: 'Importer un fichier CSV', genre: 'fichier' },
   // ── Importer un programme (docs/IMPORT_PROGRAMME.md) ─────
   { cle: 'features/plan-import-ui.js#pimpText', nom: 'Importer un programme : texte collé', genre: 'texte', vide: 'refuse',
-    preuve: ['.trim()', 'le texte du programme'], serveur: null },
+    preuve: ['.trim()', 'le texte du programme', 'PIMP_TEXT_MAX + 1'], serveur: null,
+    exemption: { longueur: 'coupé à PIMP_TEXT_MAX (20 000) à la lecture, et dit à l\'écran « Vérifier l\'import » : un maxlength couperait un collage en silence (audit M2)' } },
   { cle: 'features/plan-import-ui.js#pimpSearch', nom: 'Importer un programme : recherche dans la bibliothèque', genre: 'recherche', serveur: null },
   { cle: 'features/plan-import-ui.js:createElement:file', nom: 'Importer un programme : fichier PDF, texte ou CSV', genre: 'fichier' },
   { cle: 'features/plan-import-ui.js:askText:Séries et reps', nom: 'Importer un programme : séries et reps d\'une ligne', genre: 'code',

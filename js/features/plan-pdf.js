@@ -1,6 +1,7 @@
 // ═══════════════════════════════════════════════════════════
 //  Importer un programme : texte d'un PDF (docs/IMPORT_PROGRAMME.md, « PDF »)
-//  pdf.js 4.10.38 (Mozilla, Apache 2.0), version figée et embarquée dans vendor/pdfjs/ (aucun script venu d'Internet),
+//  pdf.js 4.10.38, build legacy (Mozilla, Apache 2.0), version figée et embarquée dans vendor/pdfjs/ (aucun script venu d'Internet ;
+//  empreintes sha256 vérifiées par tests/unit/pdfjs-vendor.mjs),
 //  chargé seulement au premier PDF. Chaque morceau de texte garde sa position : les lignes et les colonnes d'un
 //  tableau sont remises en place par planTextFromBoxes (js/data/plan-table.js), comme pour une photo.
 //  Le PDF est une donnée non fiable : pas d'évaluation de code (isEvalSupported: false), 30 pages au plus.
