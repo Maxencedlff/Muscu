@@ -90,6 +90,8 @@ jobs:
         run: bash tests/sql/photos_web_appairage_rollback_test.sh
       - name: Retour arrière du compte vide effacé par le site du coach (connexion Google ou Apple inconnue)
         run: bash tests/sql/compte_vide_site_coach_rollback_test.sh
+      - name: Retour arrière de la remontée des erreurs (docs/ERREURS_PROD.md)
+        run: bash tests/sql/erreurs_prod_rollback_test.sh
       - name: Retour arrière de la séance publique avec rôle et rang des blocs (préparée, pas appliquée)
         run: bash tests/sql/seance_publique_blocs_rollback_test.sh
       - name: Contenu web de l'app iOS

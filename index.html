@@ -186,6 +186,9 @@
   <div id="sr-polite" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
   <div id="sr-assert" class="visually-hidden" aria-live="assertive" aria-atomic="true"></div>
   <!-- Scripts classiques chargés dans l'ordre, portée globale partagée (voir ARCHITECTURE.md) -->
+  <!-- Remontée des erreurs (docs/ERREURS_PROD.md) : en premier, pour voir aussi les erreurs de chargement -->
+  <script src="js/data/error-report.js"></script>
+  <script src="js/app/error-capture.js"></script>
   <!-- Briques sans écran -->
   <script src="js/platform/native.js"></script>
   <script src="js/core/util.js"></script>

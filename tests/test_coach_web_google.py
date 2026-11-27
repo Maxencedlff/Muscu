@@ -14,9 +14,10 @@
    error_description jamais affiché.
 7. mdlf.app (web-public/, servi sous son vrai nom par une route) : ?error=… renvoyé vers coach.mdlf.app avec error et
    error_code seuls ; sans erreur, la page reste.
-8. « Rester connecté sur cet ordinateur » : décoché par défaut (session dans l'onglet) ; coché, session dans
-   localStorage, reprise au rechargement, ni bandeau ni fin après 30 min ; décoché dans Réglages, retour dans l'onglet ;
-   « Se déconnecter » efface tout, choix compris ; 90 jours sans visite : fermée, information neutre (pas une erreur).
+8. « Rester connecté sur cet ordinateur » : coché par défaut (session dans localStorage, rien d'écrit pour le choix),
+   reprise au rechargement, ni bandeau ni fin après 30 min ; décoché ('0'), session dans l'onglet, dans Réglages aussi ;
+   choix changé ou « Se déconnecter » dans un autre onglet : celui-ci se ferme et le dit ; « Se déconnecter » efface
+   tout, choix compris (retour au défaut coché) ; 90 jours sans visite : fermée, information neutre (pas une erreur).
 Faux réseau, aucun appel à Supabase ni à Google ; un navigateur à la fois, sans fenêtre.
 """
 import os
@@ -60,7 +61,7 @@ def err_text(page):
 def signed_out_clean(page, tag):
     check(page.locator('#login-email').count() == 1, f'{tag} : écran de connexion')
     check(page.evaluate('__sb.session') is None, f'{tag} : session encore ouverte')
-    check(page.evaluate("sessionStorage.getItem('mdlf-coach-web-auth')") is None, f'{tag} : session gardée dans l\'onglet')
+    check(page.evaluate("sessionStorage.getItem('mdlf-coach-web-auth') ?? localStorage.getItem('mdlf-coach-web-auth')") is None, f'{tag} : session gardée dans le navigateur')
     check(page.evaluate('location.search + location.hash') == '', f'{tag} : adresse {page.evaluate("location.href")!r}')
     check(not page.evaluate('window.__csp'), f'{tag} : CSP {page.evaluate("window.__csp")}')
     check(not page.errors, f'{tag} : erreurs {page.errors}')
@@ -235,12 +236,15 @@ def keep_signed_in(browser, url, engine):
     ctx, page = open_desk(browser, url, width=1440, login=False, fake_opts={'restore': True})
     try:
         sw = page.locator('#keep-login')
-        check(sw.get_attribute('aria-checked') == 'false', f'{tag} : coché par défaut')
-        check('Seulement sur ton ordinateur personnel' in page.inner_text('.login-keep'), f'{tag} : ligne d\'aide')
+        check(sw.get_attribute('aria-checked') == 'true' and stored(page)['keep'] is None, f'{tag} : pas coché par défaut')
+        check('Seulement sur ton ordinateur personnel' in page.inner_text('.login-keep') and '90 jours' in page.inner_text('.login-keep'), f'{tag} : ligne d\'aide')
         box = sw.bounding_box()
         check(box['height'] >= 44 and box['width'] >= 44, f'{tag} : cible {box}')
         # Adresse tapée d'abord, puis l'interrupteur : l'adresse reste (aucun nouveau rendu du formulaire)
         page.fill('#login-email', 'adresse-en-cours@exemple.test')
+        sw.click()
+        check(sw.get_attribute('aria-checked') == 'false' and stored(page)['keep'] == '0', f'{tag} : décoche pas gardée')
+        check('90 jours' not in page.inner_text('.login-keep'), f'{tag} : aide pas mise à jour (décochée)')
         sw.click()
         check(sw.get_attribute('aria-checked') == 'true' and stored(page)['keep'] == '1', f'{tag} : choix pas gardé')
         check(page.input_value('#login-email') == 'adresse-en-cours@exemple.test', f'{tag} : adresse effacée par l\'interrupteur')
@@ -258,12 +262,13 @@ def keep_signed_in(browser, url, engine):
         # Autre onglet qui décoche (simulé : ce qu'il écrit, puis l'événement storage que le navigateur envoie aux autres
         # onglets ; un second onglet réel n'aurait pas le faux serveur) : celui-ci garde le brouillon, se recharge et le dit,
         # sans « 30 minutes » ni session gardée chez lui
-        page.evaluate("""() => { for (const k of Object.keys(localStorage)) if (k.startsWith('mdlf-coach-web-auth') || k === 'mdlf_coach_web_active') localStorage.removeItem(k);
-          localStorage.removeItem('mdlf_coach_web_keep');
-          dispatchEvent(new StorageEvent('storage', { key: 'mdlf_coach_web_keep', oldValue: '1', newValue: null, storageArea: localStorage })); }""")
+        page.evaluate("""() => { localStorage.setItem('mdlf_coach_web_keep', '0');
+          for (const k of Object.keys(localStorage)) if (k.startsWith('mdlf-coach-web-auth') || k === 'mdlf_coach_web_active') localStorage.removeItem(k);
+          dispatchEvent(new StorageEvent('storage', { key: 'mdlf_coach_web_keep', oldValue: '1', newValue: '0', storageArea: localStorage })); }""")
         page.wait_for_selector('#login-email', timeout=20000)
         until(page, "document.getElementById('login-info')?.innerText.includes('autre onglet')")
-        check(page.inner_text('#login-err') == '' and stored(page) == {'local': [], 'tab': [], 'keep': None}, f'{tag} : autre onglet {stored(page)}')
+        check(page.inner_text('#login-err') == '' and stored(page) == {'local': [], 'tab': [], 'keep': '0'}, f'{tag} : autre onglet {stored(page)}')
+        check(page.get_attribute('#keep-login', 'aria-checked') == 'false', f'{tag} : décoche de l\'autre onglet pas affichée')
         # Retour au premier onglet : on recoche et on se reconnecte
         page.click('#keep-login')
         email_login(page)
@@ -274,25 +279,22 @@ def keep_signed_in(browser, url, engine):
         page.click('#keep-settings')
         until(page, "document.getElementById('keep-settings')?.getAttribute('aria-checked') === 'false'")
         st = stored(page)
-        check(st['local'] == [] and st['keep'] is None and 'mdlf-coach-web-auth' in st['tab'], f'{tag} : décoché, stockage {st}')
+        check(st['local'] == [] and st['keep'] == '0' and 'mdlf-coach-web-auth' in st['tab'], f'{tag} : décoché, stockage {st}')
         check('30 minutes' in page.inner_text('main'), f'{tag} : texte des 30 minutes')
         check(page.evaluate("document.activeElement.id") == 'keep-settings', f'{tag} : focus')
-        # Recoché, puis « Se déconnecter » : plus rien, choix compris
-        page.click('#keep-settings')
-        until(page, "localStorage.getItem('mdlf_coach_web_keep') === '1'")
+        # Décochée, puis « Se déconnecter » : plus rien, choix compris, et la case revient cochée (défaut)
         page.click('[data-action="signout"]')
         page.wait_for_selector('#login-email', timeout=20000)
         st = stored(page)
         check(st == {'local': [], 'tab': [], 'keep': None}, f'{tag} : après « Se déconnecter » {st}')
-        check(page.get_attribute('#keep-login', 'aria-checked') == 'false', f'{tag} : case recochée après la déconnexion')
+        check(page.get_attribute('#keep-login', 'aria-checked') == 'true', f'{tag} : case pas recochée après la déconnexion')
         check(not page.errors, f'{tag} : erreurs {page.errors}')
     finally:
         ctx.close()
-    # 90 jours sans visite : fermée au chargement, information neutre, choix gardé
+    # 90 jours sans visite : fermée au chargement, information neutre, choix gardé (le défaut coché, rien d'écrit)
     tag = f'{engine} rester connecté, 90 jours'
     ctx, page = open_desk(browser, url, width=1440, login=False, fake_opts={'restore': True})
     try:
-        page.click('#keep-login')
         email_login(page)
         page.evaluate("localStorage.setItem('mdlf_coach_web_active', String(Date.now() - 91 * 86_400_000))")
         page.reload()
@@ -302,22 +304,40 @@ def keep_signed_in(browser, url, engine):
         check('90 jours sans visite' in page.inner_text('#login-info'), f'{tag} : information {page.inner_text("body")[:200]!r}')
         check(page.inner_text('#login-err') == '' and page.get_attribute('#login-email', 'aria-invalid') is None, f'{tag} : affiché comme une erreur')
         st = stored(page)
-        check(st['local'] == [] and st['tab'] == [] and st['keep'] == '1', f'{tag} : stockage {st}')
+        check(st['local'] == [] and st['tab'] == [] and st['keep'] is None, f'{tag} : stockage {st}')
+        check(page.get_attribute('#keep-login', 'aria-checked') == 'true', f'{tag} : case pas cochée')
         # 89 jours : toujours ouverte (fenêtre glissante, chaque visite la repousse)
         email_login(page)
         page.evaluate("localStorage.setItem('mdlf_coach_web_active', String(Date.now() - 89 * 86_400_000))")
         page.reload()
         page.wait_for_selector('.lst a.row', timeout=30000)
         check(int(page.evaluate("Number(localStorage.getItem('mdlf_coach_web_active'))")) > page.evaluate('Date.now()') - 60_000, f'{tag} : visite pas notée')
+        # « Se déconnecter » dans un autre onglet (simulé), choix jamais écrit : la session partagée part, celui-ci se
+        # ferme aussi, et le dit
+        page.evaluate("""() => { for (const k of Object.keys(localStorage)) if (k.startsWith('mdlf-coach-web-auth') || k === 'mdlf_coach_web_active') localStorage.removeItem(k);
+          dispatchEvent(new StorageEvent('storage', { key: 'mdlf-coach-web-auth', oldValue: 'x', newValue: null, storageArea: localStorage })); }""")
+        page.wait_for_selector('#login-email', timeout=20000)
+        until(page, "document.getElementById('login-info')?.innerText.includes('autre onglet')")
+        check('déconnecté' in page.inner_text('#login-info') and page.inner_text('#login-err') == '', f'{tag} : déconnexion d\'un autre onglet {page.inner_text("#login-info")!r}')
+        check(stored(page) == {'local': [], 'tab': [], 'keep': None}, f'{tag} : stockage après l\'autre onglet {stored(page)}')
         check(not page.errors, f'{tag} : erreurs {page.errors}')
     finally:
         ctx.close()
-    # Par défaut : session dans l'onglet seulement
+    # Par défaut : session gardée sur l'ordinateur ; case décochée : dans l'onglet seulement
     tag = f'{engine} par défaut'
     ctx, page = open_desk(browser, url, width=1440)
     try:
         st = stored(page)
-        check(st['local'] == [] and st['keep'] is None and 'mdlf-coach-web-auth' in st['tab'], f'{tag} : stockage {st}')
+        check(st['tab'] == [] and st['keep'] is None and 'mdlf-coach-web-auth' in st['local'], f'{tag} : stockage {st}')
+    finally:
+        ctx.close()
+    tag = f'{engine} décochée'
+    ctx, page = open_desk(browser, url, width=1440, login=False)
+    try:
+        page.click('#keep-login')
+        email_login(page)
+        st = stored(page)
+        check(st['local'] == [] and st['keep'] == '0' and 'mdlf-coach-web-auth' in st['tab'], f'{tag} : stockage {st}')
     finally:
         ctx.close()
 

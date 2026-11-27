@@ -81,17 +81,17 @@ clé publique et l'adresse du projet sont identiques à `ACCOUNT_CONFIG` (vérif
   `coach_diet_overview`, `coach_student_sessions`, `coach_student_weights`, `coach_student_measures`,
   `coach_student_diet`, `coach_my_code`, `coach_tier_state`, `coach_form` suffisent ; une seule fonction ajoutée
   (`coach_student_weeks`, ci-dessous) pour lire la fiche en un appel, qui n'expose rien de plus.
-- Ordinateur parfois partagé : fermeture après **30 minutes sans geste** (clic, touche, molette ou doigt qui fait
+- Ordinateur partagé, case « Rester connecté sur cet ordinateur » décochée : fermeture après **30 minutes sans geste** (clic, touche, molette ou doigt qui fait
   défiler, compté une fois toutes les 5 s au plus ; vérifiée au rechargement, au retour sur l'onglet et toutes les 15 s).
   À 28 minutes, bandeau « Toujours là ? » avec « Continuer » (pas « Rester connecté » : ces mots sont ceux de la case ci-dessous). À 30 minutes : l'écran est vidé tout de suite, la
   réponse à un bilan en cours d'écriture part en brouillon sur le serveur (`coach_checkin_review`, `send: false`, 8 s au
   plus), puis déconnexion et rechargement (« Session fermée après 30 minutes sans activité »). Écran vidé avant : rien
   d'un élève ne reste visible sous la fenêtre « Quitter le site ? » du navigateur. « Se déconnecter de cet ordinateur »
-  (Réglages ; `signOut({ scope: 'local' })` : l'iPhone reste connecté). La session est dans **sessionStorage** : fermer
-  l'onglet la ferme (une session laissée dans localStorage par une version d'avant est effacée au chargement). Seules la
-  session de supabase-js (`mdlf-coach-web-auth`) et l'heure du dernier geste (`mdlf_coach_web_active`) y sont gardées ;
-  aucune donnée d'élève, rien dans localStorage (test E2E). C'est le comportement par défaut ; l'exception, choisie par
-  le coach, est la case suivante.
+  (Réglages ; `signOut({ scope: 'local' })` : l'iPhone reste connecté). La session est alors dans **sessionStorage** :
+  fermer l'onglet la ferme (une session laissée dans localStorage est effacée au chargement). Seules la session de
+  supabase-js (`mdlf-coach-web-auth`) et l'heure du dernier geste (`mdlf_coach_web_active`) sont gardées, plus la décoche
+  (`mdlf_coach_web_keep` = `0`) ; aucune donnée d'élève (tests E2E). Depuis le 26/11/2026, ce n'est plus le comportement
+  par défaut : la case suivante est cochée par défaut, on la décoche sur un ordinateur partagé.
 - L'information « Session fermée après 30 minutes sans activité » (ou « après 90 jours sans visite ») s'affiche en haut
   du formulaire, en texte neutre (`#login-info`, `role="status"`) : ce n'est pas une erreur de saisie, le champ e-mail
   n'est ni rouge ni `aria-invalid`. Seules les erreurs du formulaire (adresse ou code invalide, envoi refusé) marquent
@@ -101,8 +101,11 @@ clé publique et l'adresse du projet sont identiques à `ACCOUNT_CONFIG` (vérif
 
 Demande de Maxence : sur son PC à lui, se reconnecter toutes les 30 minutes est pénible. Interrupteur **« Rester connecté
 sur cet ordinateur »**, avec la ligne d'aide « Seulement sur ton ordinateur personnel », sous le formulaire de connexion
-et dans Réglages › Compte (où on peut le couper). **Décoché par défaut.** Le choix est gardé sur l'ordinateur
-(localStorage, `mdlf_coach_web_keep` = `1`) ; jamais dans l'app qui embarque la page (la session y appartient à l'hôte).
+et dans Réglages › Compte (où on peut le couper). **Coché par défaut** (choix de Maxence du 26/11/2026, même jour) : **on
+le décoche sur un ordinateur partagé**. Le choix est gardé sur l'ordinateur (localStorage, `mdlf_coach_web_keep` : `0`
+décochée ; `1` ou absente, cochée) ; jamais dans l'app qui embarque la page (la session y appartient à l'hôte, la case
+n'y est ni lue ni écrite, défaut compris). Un onglet ouvert avant ce changement, connecté dans sessionStorage, passe sa
+session dans localStorage à son rechargement s'il n'y en a pas déjà une (sinon la session gardée sur l'ordinateur sert).
 
 Coché :
 - la session de supabase-js, son **vérificateur PKCE** (connexion Google) et l'heure du dernier geste vont dans
@@ -111,18 +114,22 @@ Coché :
   l'autre stockage. Les clés sont prises **par préfixe** (`deskOwnKeys` : tout ce qui commence par `mdlf-coach-web-auth`,
   plus l'heure du dernier geste) : auth-js 2.118 écrit aussi `-flows-code-verifier` et `-flow-<id>-code-verifier` à chaque
   connexion Google, qu'une liste fixe oubliait (relecture du 26/11, prouvé avec le vrai auth-js par
-  `tests/unit/coach-web.mjs`). Coché, le choix est écrit avant la copie (un onglet qui se charge entre les deux ne prend
+  `tests/unit/coach-web.mjs`). Le choix (`1` ou `0`) est écrit avant la copie (un onglet qui se charge entre les deux ne prend
   pas la session copiée pour un reste à effacer) ;
 - **autres onglets** : changer le choix dans un onglet y déplace la session ; les autres le voient (événement `storage` sur
   `mdlf_coach_web_keep`), gardent la réponse en cours en brouillon tant que leur session est en mémoire, vident l'écran et
   se rechargent avec « « Rester connecté sur cet ordinateur » a changé dans un autre onglet » (plus de fermeture
   injustifiée « 30 minutes » avec un brouillon perdu) ; sur l'écran de connexion, l'interrupteur est seulement redessiné.
-  Les autres changements pas enregistrés de cet onglet (programme, plan diète) sont perdus, comme à la fin pour inactivité ;
+  Les autres changements pas enregistrés de cet onglet (programme, plan diète) sont perdus, comme à la fin pour inactivité.
+  Cochée, la session est partagée par les onglets : « Se déconnecter » dans l'un l'efface pour tous (le choix par défaut
+  n'est écrit nulle part, l'événement suivi est alors l'effacement de `mdlf-coach-web-auth`) ; les autres se ferment de
+  la même façon, avec « Tu t'es déconnecté dans un autre onglet » ;
 - **fenêtre glissante de 90 jours, sans durée maximale**, comme l'app iPhone : chaque ouverture et chaque geste repoussent
   la fin ; la session ne se ferme qu'après **90 jours sans aucune ouverture du site**, ou avec « Se déconnecter » ;
 - pas de bandeau « Toujours là ? », pas de fin après 30 minutes ;
-- « Se déconnecter de cet ordinateur » efface tout (session, heure, choix compris) ; une fin après 90 jours garde le
-  choix (c'est le même ordinateur qui revient) et le dit en haut du formulaire.
+- « Se déconnecter de cet ordinateur » efface tout (session, heure, choix compris : la case revient donc cochée, le
+  défaut) ; une fin après 90 jours (ou après 30 minutes, décochée) garde le choix (c'est le même ordinateur qui revient)
+  et le dit en haut du formulaire.
 
 Côté serveur : `sessions_timebox` et `sessions_inactivity_timeout` valent 0 (lus le 26/11/2026, sans rien modifier), le jeton
 de rafraîchissement ne périme donc pas et la limite de 90 jours est tenue par la page. Si un jour une durée de session est
@@ -142,8 +149,10 @@ connexion a plus de 12 h ; régler une inactivité maximale côté Supabase (≥
 
 **Risque accepté** : sur un ordinateur où la case est cochée, quiconque ouvre le navigateur entre dans le site du coach, avec
 la liste des élèves, leurs séances, bilans et messages, sans rien taper ; un logiciel malveillant du poste peut aussi lire le
-jeton dans localStorage (comme pour toute application web qui garde sa session). D'où : décochée par défaut, réservée à
-l'ordinateur personnel (dit à côté de la case), coupable dans Réglages, et « Se déconnecter » qui efface tout. Les
+jeton dans localStorage (comme pour toute application web qui garde sa session). Cochée par défaut depuis le 26/11/2026
+(choix de Maxence), donc le coach sur un ordinateur partagé doit
+penser à la décocher : la ligne d'aide « Seulement sur ton ordinateur personnel » est à côté, la case est coupable dans
+Réglages, et « Se déconnecter » efface tout. Les
 **photos de bilan** gardent leurs propres protections, inchangées : affichage à la demande, masquées après 5 minutes sans
 activité et dès que l'onglet est caché, clé de l'ordinateur relié dans IndexedDB comme aujourd'hui (docs/PHOTOS_WEB.md).
 Mais sur un ordinateur relié, la case cochée laisse aussi « Afficher les photos » à qui ouvre le navigateur, sans
@@ -374,8 +383,8 @@ effacée à l'échange du code (`tx.Destroy(flowState)` dans internal/api/token.
 probable du 26/11 : le bouton **Retour** du navigateur vers la page de Google (choix du compte) après une connexion
 réussie, qui renvoie à Supabase un `state` déjà consommé ; aussi un ancien onglet ou une page de Google restée ouverte.
 Le site n'y peut rien : l'entrée de Google dans l'historique n'est pas la sienne. Le vérificateur PKCE n'y est pour rien
-(son absence donne `flow_state_not_found` à l'échange, déjà traduit) : supabase-js le garde dans le sessionStorage de
-l'onglet, qui survit à l'aller-retour dans le même onglet.
+(son absence donne `flow_state_not_found` à l'échange, déjà traduit) : supabase-js le garde dans le localStorage (case
+cochée, par défaut) ou le sessionStorage de l'onglet (décochée), qui survivent tous deux à l'aller-retour dans le même onglet.
 
 - Site du coach : `deskGoogleReturnKind` traduit `error_code` (`bad_oauth_state`, `bad_oauth_callback`,
   `flow_state_*` : « La connexion avec Google a expiré ou a déjà servi (bouton Retour, autre onglet ou autre

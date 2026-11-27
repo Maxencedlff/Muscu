@@ -2458,6 +2458,9 @@ await (await import('./referral.mjs')).default({ test, run, assert, sameJSON, RO
 // ── Mise en page tablette, 26/11 (tests dans tablet.mjs, contextes à part) ──
 (await import('./tablet.mjs')).default({ test, assert, ROOT });
 
+// ── Remontée des erreurs, 29/11 (tests dans error-report.mjs, contexte à part) ──
+(await import('./error-report.mjs')).default({ test, assert, sameJSON, ROOT });
+
 // ── Exécution ───────────────────────────────────────────────
 
 let failed = 0;
