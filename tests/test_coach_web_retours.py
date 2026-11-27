@@ -143,6 +143,8 @@ def matrix_case(browser, url, engine, w, h, touch, theme):
         snap(page, engine, w, theme, '4-programme')
         # ── 4 : Bilans, photos sur l'ordinateur relié ──
         go(page, '#/eleve/LEA/bilans', '.rv-cur')
+        # Encadré des photos d'abord « Chargement… » : attendu qu'il ait lu l'état du lien (Firefox, machine chargée)
+        wait_js(page, "!document.querySelector('main').innerText.includes('Chargement…')")
         bt = sp(page.inner_text('main'))
         check('ne sait pas encore' not in bt and 'Relier cet ordinateur' in bt, f'{tag} : photos de bilan {bt[:300]!r}')
 

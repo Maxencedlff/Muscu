@@ -152,7 +152,7 @@ def t_programme_eleve(bench, eng, dev, theme):
         tap_dialog(page, 'Créer un programme pour camille')
         fill_dialog(page, 'Camille débutante')
         tap_dialog(page, 'Suivant')
-        tap_dialog(page, 'Copie du PPL') if page.locator('.ios-dialog__btn', has_text='Copie du PPL').count() else tap_dialog(page, 'Copie de PPL')
+        tap_dialog(page, 'Copie de Pousser, tirer, jambes')   # programmes intégrés en français (retours-pratiquants)
         page.wait_for_selector('.programmes [data-action="prog-send-student"]')
         settle(page)
         st = page.evaluate("""() => { const id = Object.keys(data.userProgrammes).find(k => data.userProgrammes[k].name === 'Camille débutante');
@@ -453,7 +453,7 @@ def t_ax33(bench, eng, dev, theme):
         tap_dialog(page, 'Créer un programme pour camille')
         fill_dialog(page, 'Camille')
         tap_dialog(page, 'Suivant')
-        tap_dialog(page, 'Copie du PPL') if page.locator('.ios-dialog__btn', has_text='Copie du PPL').count() else tap_dialog(page, 'Copie de PPL')
+        tap_dialog(page, 'Copie de Pousser, tirer, jambes')   # programmes intégrés en français (retours-pratiquants)
         page.wait_for_selector('.programmes [data-action="prog-send-student"]')
         page.locator('.programmes [data-action="prog-send-student"]').scroll_into_view_if_needed()
         settle(page)
