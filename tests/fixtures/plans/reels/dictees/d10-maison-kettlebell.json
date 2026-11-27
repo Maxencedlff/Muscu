@@ -1,0 +1,45 @@
+{
+ "id": "d10-maison-kettlebell",
+ "category": "dictee",
+ "description": "Maison à la kettlebell, repos commun dit à la fin d'un exercice.",
+ "text": "à la maison avec la kettlebell swing cinq séries de quinze squat gobelet à la kettlebell quatre fois douze pompes quatre séries de vingt et burpees trois fois dix repos trente secondes",
+ "expected": {
+  "title": null,
+  "sessions": [
+   {
+    "label": null,
+    "exercises": [
+     {
+      "line": "swing cinq séries de quinze",
+      "name": "Swing kettlebell",
+      "sets": 5,
+      "repMin": 15,
+      "repMax": 15
+     },
+     {
+      "line": "squat gobelet à la kettlebell quatre fois douze",
+      "name": "Squat gobelet kettlebell",
+      "sets": 4,
+      "repMin": 12,
+      "repMax": 12
+     },
+     {
+      "line": "pompes quatre séries de vingt",
+      "name": "Pompes",
+      "sets": 4,
+      "repMin": 20,
+      "repMax": 20
+     },
+     {
+      "line": "burpees trois fois dix",
+      "name": "Burpees",
+      "sets": 3,
+      "repMin": 10,
+      "repMax": 10,
+      "rest": 30
+     }
+    ]
+   }
+  ]
+ }
+}

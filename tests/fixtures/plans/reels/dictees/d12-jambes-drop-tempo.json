@@ -1,0 +1,40 @@
+{
+ "id": "d12-jambes-drop-tempo",
+ "category": "dictee",
+ "description": "Jambes, drop set sur la dernière série, tempo dit en chiffres (« trois zéro un zéro »).",
+ "text": "jambes du jeudi extension quadriceps quatre séries de douze avec un drop set sur la dernière presse à cuisses quatre séries de dix tempo trois zéro un zéro leg curl assis trois fois douze",
+ "expected": {
+  "title": null,
+  "sessions": [
+   {
+    "label": "jambes du jeudi",
+    "exercises": [
+     {
+      "line": "extension quadriceps quatre séries de douze",
+      "name": "Extension quadriceps",
+      "sets": 4,
+      "repMin": 12,
+      "repMax": 12,
+      "tech": "drop",
+      "techWhere": "last"
+     },
+     {
+      "line": "presse à cuisses quatre séries de dix tempo trois zéro un zéro",
+      "name": "Presse à cuisses",
+      "sets": 4,
+      "repMin": 10,
+      "repMax": 10,
+      "tempo": "3-0-1-0"
+     },
+     {
+      "line": "leg curl assis trois fois douze",
+      "name": "Leg curl machine",
+      "sets": 3,
+      "repMin": 12,
+      "repMax": 12
+     }
+    ]
+   }
+  ]
+ }
+}

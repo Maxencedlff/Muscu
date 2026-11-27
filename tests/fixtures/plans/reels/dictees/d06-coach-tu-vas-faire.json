@@ -1,0 +1,45 @@
+{
+ "id": "d06-coach-tu-vas-faire",
+ "category": "dictee",
+ "description": "Coach qui parle à son élève : « tu vas faire », charge en kilos, durée « une minute ».",
+ "text": "alors pour lundi tu vas faire euh du hip thrust quatre séries de dix avec quatre-vingts kilos ensuite tu enchaînes sur des fentes marchées avec haltères trois séries de douze par jambe et après tu fais de l'abducteur machine trois fois vingt et tu finis par du gainage trois fois une minute",
+ "expected": {
+  "title": null,
+  "sessions": [
+   {
+    "label": "lundi",
+    "exercises": [
+     {
+      "line": "du hip thrust quatre séries de dix",
+      "name": "Hip thrust",
+      "sets": 4,
+      "repMin": 10,
+      "repMax": 10,
+      "load": 80
+     },
+     {
+      "line": "des fentes marchées avec haltères trois séries de douze",
+      "name": "Fentes marchées haltères",
+      "sets": 3,
+      "repMin": 12,
+      "repMax": 12,
+      "uni": true
+     },
+     {
+      "line": "de l'abducteur machine trois fois vingt",
+      "name": "Abducteurs machine",
+      "sets": 3,
+      "repMin": 20,
+      "repMax": 20
+     },
+     {
+      "line": "du gainage trois fois une minute",
+      "name": "Gainage (planche)",
+      "sets": 3,
+      "seconds": 60
+     }
+    ]
+   }
+  ]
+ }
+}

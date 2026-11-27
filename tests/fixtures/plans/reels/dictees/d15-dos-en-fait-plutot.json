@@ -1,0 +1,45 @@
+{
+ "id": "d15-dos-en-fait-plutot",
+ "category": "dictee",
+ "description": "Dos, repos « deux minutes trente », correction « en fait mets plutôt trois séries ».",
+ "text": "bon le programme pour vendredi c'est du rowing barre t quatre séries de huit à dix avec deux minutes trente de repos ensuite tirage vertical prise large quatre séries de dix en fait mets plutôt trois séries ensuite curl marteau trois fois douze et pour terminer face pull quatre séries de quinze",
+ "expected": {
+  "title": null,
+  "sessions": [
+   {
+    "label": "vendredi",
+    "exercises": [
+     {
+      "line": "du rowing barre t quatre séries de huit à dix",
+      "name": "Rowing barre T",
+      "sets": 4,
+      "repMin": 8,
+      "repMax": 10,
+      "rest": 150
+     },
+     {
+      "line": "tirage vertical prise large quatre séries de dix",
+      "name": "Tirage vertical prise large",
+      "sets": 3,
+      "repMin": 10,
+      "repMax": 10
+     },
+     {
+      "line": "curl marteau trois fois douze",
+      "name": "Curl marteau",
+      "sets": 3,
+      "repMin": 12,
+      "repMax": 12
+     },
+     {
+      "line": "face pull quatre séries de quinze",
+      "name": "Face pull",
+      "sets": 4,
+      "repMin": 15,
+      "repMax": 15
+     }
+    ]
+   }
+  ]
+ }
+}

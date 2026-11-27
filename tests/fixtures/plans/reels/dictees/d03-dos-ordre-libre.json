@@ -1,0 +1,43 @@
+{
+ "id": "d03-dos-ordre-libre",
+ "category": "dictee",
+ "description": "Dos, ordre libre : les reps avant les séries (« huit répétitions sur quatre séries »).",
+ "text": "le dos maintenant tractions en pronation quatre séries jusqu'à l'échec ensuite du rowing barre huit répétitions sur quatre séries après tirage horizontal à la poulie douze reps sur trois séries et curl marteau dix reps sur trois séries",
+ "expected": {
+  "title": null,
+  "sessions": [
+   {
+    "label": "dos",
+    "exercises": [
+     {
+      "line": "tractions en pronation quatre séries jusqu'à l'échec",
+      "name": "Tractions pronation",
+      "sets": 4,
+      "amrap": true
+     },
+     {
+      "line": "du rowing barre huit répétitions sur quatre séries",
+      "name": "Rowing barre",
+      "sets": 4,
+      "repMin": 8,
+      "repMax": 8
+     },
+     {
+      "line": "tirage horizontal à la poulie douze reps sur trois séries",
+      "name": "Tirage horizontal câble",
+      "sets": 3,
+      "repMin": 12,
+      "repMax": 12
+     },
+     {
+      "line": "curl marteau dix reps sur trois séries",
+      "name": "Curl marteau",
+      "sets": 3,
+      "repMin": 10,
+      "repMax": 10
+     }
+    ]
+   }
+  ]
+ }
+}

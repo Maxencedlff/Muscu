@@ -1,0 +1,64 @@
+{
+ "id": "d04-haut-bas-seance-suivante",
+ "category": "dictee",
+ "description": "Deux séances enchaînées par « séance suivante », « par jambe ».",
+ "text": "première séance haut du corps développé couché haltères quatre fois dix tirage vertical prise large quatre fois dix développé militaire trois fois dix séance suivante bas du corps squat avant quatre fois six soulevé de terre roumain trois fois huit fentes bulgares trois fois dix par jambe",
+ "expected": {
+  "title": null,
+  "sessions": [
+   {
+    "label": "haut du corps",
+    "exercises": [
+     {
+      "line": "développé couché haltères quatre fois dix",
+      "name": "Développé couché haltères",
+      "sets": 4,
+      "repMin": 10,
+      "repMax": 10
+     },
+     {
+      "line": "tirage vertical prise large quatre fois dix",
+      "name": "Tirage vertical prise large",
+      "sets": 4,
+      "repMin": 10,
+      "repMax": 10
+     },
+     {
+      "line": "développé militaire trois fois dix",
+      "name": "Développé militaire barre",
+      "sets": 3,
+      "repMin": 10,
+      "repMax": 10
+     }
+    ]
+   },
+   {
+    "label": "bas du corps",
+    "exercises": [
+     {
+      "line": "squat avant quatre fois six",
+      "name": "Squat avant",
+      "sets": 4,
+      "repMin": 6,
+      "repMax": 6
+     },
+     {
+      "line": "soulevé de terre roumain trois fois huit",
+      "name": "Soulevé de terre roumain",
+      "sets": 3,
+      "repMin": 8,
+      "repMax": 8
+     },
+     {
+      "line": "fentes bulgares trois fois dix par jambe",
+      "name": "Fentes bulgares",
+      "sets": 3,
+      "repMin": 10,
+      "repMax": 10,
+      "uni": true
+     }
+    ]
+   }
+  ]
+ }
+}

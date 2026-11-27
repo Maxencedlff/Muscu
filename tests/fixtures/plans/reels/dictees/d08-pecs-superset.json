@@ -1,0 +1,38 @@
+{
+ "id": "d08-pecs-superset",
+ "category": "dictee",
+ "description": "Pectoraux, superset dit en phrase (« en superset X et Y, quatre séries de dix chacun »).",
+ "text": "séance pectoraux en superset développé couché haltères et écarté poulie vis-à-vis quatre séries de dix chacun ensuite pompes trois séries au maximum",
+ "expected": {
+  "title": null,
+  "sessions": [
+   {
+    "label": "pectoraux",
+    "exercises": [
+     {
+      "line": "développé couché haltères",
+      "name": "Développé couché haltères",
+      "sets": 4,
+      "repMin": 10,
+      "repMax": 10,
+      "ss": "A"
+     },
+     {
+      "line": "écarté poulie vis-à-vis quatre séries de dix",
+      "name": "Écarté poulie vis-à-vis",
+      "sets": 4,
+      "repMin": 10,
+      "repMax": 10,
+      "ss": "A"
+     },
+     {
+      "line": "pompes trois séries au maximum",
+      "name": "Pompes",
+      "sets": 3,
+      "amrap": true
+     }
+    ]
+   }
+  ]
+ }
+}

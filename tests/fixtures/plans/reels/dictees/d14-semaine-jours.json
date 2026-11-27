@@ -1,0 +1,68 @@
+{
+ "id": "d14-semaine-jours",
+ "category": "dictee",
+ "description": "Semaine dictée d'une traite, jours comme en-têtes, jour de repos.",
+ "text": "lundi push développé couché barre quatre fois huit dips trois fois dix mardi pull tractions quatre fois six rowing barre quatre fois huit mercredi repos jeudi jambes squat barre quatre fois huit mollets debout quatre fois quinze",
+ "expected": {
+  "title": null,
+  "sessions": [
+   {
+    "label": "lundi push",
+    "exercises": [
+     {
+      "line": "développé couché barre quatre fois huit",
+      "name": "Développé couché barre",
+      "sets": 4,
+      "repMin": 8,
+      "repMax": 8
+     },
+     {
+      "line": "dips trois fois dix",
+      "name": "Dips",
+      "sets": 3,
+      "repMin": 10,
+      "repMax": 10
+     }
+    ]
+   },
+   {
+    "label": "mardi pull",
+    "exercises": [
+     {
+      "line": "tractions quatre fois six",
+      "name": "Tractions pronation",
+      "sets": 4,
+      "repMin": 6,
+      "repMax": 6
+     },
+     {
+      "line": "rowing barre quatre fois huit",
+      "name": "Rowing barre",
+      "sets": 4,
+      "repMin": 8,
+      "repMax": 8
+     }
+    ]
+   },
+   {
+    "label": "jeudi jambes",
+    "exercises": [
+     {
+      "line": "squat barre quatre fois huit",
+      "name": "Squat barre",
+      "sets": 4,
+      "repMin": 8,
+      "repMax": 8
+     },
+     {
+      "line": "mollets debout quatre fois quinze",
+      "name": "Mollets debout",
+      "sets": 4,
+      "repMin": 15,
+      "repMax": 15
+     }
+    ]
+   }
+  ]
+ }
+}

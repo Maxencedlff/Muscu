@@ -1,0 +1,38 @@
+{
+ "id": "d11-dos-euh-partout",
+ "category": "dictee",
+ "description": "Dos, « euh » au milieu des prescriptions (« trois séries de euh cinq »).",
+ "text": "euh donc séance dos euh le soulevé de terre euh trois séries de euh cinq repos euh trois minutes après euh le tirage vertical prise serrée euh quatre fois euh dix et euh le pull-over à la poulie trois fois douze voilà c'est tout",
+ "expected": {
+  "title": null,
+  "sessions": [
+   {
+    "label": "dos",
+    "exercises": [
+     {
+      "line": "le soulevé de terre euh trois séries",
+      "name": "Soulevé de terre",
+      "sets": 3,
+      "repMin": 5,
+      "repMax": 5,
+      "rest": 180
+     },
+     {
+      "line": "le tirage vertical prise serrée",
+      "name": "Tirage vertical prise serrée",
+      "sets": 4,
+      "repMin": 10,
+      "repMax": 10
+     },
+     {
+      "line": "le pull-over à la poulie trois fois douze",
+      "name": "Pull-over poulie",
+      "sets": 3,
+      "repMin": 12,
+      "repMax": 12
+     }
+    ]
+   }
+  ]
+ }
+}

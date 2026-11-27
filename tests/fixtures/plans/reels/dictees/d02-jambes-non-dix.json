@@ -1,0 +1,45 @@
+{
+ "id": "d02-jambes-non-dix",
+ "category": "dictee",
+ "description": "Jambes, correction « douze non dix reps », repos en minutes.",
+ "text": "séance jambes bon on fait le squat cinq séries de cinq repos trois minutes ensuite presse à cuisses quatre séries de douze non dix reps puis leg curl trois fois quinze et les mollets debout quatre séries de vingt",
+ "expected": {
+  "title": null,
+  "sessions": [
+   {
+    "label": "jambes",
+    "exercises": [
+     {
+      "line": "le squat cinq séries de cinq",
+      "name": "Squat barre",
+      "sets": 5,
+      "repMin": 5,
+      "repMax": 5,
+      "rest": 180
+     },
+     {
+      "line": "presse à cuisses quatre séries de douze",
+      "name": "Presse à cuisses",
+      "sets": 4,
+      "repMin": 10,
+      "repMax": 10
+     },
+     {
+      "line": "leg curl trois fois quinze",
+      "name": "Leg curl machine",
+      "sets": 3,
+      "repMin": 15,
+      "repMax": 15
+     },
+     {
+      "line": "les mollets debout quatre séries de vingt",
+      "name": "Mollets debout",
+      "sets": 4,
+      "repMin": 20,
+      "repMax": 20
+     }
+    ]
+   }
+  ]
+ }
+}

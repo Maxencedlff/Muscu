@@ -1,0 +1,44 @@
+{
+ "id": "d13-epaules-abdos-nom-corrige",
+ "category": "dictee",
+ "description": "Épaules et abdos, correction du NOM (« développé arnold euh non développé militaire »).",
+ "text": "séance épaules et abdos développé arnold euh non développé militaire à la barre cinq séries de cinq élévations frontales trois fois douze crunch à la poulie trois séries de quinze relevés de jambes trois séries de douze",
+ "expected": {
+  "title": null,
+  "sessions": [
+   {
+    "label": "épaules et abdos",
+    "exercises": [
+     {
+      "line": "développé militaire à la barre cinq séries de cinq",
+      "name": "Développé militaire barre",
+      "sets": 5,
+      "repMin": 5,
+      "repMax": 5
+     },
+     {
+      "line": "élévations frontales trois fois douze",
+      "name": "Élévations frontales",
+      "sets": 3,
+      "repMin": 12,
+      "repMax": 12
+     },
+     {
+      "line": "crunch à la poulie trois séries de quinze",
+      "name": "Crunch poulie",
+      "sets": 3,
+      "repMin": 15,
+      "repMax": 15
+     },
+     {
+      "line": "relevés de jambes trois séries de douze",
+      "name": "Relevés de jambes",
+      "sets": 3,
+      "repMin": 12,
+      "repMax": 12
+     }
+    ]
+   }
+  ]
+ }
+}

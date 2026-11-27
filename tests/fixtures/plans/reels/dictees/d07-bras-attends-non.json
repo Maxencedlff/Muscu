@@ -1,0 +1,45 @@
+{
+ "id": "d07-bras-attends-non",
+ "category": "dictee",
+ "description": "Bras, correction « quatre fois dix attends non trois fois dix ».",
+ "text": "bras biceps triceps curl biceps barre quatre fois dix attends non trois fois dix barre au front trois fois douze curl incliné trois fois douze extension triceps poulie haute trois séries de quinze repos une minute",
+ "expected": {
+  "title": null,
+  "sessions": [
+   {
+    "label": "bras biceps triceps",
+    "exercises": [
+     {
+      "line": "curl biceps barre quatre fois dix",
+      "name": "Curl biceps barre",
+      "sets": 3,
+      "repMin": 10,
+      "repMax": 10
+     },
+     {
+      "line": "barre au front trois fois douze",
+      "name": "Barre au front",
+      "sets": 3,
+      "repMin": 12,
+      "repMax": 12
+     },
+     {
+      "line": "curl incliné trois fois douze",
+      "name": "Curl incliné",
+      "sets": 3,
+      "repMin": 12,
+      "repMax": 12
+     },
+     {
+      "line": "extension triceps poulie haute trois séries de quinze",
+      "name": "Extension triceps poulie haute",
+      "sets": 3,
+      "repMin": 15,
+      "repMax": 15,
+      "rest": 60
+     }
+    ]
+   }
+  ]
+ }
+}

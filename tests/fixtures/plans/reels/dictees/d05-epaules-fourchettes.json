@@ -1,0 +1,52 @@
+{
+ "id": "d05-epaules-fourchettes",
+ "category": "dictee",
+ "description": "Épaules, fourchettes en lettres (« de huit à douze »), repos « une minute trente ».",
+ "text": "séance épaules euh développé militaire haltères trois séries de huit à douze repos une minute trente élévations latérales quatre séries de douze à quinze oiseau trois séries de quinze face pull trois fois quinze haussements d'épaules quatre fois douze",
+ "expected": {
+  "title": null,
+  "sessions": [
+   {
+    "label": "épaules",
+    "exercises": [
+     {
+      "line": "développé militaire haltères trois séries de huit à douze",
+      "name": "Développé militaire haltères",
+      "sets": 3,
+      "repMin": 8,
+      "repMax": 12,
+      "rest": 90
+     },
+     {
+      "line": "élévations latérales quatre séries de douze à quinze",
+      "name": "Élévations latérales",
+      "sets": 4,
+      "repMin": 12,
+      "repMax": 15
+     },
+     {
+      "line": "oiseau trois séries de quinze",
+      "name": "Oiseau (élévations arrière)",
+      "sets": 3,
+      "repMin": 15,
+      "repMax": 15
+     },
+     {
+      "line": "face pull trois fois quinze",
+      "name": "Face pull",
+      "sets": 3,
+      "repMin": 15,
+      "repMax": 15
+     },
+     {
+      "line": "haussements d'épaules quatre fois douze",
+      "name": "Haussements d'épaules haltères",
+      "sets": 4,
+      "repMin": 12,
+      "repMax": 12
+     }
+    ]
+   }
+  ]
+ }
+}

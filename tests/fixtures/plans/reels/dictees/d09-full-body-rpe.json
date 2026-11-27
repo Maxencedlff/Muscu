@@ -1,0 +1,46 @@
+{
+ "id": "d09-full-body-rpe",
+ "category": "dictee",
+ "description": "Full body, RPE dit « à RPE huit », « par bras », durée en secondes.",
+ "text": "full body du mercredi squat barre trois séries de cinq à rpe huit développé couché trois séries de cinq rpe huit rowing haltère un bras trois séries de dix par bras gainage trois fois quarante-cinq secondes",
+ "expected": {
+  "title": null,
+  "sessions": [
+   {
+    "label": "full body du mercredi",
+    "exercises": [
+     {
+      "line": "squat barre trois séries de cinq",
+      "name": "Squat barre",
+      "sets": 3,
+      "repMin": 5,
+      "repMax": 5,
+      "rpe": 8
+     },
+     {
+      "line": "développé couché trois séries de cinq",
+      "name": "Développé couché barre",
+      "sets": 3,
+      "repMin": 5,
+      "repMax": 5,
+      "rpe": 8
+     },
+     {
+      "line": "rowing haltère un bras trois séries de dix",
+      "name": "Rowing haltère unilatéral",
+      "sets": 3,
+      "repMin": 10,
+      "repMax": 10,
+      "uni": true
+     },
+     {
+      "line": "gainage trois fois quarante-cinq secondes",
+      "name": "Gainage (planche)",
+      "sets": 3,
+      "seconds": 45
+     }
+    ]
+   }
+  ]
+ }
+}
