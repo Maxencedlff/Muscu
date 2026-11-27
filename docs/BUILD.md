@@ -46,6 +46,15 @@ signature échoue). L'empreinte native change : les mises à jour à chaud suiva
 
 Coquilles 68 et 69 : le web garde l'ancien diagnostic (état en texte) et le duck forcé.
 
+## Build suivante : import d'un programme (branche `import-natif`, 27/11/2026)
+
+| Sujet | Natif | Web | Serveur |
+|---|---|---|---|
+| Lecture d'un programme sur papier, en photo ou en PDF scanné | `PlanReaderPlugin.swift` (Vision, PHPicker, appareil photo, numérisation de documents, PDFKit), texte de `NSCameraUsageDescription` complété | `js/platform/plan-reader.js` ; écran et moteur d'analyse sur la branche `import-programme` | — |
+| Dictée du programme hors ligne | `PlanDictationPlugin.swift` (Speech fr-FR sur l'appareil), `NSMicrophoneUsageDescription`, `NSSpeechRecognitionUsageDescription` | `PlanReader.dictation` | — |
+
+Sur une build d'avant, le pont répond `outdated` (« Mets l'app à jour ») sans appeler le natif.
+
 ## Mises à jour à chaud ou build : la règle
 
 Règles 2.5.2, 2.3.1(a) et 2.5.19 de l'App Store (texte cité dans IOS.md, « Règle Apple ») :

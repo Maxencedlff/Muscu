@@ -1,11 +1,11 @@
-const CACHE = 'ppl-v256';
+const CACHE = 'ppl-v257';
 const ASSETS = [
   '/', '/index.html', '/manifest.json', '/data/exercise-videos.json', '/data/foods.json', '/icon.svg', '/apple-touch-icon.png', '/icon-192.png', '/icon-512.png',
   '/css/base.css', '/css/training.css', '/css/views.css', '/css/components.css',
   '/css/navigation.css', '/css/home.css', '/css/session.css', '/css/screens.css', '/css/muscles.css', '/css/atlas-zoom.css', '/css/progress-atlas.css', '/css/atlas-info.css', '/css/share.css', '/fonts/anton.woff2', '/css/recap.css', '/css/strength-levels.css', '/css/account.css',
   '/css/social.css', '/css/coach.css', '/css/coach-plan.css', '/css/checkin.css', '/css/paywall.css', '/css/strava.css', '/css/nutrition.css', '/css/water.css', '/css/defis.css', '/css/theme-sobre.css', '/css/theme-sobre-seance.css', '/css/theme-sobre-progres.css', '/css/theme-sobre-nutrition.css', '/css/theme-sobre-coach.css', '/css/coach-desk.css', '/css/theme-sobre-reglages.css', '/css/liens.css', '/css/programme.css', '/css/tour.css', '/css/tablet.css',
   '/js/data/error-report.js', '/js/app/error-capture.js',
-  '/js/platform/native.js',
+  '/js/platform/native.js', '/js/platform/plan-reader.js',
   '/js/core/util.js', '/js/core/dialogs.js', '/js/core/haptics-audio.js',
   '/js/data/platform-texts.js', '/js/data/programmes.js', '/js/data/store.js', '/js/data/records.js', '/js/data/accessors.js', '/js/data/goals.js', '/js/data/active-session.js',
   '/js/data/backup.js', '/js/data/sync.js', '/js/data/account-auth.js', '/js/data/account.js', '/js/data/age-range.js', '/js/data/social.js', '/js/data/comments.js', '/js/data/coach.js', '/js/data/coach-form.js', '/js/data/strava.js',

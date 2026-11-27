@@ -48,7 +48,11 @@
 	<key>NSAppleMusicUsageDescription</key>
 	<string>MDLF Training affiche le morceau en cours et te permet de le contrôler pendant ta séance.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>MDLF Training utilise l'appareil photo pour scanner le code-barres d'un aliment ou le QR code qui relie ton ordinateur (coach), pour ta photo de profil et pour tes photos de progression. Elles sont gardées chiffrées dans ton coffre sur ton iPhone ; seules celles que tu choisis d'envoyer à ton coach comme photos de bilan partent, chiffrées pour lui seul.</string>
+	<string>MDLF Training utilise l'appareil photo pour scanner le code-barres d'un aliment ou le QR code qui relie ton ordinateur (coach), pour photographier ou numériser un programme d'entraînement sur papier (le texte est lu directement sur ton iPhone, l'image n'est pas envoyée), pour ta photo de profil et pour tes photos de progression. Elles sont gardées chiffrées dans ton coffre sur ton iPhone ; seules celles que tu choisis d'envoyer à ton coach comme photos de bilan partent, chiffrées pour lui seul.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>MDLF Training utilise le micro seulement quand tu dictes ton programme d'entraînement. Ta voix est transformée en texte directement sur ton iPhone : elle n'est ni enregistrée ni envoyée.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>MDLF Training transforme ta dictée en texte pour remplir ton programme d'entraînement. La reconnaissance se fait sur ton iPhone, hors ligne. Si ton iPhone ne sait pas le faire hors ligne, l'app te demande d'abord ton accord avant d'utiliser le service de dictée d'Apple.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>MDLF Training ouvre ta photothèque pour choisir ta photo de profil, visible de tes amis et de ton coach, ou une photo de progression. Une photo de progression est gardée chiffrée dans ton coffre sur ton iPhone ; elle ne part que si tu choisis de l'envoyer à ton coach comme photo de bilan, chiffrée pour lui seul.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
