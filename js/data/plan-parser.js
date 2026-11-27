@@ -18,7 +18,7 @@ const PARSE_LABEL_MAX = 40, PARSE_NAME_MAX = 80;
 
 const PARSE_DAYS = 'lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|monday|tuesday|wednesday|thursday|friday|saturday|sunday|lun|mar|mer|jeu|ven|sam|dim';
 const PARSE_SPLIT_WORDS = new Set(('push|pull|leg|legs|jambes|jambe|haut|bas|corps|du|entier|upper|lower|body|full|fullbody|pecs|pec|pectoraux|dos|epaules|epaule|bras|biceps|' +
-  'triceps|fessiers|fessier|cuisses|ischios|quadriceps|quads|abdos|abdominaux|cardio|torse|poitrine|chest|back|shoulders|arms|glutes|tirage|poussee|pousser|' +
+  'triceps|abdominals|neck|cou|fessiers|fessier|cuisses|ischios|quadriceps|quads|abdos|abdominaux|cardio|torse|poitrine|chest|back|shoulders|arms|glutes|tirage|poussee|pousser|' +
   'tirer|force|hypertrophie|puissance|power|strength|mollets|trapezes|avant|arriere|posterieur|anterieure|anterieur|chaine|et|and|day|jour|a|b|c|d|1|2|3|4|5|6|7|' +
   'seance|session|workout|entrainement|training|semaine|week|split|ppl|phul|phat|lourd|leger|heavy|light|volume|intensite|technique|accessoires|' +
   'complet|core|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|monday|tuesday|wednesday|thursday|friday|saturday|sunday|semaine|suivante|premiere|deuxieme|troisieme|quatrieme|derniere|1re|2e|3e|4e').split('|'));
@@ -172,7 +172,7 @@ function planParse(text, { learned = null } = {}) {
   // cut : limites atteintes (texte, exercices, séances), dites à l'écran « Vérifier l'import »
   const draft = { title: null, sessions: [], lines: [], notes: [], cut: { text: !!src.cut, items: false, sessions: false } };
   let session = null, skipSection = false, table = null, pendingName = null, ssOpen = null, nItems = 0, seq = 0;
-  let block = null, joinNext = false;   // bloc répété en cours (js/data/plan-blocks.js), groupe annoncé par la ligne d'avant
+  let block = null, joinNext = false, pendingNote = null;   // bloc répété en cours (js/data/plan-blocks.js), groupe annoncé par la ligne d'avant
   const lineRec = (txt, role, item = null) => { const r = { text: txt, role }; if (item) r.item = item; draft.lines.push(r); return r; };
   const ensureSession = () => {
     if (!session) { session = { label: '', src: null, items: [] }; draft.sessions.push(session); }
@@ -206,6 +206,7 @@ function planParse(text, { learned = null } = {}) {
   for (let i = 0; i < src.length; i++) {
     const line = src[i];
     if (!line.trim()) { lineRec(line, 'blank'); table = null; ssOpen = null; if (block?.used) block = null; continue; }
+    if (planNoiseLine(line)) { lineRec(line, 'note'); continue; }   // barre d'état, pied de page d'une capture
     // Tableau : en-tête, puis rangées jusqu'à la prochaine ligne vide ou sans colonnes
     const head = planTableHeader(line);
     if (head) { table = { ...head, id: ++seq }; lineRec(line, 'table-head'); continue; }
@@ -252,6 +253,12 @@ function planParse(text, { learned = null } = {}) {
     } else {
       const bare = planBareRow(line);
       if (bare) { text = planRowText(bare); fromTable = true; }
+      // Appli : « Lunges	Legs », « Chin-up	Biceps » : la case du groupe musculaire, à droite du nom, n'est pas le nom
+      else if (/\t/.test(line)) {
+        const cells = line.split('\t');
+        if (cells.length === 2 && cells[0].trim() && planSplitOnly(planBare(cells[1])) && planMatchExercise(line, learned).score < 0.85
+          && planMatchExercise(cells[0], learned).score >= 0.85) text = cells[0];
+      }
     }
     const read = planReadLine(text);
     // Ouverture d'un groupe : « Superset : », « Bi-set abdos », « Tri-set » ; « En séries combinées avec » seul
@@ -333,18 +340,37 @@ function planParse(text, { learned = null } = {}) {
         continue;
       }
       // Prescription seule sous un nom seul (mode guidé de la dictée, case de tableau sur deux lignes)
-      if (work && pendingName && !r.marks.lead && (!r.name || (m.score < 0.5 && r.name.split(' ').filter(w => w.length > 2).length <= 1))) {
+      // ou détail d'une appli sous le nom (« Lunges » puis « Barra Completa 2.5kg, 8 reps »)
+      const detail = !r.name || (m.score < 0.5 && r.name.split(' ').filter(w => w.length > 2).length <= 1);
+      const appDetail = (m.score < PARSE_MATCH_MIN || (m.how === 'fuzzy' && m.score < 0.75)) && r.name.split(' ').length <= 3;
+      if (work && pendingName && !r.marks.lead && (detail || (appDetail && pendingName.score >= 0.85 && !Object.keys(pendingName.presc).length))) {
         pendingName.presc = planMergePresc(pendingName.presc, r.presc);
         pendingName = null;
         lineRec(line, 'cont', prev);
         continue;
+      }
+      // Nom hors bibliothèque sur sa ligne, prescription seule dessous (« Neck Flexion » puis « 5 kg, 15 reps ») : un exercice
+      if (work && !pendingName && pendingNote?.at === i - 1 && !r.marks.lead && (detail || appDetail)) {
+        const nr = planReadLine(pendingNote.text), item = pushItem(pendingNote.src, { ...nr, presc: planMergePresc(nr.presc, r.presc) }, planMatchExercise(nr.name, learned));
+        if (item) {
+          Object.assign(pendingNote.rec, { role: 'exercise', item });
+          draft.notes.splice(draft.notes.lastIndexOf(pendingNote.text.trim()), 1);
+          lineRec(line, 'cont', item);
+          pendingNote = null;
+          continue;
+        }
       }
       // « 1	Pectoraux, biceps et abdos » (planning) : un nombre devant des groupes musculaires n'est pas un exercice
       if (r.marks.lead && planSplitOnly(planBare(r.name)) && r.name.split(/[\s,]+/).length >= 2) { lineRec(line, 'note'); continue; }
       if (!work && m.score < PARSE_MATCH_MIN) {
         // Ni nom ni travail : note (titre du programme si c'est la première ligne)
         if (!draft.title && !draft.sessions.length && planBare(piece.text).length <= 60 && /[a-z]{3}/.test(planBare(piece.text))) { draft.title = planLabel(piece.text); lineRec(line, 'title'); }
-        else { lineRec(line, 'note'); draft.notes.push(piece.text.trim()); }
+        else {
+          const rec = lineRec(line, 'note');
+          draft.notes.push(piece.text.trim());
+          const w = planBare(piece.text).split(' ').filter(x => /[a-z]{2}/.test(x));
+          if (pieces.length === 1 && w.length >= 1 && w.length <= 6 && !/[:.]\s*$/.test(piece.text)) pendingNote = { text: r.name || piece.text, src: line, rec, at: i };
+        }
         continue;
       }
       const item = pushItem(line, r, m);

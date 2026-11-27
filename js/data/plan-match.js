@@ -41,7 +41,7 @@ const PARSE_EXTRA_ALIASES = [
   ['Tractions pronation', 'tractions|traction pronation|tractions larges|tractions lestees|tractions barre fixe|pullup|chin up pronation'],
   ['Rowing barre', 'rowing|rowing penche|rowing buste penche|rowing barre droite|barbell rows'],
   ['Tirage vertical prise serrée', 'tirage poulie haute prise serree|tirage poulie haute serre'],
-  ['Tirage vertical prise large', 'tirage poulie haute|tirage vertical|tirage haut|tirage devant|lat pull down|tirage poitrine prise large|tirage vertical large|tirage vertical poulie'],
+  ['Tirage vertical prise large', 'lateral pulldown|lat pulldown|lats pulldown|tirage poulie haute|tirage vertical|tirage haut|tirage devant|lat pull down|tirage poitrine prise large|tirage vertical large|tirage vertical poulie'],
   ['Tirage horizontal câble', 'tirage bas|rowing poulie|tirage horizontal assis|rowing assis poulie|tirage horizontal prise serree'],
   ['Mollets debout', 'mollets|extension mollets|extensions mollets|mollets machine|calf|calves|standing calf|mollets a la machine|mollets debout machine'],
   ['Crunch', 'abdos|crunchs|crunch abdos|abdominaux'],

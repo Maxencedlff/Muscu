@@ -196,6 +196,18 @@ function planRowText(row) {
   return bits.filter(Boolean).join('  ').replace(/\s+/g, ' ').trim();
 }
 
+// Décor d'une capture d'écran ou d'une page : barre d'état (« 9:41 », « TELCEL 3G 10:44 a.m. », « 4G 87 % »), pied de
+// page (« 1 of 1 », « Page 2/3 »). Une ligne ainsi faite n'est jamais un exercice
+const PARSE_NOISE = [
+  /^\s*(?:[a-z]{2,12}\s+)?(?:(?:3|4|5)g\s+|lte\s+|wi-?fi\s+|edge\s+)?\d{1,2}[:h]\d{2}(?:\s*(?:a\.?\s?m\.?|p\.?\s?m\.?))?(?:\s+(?:(?:3|4|5)g|lte|wi-?fi|\d{1,3}\s*%))*\s*$/,
+  /^\s*(?:[a-z]{2,12}\s+)?(?:3|4|5)g\b.*\d{1,2}:\d{2}/,
+  /^\s*(?:page\s*)?\d{1,3}\s*(?:of|sur|\/|de)\s*\d{1,3}\s*$/,
+];
+function planNoiseLine(line) {
+  const low = planPlain(planTidy(line)).replace(/[|•·\-–]+/g, ' ').replace(/\s+/g, ' ').trim();
+  return !!low && low.length <= 40 && PARSE_NOISE.some(re => re.test(low));
+}
+
 // ── Texte placé (photo, PDF) ─────────────────────────────────
 // items : [{ text, x, y, w, h }] en coordonnées de la page (origine en haut à gauche, y vers le bas), unités libres.
 // Lignes : morceaux qui se chevauchent en hauteur ; dans une ligne, un écart de plus de 1,2 hauteur de texte ouvre
