@@ -218,7 +218,7 @@ function planNoiseLine(line) {
 // Lignes : morceaux qui se chevauchent en hauteur ; dans une ligne, un écart de plus de 1,2 hauteur de texte ouvre
 // une nouvelle case. Colonnes : débuts de case regroupés sur toutes les rangées d'un bloc, pour que la case vide d'une
 // rangée laisse sa place (« Squat · · 90 s » reste sous Repos). Renvoie le texte, cases séparées par des tabulations.
-function planTextFromBoxes(items, { maxItems = 4000 } = {}) {
+function planTextFromBoxes(items, { maxItems = 4000, glue = true } = {}) {
   const list = (Array.isArray(items) ? items : []).slice(0, maxItems)
     .map(it => ({ text: planTidy(String(it?.text ?? '')).trim(), x: +it?.x, y: +it?.y, w: Math.max(0, +it?.w || 0), h: Math.max(0, +it?.h || 0) }))
     .filter(it => it.text && [it.x, it.y, it.w, it.h].every(Number.isFinite));
@@ -242,7 +242,11 @@ function planTextFromBoxes(items, { maxItems = 4000 } = {}) {
     r.cells = [];
     for (const it of r.items) {
       const last = r.cells.at(-1);
-      if (last && it.x - (last.x + last.w) <= hMed * 1.2) { last.text += ` ${it.text}`; last.w = it.x + it.w - last.x; }
+      // Morceaux collés d'un PDF (écart nul, une ou deux lettres d'une autre police : « sé » « A » « nces ») : un seul mot.
+      // Pas sur une photo (glue faux) : les mots de Vision écrits serrés restent des mots
+      const gap = it.x - (last?.x + last?.w);
+      const glued = glue && gap < it.h * 0.12 && (it.text.length <= 2 || /(?:^|\s)\S{1,2}$/.test(last?.text || ''));
+      if (last && gap <= hMed * 1.2) { last.text += glued ? it.text : ` ${it.text}`; last.w = it.x + it.w - last.x; }
       else r.cells.push({ text: it.text, x: it.x, w: it.w });
     }
   });
@@ -297,5 +301,5 @@ function planTextFromPages(pages) {
     }
     top += H + 60;
   }
-  return planTextFromBoxes(items);
+  return planTextFromBoxes(items, { glue: false });
 }

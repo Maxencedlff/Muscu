@@ -326,7 +326,7 @@ function planCleanName(s) {
       .replace(/^(?:n°|no\.?|#)\s*\d+\s*/i, '')
       .replace(PARSE_LEAD_WORDS, '')
       .replace(PARSE_TAIL_WORDS, '')
-      .replace(/\(\s*(?:(?:en|de|la|le|les|sur|a|à|au|et|avec|puis|la|serie|série|séries|series)\s*)*\)|\[\s*\]/gi, ' ')
+      .replace(/\(\s*(?:(?:en|de|la|le|les|sur|a|à|au|et|avec|puis|la|serie|série|séries|series|reps?|repetitions?|répétitions?)\s*)*\)|\[\s*\]/gi, ' ')
       .replace(/\s*[|:;,.=~-]+\s*$/, '')
       .replace(/\s+/g, ' ').trim();
     if (n === before) break;

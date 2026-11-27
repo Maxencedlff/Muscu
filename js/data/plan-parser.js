@@ -246,7 +246,8 @@ function planParse(text, { learned = null } = {}) {
   // cut : limites atteintes (texte, exercices, séances), dites à l'écran « Vérifier l'import »
   const draft = { title: null, sessions: [], lines: [], notes: [], cut: { text: !!src.cut, items: false, sessions: false } };
   let session = null, skipSection = false, table = null, pendingName = null, ssOpen = null, nItems = 0, seq = 0;
-  let block = null, joinNext = false, pendingNote = null;   // bloc répété en cours (js/data/plan-blocks.js), groupe annoncé par la ligne d'avant
+  let block = null, joinNext = false, pendingNote = null;
+  const seenHeads = new Set();   // bloc répété en cours (js/data/plan-blocks.js), groupe annoncé par la ligne d'avant
   const lineRec = (txt, role, item = null) => { const r = { text: txt, role }; if (item) r.item = item; draft.lines.push(r); return r; };
   const ensureSession = () => {
     if (!session) { session = { label: '', src: null, items: [] }; draft.sessions.push(session); }
@@ -384,6 +385,12 @@ function planParse(text, { learned = null } = {}) {
       // nouvelle séance ; sans en-tête fort au-dessus, ces sous-titres restent des séances (« PECTORAUX : », « DOS : »)
       const strong = !!hd.strong;
       if (!strong && session?.strong && planSplitOnly(b)) { lineRec(line, 'note'); continue; }
+      // En-tête répété en haut de chaque page d'un PDF (« WORKOUT AT HOME », « TONING WORKOUT: ») : la même séance continue.
+      // Pas un en-tête numéroté ni un jour : « Séance A », « Jour 2 » ou « Lundi » qui revient est bien une autre séance
+      const hk = planBare(hd.label);
+      const indexed = /(?:^|\s)(?:[a-z]|\d+)(?:\s|$)/.test(hk) || new RegExp(`\\b(?:${PARSE_DAYS})\\b`).test(hk);
+      if (!indexed && session?.items.length && hk && seenHeads.has(hk)) { lineRec(line, 'note'); continue; }
+      if (hk) seenHeads.add(hk);
       if (session && !session.items.length && !session.label) { session.label = hd.label; session.strong = strong; }
       else { session = { label: hd.label, src: line, items: [], strong }; draft.sessions.push(session); }
       session.src = line;
