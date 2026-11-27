@@ -11,7 +11,9 @@
   --bg: #F2F2F7; --cell: #FFFFFF; --cell2: #F2F2F7; --cell3: #E5E5EA;
   --label: #000000; --label2: rgba(60,60,67,.78); --label3: rgba(60,60,67,.55);
   --sep: rgba(60,60,67,.2); --fill: rgba(120,120,128,.12); --fill2: rgba(120,120,128,.2); --seg-on: #FFFFFF;
-  --accent: #B8460F; --accent-text: #A04E00; --accent-tint: rgba(184,70,15,.12); --accent-fill: #B8460F; --on-accent: #FFFFFF;
+  /* 27/11, choix de Maxence (« option 2 », comme l'app, css/liens.css) : l'orange n'est qu'aux boutons pleins à texte blanc
+     (--accent-fill) ; liens, actions en texte, anneaux et coches dans la couleur du texte, les liens en demi-gras (fin du fichier) */
+  --accent: var(--label); --accent-text: var(--label); --accent-tint: var(--fill); --accent-fill: #B8460F; --on-accent: #FFFFFF;
   --green: #34C759; --green-text: #1F7A35; --badge: #D70015; --gold: #A86F00;
   --heat: #FF453A;
   --font: "SF Pro Text", "SF Pro", -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -25,7 +27,7 @@
     --bg: #000000; --cell: #1C1C1E; --cell2: #2C2C2E; --cell3: #3A3A3C;
     --label: #FFFFFF; --label2: rgba(235,235,245,.66); --label3: rgba(235,235,245,.45);
     --sep: rgba(84,84,88,.6); --fill: rgba(120,120,128,.24); --fill2: rgba(120,120,128,.36); --seg-on: #636366;
-    --accent: #F27A45; --accent-text: #F27A45; --accent-tint: rgba(242,122,69,.16);
+    --accent: var(--label); --accent-text: var(--label); --accent-tint: var(--fill); --accent-fill: #CA4D10;   /* texte blanc 4,6:1 */
     --green: #30D158; --green-text: #30D158; --gold: #FFD60A;
   }
 }
@@ -742,3 +744,6 @@ dialog.phz:not([open]) { display: none; }
 dialog.phz.zoomed .phz-view { cursor: grab; }
 .phz-view img { max-width: 100%; max-height: 100%; object-fit: contain; transform-origin: center; user-select: none; -webkit-user-drag: none; }
 @media (max-width: 899px) { .phz-panes.c2 { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; } }
+
+/* Liens et actions en texte reconnaissables sans couleur d'accent : demi-gras (27/11, option 2) */
+:is(.btn.tint, .warn, table.wk tr.cur .wn, .send, .row .v.warn, .dt-a .sel select, .dt-a .sel svg) { font-weight: 600; }

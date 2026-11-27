@@ -25,6 +25,7 @@ function applyTheme(theme) {
 function applyDesign() {
   if (typeof document === 'undefined' || !document.body) return;
   document.body.classList.toggle('design-bleu', currentDesignAccent() === 'bleu');
+  document.body.classList.toggle('links-color', currentLinksColor());   // « Liens en couleur » (css/theme-sobre.css)
 }
 applyTheme(themePref());
 applyDesign();   // Réglages › Apparence › Design (js/data/design.js), avant le premier dessin

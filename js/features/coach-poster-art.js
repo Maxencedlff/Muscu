@@ -19,9 +19,10 @@
 // ═══════════════════════════════════════════════════════════
 'use strict';
 
-// Couleurs : thème sombre de l'app (css/base.css, css/theme-sobre.css). Noir sur #FF7A1A : 8,1:1.
+// Couleurs : thème sombre de l'app (css/base.css, css/theme-sobre.css). 27/11 (option 2 de Maxence) : l'orange n'est plus
+// que l'aplat des boutons de l'app (#CA4D10, texte blanc 4,6:1) : aplat du code et cercle de la photo, textes en blanc.
 const CPA = {
-  bg: '#000000', orange: '#FF7A1A', white: '#FFFFFF', ink: '#1C1C1E',
+  bg: '#000000', orange: '#CA4D10', white: '#FFFFFF', ink: '#1C1C1E',
   grey: '#A0A0A7',     // rgba(235,235,245,.68) de l'app posé sur le noir, rendu opaque
   // Personnage exactement comme l'atlas de l'app en sombre (branche affichage-e, commit 5e2aaa85) : corps à
   // --body-atlas-bright .46 (filter: brightness), muscles --body-heat #FF453A éclairés par l'ombrage du calque
@@ -147,7 +148,7 @@ function cpaBrand(ctx, icon, cx, y, size) {
   if (icon?.width) { ctx.save(); cpaRound(ctx, x, y, size, size, size * 0.225); ctx.clip(); ctx.drawImage(icon, x, y, size, size); ctx.restore(); }
   cpaSmallText(ctx, 'MDLF Training', x + size + gap, y + size * 0.72, size * 0.62, CPA.white, 'left');
 }
-// Bloc de l'appel, en noir sur l'orange plein : « Rejoins-moi sur MDLF Training », le code, puis où l'entrer (7e panel :
+// Bloc de l'appel, en blanc sur l'orange plein (jamais de texte noir sur un aplat orange) : « Rejoins-moi sur MDLF Training », le code, puis où l'entrer (7e panel :
 // « Entre mon code dans Social › Rejoindre un coach ») ; consignes de minSize px au moins, une ligne chacune
 function cpaCodePill(ctx, m, cx, y, w, h, minSize = 26) {
   cpaRound(ctx, cx - w / 2, y, w, h, Math.min(28, h / 2)); ctx.fillStyle = CPA.orange; ctx.fill();
@@ -157,9 +158,9 @@ function cpaCodePill(ctx, m, cx, y, w, h, minSize = 26) {
   const sc = cpaFit(ctx, m.code, w - 80, h * 0.34, h * 0.2, cpaCode), gap = h * 0.07;
   const top = y + (h - (s1 + sc * 0.74 + s3 + 2 * gap)) / 2;
   const b1 = top + s1 * 0.8, b2 = b1 + gap + sc * 0.74, b3 = b2 + gap + s3 * 0.95;
-  cpaText1(ctx, m.ctaLine, cx, b1, { font: f6(s1), color: CPA.bg });
-  cpaText1(ctx, m.code, cx, b2, { font: cpaCode(sc), color: CPA.bg });
-  cpaText1(ctx, m.ctaWhere, cx, b3, { font: f6(s3), color: CPA.bg });
+  cpaText1(ctx, m.ctaLine, cx, b1, { font: f6(s1), color: CPA.white });
+  cpaText1(ctx, m.code, cx, b2, { font: cpaCode(sc), color: CPA.white });
+  cpaText1(ctx, m.ctaWhere, cx, b3, { font: f6(s3), color: CPA.white });
 }
 // Badge « Carte pro déclarée » (s'il est affiché) : pastille au trait blanc (contour noir autour), texte détouré ;
 // renvoie sa hauteur
@@ -254,7 +255,7 @@ function cpaTitleBlock(ctx, m, x, top, maxW, tS) {
   const lines = m.title === 'COACH' ? ['COACH'] : [m.title.split(' ')[0], 'COACH'];
   lines.forEach((l, i) => {
     const s = cpaFit(ctx, l, maxW, tS, 60, cpaTitle);
-    cpaTitleText(ctx, l, x, top + tS * 0.86 + i * tS * 0.9, s, i === lines.length - 1 ? CPA.orange : CPA.white);
+    cpaTitleText(ctx, l, x, top + tS * 0.86 + i * tS * 0.9, s, CPA.white);   // plus de mot en orange (juges du 26/11 : deuxième couleur d'accent)
   });
   return top + tS * 0.9 * lines.length + 10;
 }
@@ -424,7 +425,7 @@ function cplCodeCard(ctx, m, icon, x, y, w, h, k = CPL_CARD) {
   const sc = cplFit(ctx, m.code, tw, h * k.sc, h * 0.18, 800), gap = h * k.gap;
   const top = y + (h - (s1 * 0.74 + gap + sc * 0.74 + gap + s3 * 0.74)) / 2;
   const b1 = top + s1 * 0.74, b2 = b1 + gap + sc * 0.74, b3 = b2 + gap + s3 * 0.74;
-  cpaText1(ctx, m.ctaLine, tx, b1, { font: cplFont(s1, 600), color: CPA.orange, align: 'left' });
+  cpaText1(ctx, m.ctaLine, tx, b1, { font: cplFont(s1, 700), color: CPA.white, align: 'left' });
   cpaText1(ctx, m.code, tx, b2, { font: cplFont(sc, 800), color: CPA.white, align: 'left' });
   cpaText1(ctx, m.ctaWhere, tx, b3, { font: cplFont(s3, 600), color: CPL.label2, align: 'left' });
 }

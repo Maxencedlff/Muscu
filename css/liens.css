@@ -1,0 +1,23 @@
+/* ═══════════════════════════════════════════════
+   Liens et actions en texte dans la couleur du texte (27/11, « option 2 » choisie par Maxence)
+   L'orange (ou le bleu du design Bleu) est réservé aux boutons pleins à texte blanc (--tint-fill). Les liens, les actions
+   en texte, les anneaux et la série en cours prennent --tint = --label (blanc en sombre, noir en clair : AA partout,
+   css/theme-sobre.css). Pour rester reconnaissables comme des liens, sans autre couleur d'accent : en demi-gras ici,
+   avec leur icône ou leur chevron là où ils en ont déjà. Réglages › Apparence › Design › « Liens en couleur »
+   (body.links-color) rend la couleur d'accent et la graisse d'origine.
+   Liste tirée des règles qui colorent un texte avec --tint ou --tint-on-fill sans fixer de graisse (relevé du 27/11) ;
+   une nouvelle action en texte s'ajoute ici.
+═══════════════════════════════════════════════ */
+body:not(.links-color) :is(
+  .auth__nav, .auth__link, .method-cell__add, .azoom__sum, .azoom__btn, .azoom__whole, .ck-skip, .ck-auto,
+  .ck-tile__plus, .plan-stepper__btn, .coach-ex-consigne, .coach-presc-btn, .coach-presc-btn__act,
+  .chat-push-off__link, .cdiet__nav, .cdiet__rule summary, .defi-act .defi-act__t, .defi-cal__nav,
+  .targets__edit, .hero__edit, .home-list__btn, .mline2__more, .atlas-box__iso-all, .mpanel__zoom,
+  .mpick__auto, .howto__more, .navbar__text, .diet-item__swap, .qty__twin-btn, .diet-cand--back,
+  .diet-cand--new, .diet-cand--back .diet-cand__name, .diet-cand--new .diet-cand__name, .qty__step,
+  .diet-ico--act, .diet-tg__link, .mlow__more, .mlow__reset, .mrow__zsum, .group-title__btn, .cell--action,
+  .trash-view .cell__value, .btn-more, .info-btn, .cal__nav, .rs__collapse, .link-inline, .imp-pick--keep,
+  .pcmp__sel, .pv-link, .ex-card__more, .ex-rest-link, .rest-mini .rest-mini__skip, .rs__done, .ax__cancel,
+  .ax__item--create, .sum-hint, .tech__x, .social-choose, .social-find, .comments__more, .cph-row__link,
+  .bump-chip, .rs__done:not(.rs__done--primary), .water-gs__btn
+) { font-weight: 600; }

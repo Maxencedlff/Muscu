@@ -126,8 +126,9 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
       assert.ok(c.ops.every(o => !o.fill || typeof o.fill === 'string'), `${format} : aucun dégradé posé`);
       assert.ok(fills.includes('#000000'), `${format} : fond noir pur`);
       assert.ok(!fills.includes('#F2F2F7'), `${format} : plus de fond clair`);
-      const oranges = fills.filter(f => ['#A85400', '#FF7A1A', '#A04E00', '#FF8A3D'].includes(f));
-      assert.deepEqual(oranges, ['#FF7A1A'], `${format} : un seul orange (${fills})`);
+      const oranges = fills.filter(f => ['#A85400', '#FF7A1A', '#A04E00', '#FF8A3D', '#CA4D10', '#B8460F'].includes(f));
+      assert.deepEqual(oranges, ['#CA4D10'], `${format} : un seul orange, celui des boutons (${fills})`);
+      assert.ok(c.ops.filter(o => o.op === 'text').every(o => !['#000000', '#CA4D10'].includes(String(o.fill).toUpperCase())), `${format} : aucun texte noir ni orange`);
       assert.equal(c.ctx.gradients, 0, `${format} : aucun dégradé créé`);
       assert.ok(c.ctx.spacings.every(v => v === '0px'), `${format} : lettres jamais espacées`);
       // Personnage bien présent : presque pas assombri (au plus 10 %), à la taille du concept v2
@@ -145,7 +146,7 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
     assert.ok(!/create(Linear|Radial)Gradient|shadowBlur|shadowColor|\.filter\s*=/.test(src), 'aucun dégradé, aucune ombre, aucun filtre dans le dessin');
     assert.ok(!/CPA_THEMES|#F2F2F7|theme\s*===/.test(src), 'plus de thème clair');
     const css = read('css/base.css') + read('css/theme-sobre.css');
-    for (const v of ['#FF7A1A', 'rgba(235,235,245', '#1C1C1E']) assert.ok(css.includes(v), `${v} repris des feuilles de style de l'app`);
+    for (const v of ['#CA4D10', 'rgba(235,235,245', '#1C1C1E']) assert.ok(css.includes(v), `${v} repris des feuilles de style de l'app`);
   });
 
   test('affiche du coach : personnage entier à gauche, sans coupe ni masque ; aucun texte ni photo posé sur lui', () => {
@@ -328,7 +329,7 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
         assert.ok(body && card, `${tag} : personnage et carte du code`);
         assert.ok(t.every(x => !/Anton/.test(x.font)), `${tag} : SF Pro partout, pas l'Anton`);
         assert.ok(t.every(x => x.fill !== '#000000'), `${tag} : aucun texte noir (plus d'aplat orange)`);
-        assert.deepEqual([...new Set(t.filter(x => x.fill === '#FF7A1A').map(x => x.text))], ['Rejoins-moi sur MDLF Training'], `${tag} : l'orange seulement sur « Rejoins-moi »`);
+        assert.ok(!t.some(x => x.fill === '#CA4D10' || x.fill === '#FF7A1A'), `${tag} : aucun texte orange (27/11 : l'orange n'est qu'aux aplats)`);
         assert.ok(!t.some(x => /@lea|Carte pro/.test(x.text)), `${tag} : ni pseudo ni badge`);
         assert.ok(t.some(x => x.text === 'K7M2-QX9P-R4TD'), `${tag} : le code`);
         // Aucun texte sur le personnage : au-dessus de sa tête, ou dans la carte du code (les initiales sont dans le rond)
@@ -365,9 +366,10 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
   test('affiche du coach, style « Avec le bonhomme » : dessin inchangé au pixel près (empreinte de chaque opération, relevée sur main)', () => {
     // Empreinte SHA-256 de toutes les opérations du faux canvas (textes, polices, couleurs, positions, images) : relevée
     // avec coach-poster-art.js de main (7c92d663), avant l'ajout du style « Photo seule »
+    // Relevé du 27/11 : orange des boutons (#CA4D10) et textes en blanc sur l'aplat (option 2 de Maxence)
     const GOLD = {
-      'story photo': 'af6654cacf78ddbe', 'story homme': '491fed23567fd6a5', 'story nom long': 'f8ad1a0e2c18c215', 'story coach seul': '833cbbb62c6c0a39', 'story sans photo': 'e428f57bdd5365c9',
-      'square photo': '8359c37942027cec', 'square homme': 'd3f32a65bb0f1fee', 'square nom long': '65f9bc165e0d58ef', 'square coach seul': 'e20d42489f3714ca', 'square sans photo': '1a6c2cdb76ba2f08',
+      'story photo': 'd089438329e7faaa', 'story homme': '3da624f0e4517c23', 'story nom long': '9166004732a9e0d0', 'story coach seul': '191a55d4bfc52ea8', 'story sans photo': 'cd1a04fbc55d8f56',
+      'square photo': 'bff93a274151cca1', 'square homme': '7c587a7bbfc5a851', 'square nom long': '2dcabc5d1f546389', 'square coach seul': '142e851b83c72535', 'square sans photo': 'ade90ad6caa1b436',
     };
     const got = {};
     for (const format of ['story', 'square']) for (const [n, o, a] of CASES) {
@@ -389,12 +391,12 @@ export default function ({ test, app, run, assert, sameJSON, ROOT }) {
         const m = model(o), size = x => parseFloat(x.font.match(/(\d+(?:\.\d+)?)px/)[1]);
         assert.ok(!c.ops.some(x => x.op === 'image' && x.id === 'body'), `${tag} : pas de personnage`);
         assert.ok(t.every(x => !/Anton/.test(x.font)), `${tag} : SF Pro partout, pas l'Anton`);
-        assert.ok(t.every(x => ['#FFFFFF', '#FF7A1A', '#98989F', '#A0A0A7'].includes(x.fill)), `${tag} : textes blancs (ou gris secondaire dans la carte, ${[...new Set(t.map(x => x.fill))]})`);
-        assert.deepEqual([...new Set(t.filter(x => x.fill === '#FF7A1A').map(x => x.text))], ['Rejoins-moi sur MDLF Training'], `${tag} : l'orange seulement sur « Rejoins-moi »`);
-        const ctaO = t.find(x => x.fill === '#FF7A1A');
-        assert.ok(size(ctaO) <= 40, `${tag} : orange en petit (${size(ctaO)} px)`);
+        assert.ok(t.every(x => ['#FFFFFF', '#98989F', '#A0A0A7'].includes(x.fill)), `${tag} : textes blancs (ou gris secondaire dans la carte, ${[...new Set(t.map(x => x.fill))]})`);
+        assert.ok(!t.some(x => x.fill === '#CA4D10' || x.fill === '#FF7A1A'), `${tag} : aucun texte orange (27/11 : l'orange n'est qu'aux aplats)`);
+        const ctaO = t.find(x => x.text === 'Rejoins-moi sur MDLF Training');
+        assert.ok(ctaO && size(ctaO) <= 40, `${tag} : « Rejoins-moi » en petit (${ctaO && size(ctaO)} px)`);
         const fills = c.ops.filter(x => x.op === 'fill' || x.op === 'rect').map(x => x.fill);
-        assert.ok(!fills.includes('#FF7A1A') && !fills.includes('#FF453A'), `${tag} : aucun aplat orange ni rouge (${[...new Set(fills)]})`);
+        assert.ok(!fills.includes('#CA4D10') && !fills.includes('#FF453A'), `${tag} : aucun aplat orange ni rouge (${[...new Set(fills)]})`);
         assert.ok(t.every(x => x.fill !== '#000000'), `${tag} : aucun texte noir`);
         assert.ok(c.ctx.gradients === 0 && c.ctx.spacings.every(sp => sp === '0px'), `${tag} : aucun dégradé, lettres jamais espacées`);
         const title = t.find(x => /^(Nouveau coach|Nouvelle coach|Coach)$/.test(x.text));

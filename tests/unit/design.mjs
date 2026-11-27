@@ -20,6 +20,17 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     }
   });
 
+  test('design : « Liens en couleur » éteint par défaut, gardé seulement à true, synchronisé avec le choix daté', () => {
+    reset();
+    assert.equal(run('designLinksColor(data)'), false);
+    run('data.design = { accent: "orange", at: 7, links: true }; sanitizeData(data)');
+    sameJSON(run('data.design'), { accent: 'orange', at: 7, links: true });
+    assert.equal(run('designLinksColor(data)'), true);
+    run('data.design = { accent: "bleu", at: 8, links: "oui" }; sanitizeData(data)');
+    sameJSON(run('data.design'), { accent: 'bleu', at: 8 }, 'valeur douteuse : éteint');
+    sameJSON(run('mergeDesign({ accent: "orange", at: 5, links: true }, { accent: "orange", at: 9 })'), { accent: 'orange', at: 9 }, 'éteint plus tard sur un autre appareil');
+  });
+
   test('design : fusion, le choix le plus récent gagne ; à égalité, l\'orange', () => {
     sameJSON(run('mergeDesign({ accent: "bleu", at: 5 }, { accent: "orange", at: 9 })'), { accent: 'orange', at: 9 });
     sameJSON(run('mergeDesign({ accent: "orange", at: 9 }, { accent: "bleu", at: 5 })'), { accent: 'orange', at: 9 });
@@ -69,22 +80,25 @@ export default function ({ test, run, reset, assert, sameJSON, ROOT }) {
     const s = css('theme-sobre.css');
     const dark = block(s, ':root'), light = block(s, 'body.light'), bleu = block(s, 'body.design-bleu'), bleuL = block(s, 'body.light.design-bleu');
     const W = '#FFFFFF', K = '#000000', CELL = '#1C1C1E';
-    // Orange (défaut) : bouton brique à texte blanc dans les deux thèmes
-    assert.equal(tok(dark, '--tint-fill'), '#B8460F'); assert.equal(tok(dark, '--on-tint'), W);
+    // 27/11 (option 2 de Maxence) : l'accent n'est qu'aux boutons pleins à texte blanc ; liens et actions dans la couleur
+    // du texte, l'accent seulement avec « Liens en couleur » (body.links-color, --accent-link)
+    assert.equal(tok(dark, '--tint-fill'), '#CA4D10'); assert.equal(tok(dark, '--on-tint'), W);
     assert.equal(tok(light, '--tint-fill'), '#B8460F'); assert.equal(tok(light, '--on-tint'), W);
-    assert.ok(cr(W, '#B8460F') >= 4.5, 'texte blanc sur le bouton');
-    assert.ok(cr('#B8460F', CELL) >= 3, 'bouton visible sur la cellule (contour non textuel)');
-    // Liens d'action reconnaissables : orange, 4,5:1 au moins sur le noir et sur les cartes
-    const link = tok(dark, '--tint');
+    assert.ok(cr(W, '#CA4D10') >= 4.5 && cr(W, '#B8460F') >= 4.5, 'texte blanc sur le bouton, dans les deux thèmes');
+    assert.ok(cr('#CA4D10', CELL) >= 3, 'bouton visible sur la cellule (contour non textuel)');
+    assert.match(s, /:root, body, body\.light \{ --tint: var\(--label\); --tint-on-fill: var\(--label\); \}/, 'liens dans la couleur du texte');
+    assert.match(s, /body\.links-color \{ --tint: var\(--accent-link\); --tint-on-fill: var\(--accent-on-fill\); \}/, 'Liens en couleur');
+    // Liens en couleur : 4,5:1 au moins sur le noir et sur les cartes, et sur le blanc en clair
+    const link = tok(dark, '--accent-link');
     assert.ok(cr(link, K) >= 4.5 && cr(link, CELL) >= 4.5 && cr(link, '#2C2C2E') >= 4.5, `liens ${link}`);
-    assert.ok(cr(tok(light, '--tint'), W) >= 4.5 && cr(tok(light, '--tint'), '#F2F2F7') >= 4.5);
-    // Bleu : texte blanc sur l'aplat, liens lisibles
+    assert.ok(cr(tok(light, '--accent-link'), W) >= 4.5 && cr(tok(light, '--accent-link'), '#F2F2F7') >= 4.5);
+    // Bleu : texte blanc sur l'aplat, liens en couleur lisibles
     assert.ok(cr(W, tok(bleu, '--tint-fill')) >= 4.5 && cr(W, tok(bleuL, '--tint-fill')) >= 4.5);
-    assert.ok(cr(tok(bleu, '--tint'), K) >= 4.5 && cr(tok(bleu, '--tint'), CELL) >= 4.5 && cr(tok(bleuL, '--tint'), W) >= 4.5);
+    assert.ok(cr(tok(bleu, '--accent-link'), K) >= 4.5 && cr(tok(bleu, '--accent-link'), CELL) >= 4.5 && cr(tok(bleuL, '--accent-link'), W) >= 4.5);
     // Plus jamais de texte noir sur un aplat d'accent, ni l'orange vif en aplat
     assert.ok(!/--on-tint:\s*#000/i.test(s) && !/--tint-fill:\s*#FF7A1A/i.test(s));
     const r = css('recap.css');
-    assert.ok(!/--rc-on-accent:\s*#000/i.test(r) && /--rc-accent:\s*#B8460F/.test(r));
+    assert.ok(!/--rc-on-accent:\s*#000/i.test(r) && /--rc-accent:\s*#(B8460F|CA4D10)/.test(r));
     // Jetons tirés de --tint redéclarés sur body : ils suivent le design « Bleu » posé sur body
     assert.match(s, /:root, body \{ --sb-ring: var\(--tint\);[^}]*--tab-on: var\(--label\); \}/);
   });

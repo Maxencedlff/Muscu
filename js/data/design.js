@@ -15,11 +15,14 @@
 const DESIGN_ACCENTS = Object.freeze(['orange', 'bleu']);
 const DESIGN_DEFAULT = 'orange';
 
+// links (27/11, option 2 de Maxence) : « Liens en couleur », true seulement (absent = liens dans la couleur du texte,
+// l'accent réservé aux boutons pleins) ; daté avec le choix de la couleur (un seul réglage synchronisé)
 function cleanDesign(v) {
   return v && typeof v === 'object' && !Array.isArray(v) && DESIGN_ACCENTS.includes(v.accent) && Number.isFinite(v.at) && v.at > 0
-    ? { accent: v.accent, at: Math.round(v.at) } : undefined;
+    ? { accent: v.accent, at: Math.round(v.at), ...(v.links === true ? { links: true } : {}) } : undefined;
 }
 function designAccent(d) { return cleanDesign(d?.design)?.accent || DESIGN_DEFAULT; }
+function designLinksColor(d) { return cleanDesign(d?.design)?.links === true; }
 // Le plus récent gagne ; à égalité, l'orange (le défaut) pour que deux appareils tombent d'accord
 function mergeDesign(a, b) {
   const x = cleanDesign(a), y = cleanDesign(b);
@@ -34,4 +37,5 @@ function sanitizeDesign(d) {
 }
 // Design de l'app en cours (data de js/data/store.js ; absent, dans un outil qui ne charge pas la donnée : l'orange)
 function currentDesignAccent() { return typeof data === 'undefined' ? DESIGN_DEFAULT : designAccent(data); }
+function currentLinksColor() { return typeof data !== 'undefined' && designLinksColor(data); }
 // Classe du design sur body : applyDesign (js/ui/theme.js, l'écran ; la donnée ne touche pas au DOM)

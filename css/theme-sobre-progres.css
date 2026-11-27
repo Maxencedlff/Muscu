@@ -56,6 +56,9 @@ body.light {
 /* Design « Bleu » : la courbe dans l'accent (#0092FF × 0,7 = #0066B2 en clair, 6,3:1 sur blanc) */
 body.design-bleu { --sp-chart-line: #0A84FF; }
 body.light.design-bleu { --sp-chart-line: #0092FF; }
+/* 27/11 (option 2 de Maxence) : l'orange n'est qu'aux boutons, la courbe prend la couleur du texte comme les liens ; avec
+   « Liens en couleur » (body.links-color), elle garde l'accent ci-dessus */
+body:not(.links-color), body.light:not(.links-color) { --sp-chart-line: var(--label); }
 /* Muscle principal et secondaires d'un exercice : pastilles neutres, une puce de la couleur du personnage les relie */
 .mpill { display: inline-flex; align-items: center; gap: 6px; }
 .mpill::before { content: ''; width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
