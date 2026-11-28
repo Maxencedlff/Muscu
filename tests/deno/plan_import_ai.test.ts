@@ -142,6 +142,17 @@ Deno.test('plan-import-ai : photo envoyée seulement avec accord, puis jamais ga
   assert.equal((await res.json()).draft.sessions[0].items[0].name, 'Développé couché barre');
 });
 
+Deno.test('plan-import-ai : modelImage choisit le modèle qui lit la photo, sans toucher au texte', async () => {
+  const plan = () => msg({ title: null, sessions: [{ label: 'Push', items: [{ ...item({ exercise_id: DC, sets: 4, rep_min: 8, rep_max: 8 }), line_text: 'DC 4x8', superset: null }] }] });
+  const { client, sent } = fakeClient({ [MODEL_SECOND]: plan, [MODEL_FIRST]: () => msg({ answers: [{ id: 0, ...item({ exercise_id: DC, sets: 4, rep_min: 8, rep_max: 10, rest_s: 120 }) }] }) });
+  const h = makeHandler({ caller: who, store: fakeStore().store, client: () => client, options: { modelImage: MODEL_SECOND } });
+  assert.equal((await h(post({ mode: 'image', consent: true, image: { media_type: 'image/jpeg', data: 'A'.repeat(400) } }))).status, 200);
+  assert.equal(sent[0].body.model, MODEL_SECOND, 'photo lue par le modèle choisi');
+  assert.equal(sent.length, 1, 'réponse valide : aucune montée');
+  assert.equal((await h(post(LINES))).status, 200);
+  assert.equal(sent[1].body.model, MODEL_FIRST, 'le texte reste au premier modèle');
+});
+
 // ── Point d'entrée de production, faux réseau : jeton, clé absente, aucune fuite de la clé ──
 const jwt = fakeJwt({ sub: USER_ID, role: 'authenticated', exp: nowS() + 3600 });
 const routes = {

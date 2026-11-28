@@ -35,8 +35,10 @@ export type Deps = {
   client: () => ModelClient | null;   // null : clé absente (aide coupée, 503 ai_off)
   // promptCache : cache d'Anthropic sur la consigne et la bibliothèque du premier modèle ; promptCacheSecond : aussi
   // pour le second (rarement appelé : l'écriture du cache coûterait plus qu'elle ne rend) ; unknownSure : faire monter
-  // aussi une ligne lue sûrement comme hors bibliothèque ; doubt : faire monter aussi une réponse incertaine ou illisible
-  options?: { cascade?: boolean; promptCache?: boolean; promptCacheSecond?: boolean; doubt?: boolean; unknownSure?: boolean; resultCache?: boolean;
+  // aussi une ligne lue sûrement comme hors bibliothèque ; doubt : faire monter aussi une réponse incertaine ou illisible ;
+  // modelImage : premier modèle pour une photo (défaut MODEL_FIRST ; MODEL_SECOND si l'utilisateur choisit la lecture
+  // renforcée de la photo, docs/IMPORT_IA.md « Recommandation »)
+  options?: { modelImage?: string; cascade?: boolean; promptCache?: boolean; promptCacheSecond?: boolean; doubt?: boolean; unknownSure?: boolean; resultCache?: boolean;
     effort?: 'low' | 'medium' | 'high'; effortSecond?: 'low' | 'medium' | 'high'; timeoutMs?: number };
 };
 type Call = { model: string; mode: string; usage: Usage; usd: number | null; ok: boolean };
@@ -49,7 +51,7 @@ export async function sha256(s: string): Promise<string> {
 }
 
 export function makeHandler(deps: Deps) {
-  const opt = { cascade: true, promptCache: true, promptCacheSecond: false, doubt: false, unknownSure: false, resultCache: true, effort: 'low' as const,
+  const opt = { modelImage: MODEL_FIRST, cascade: true, promptCache: true, promptCacheSecond: false, doubt: false, unknownSure: false, resultCache: true, effort: 'low' as const,
     effortSecond: 'low' as const, timeoutMs: 55_000, ...deps.options };
 
   return async function handler(req: Request): Promise<Response> {
@@ -148,7 +150,7 @@ export function makeHandler(deps: Deps) {
       const hit = planKey ? (await getCache([planKey])).get(planKey) as { plan: Record<string, unknown>; fixes: Record<string, unknown> } | undefined : undefined;
       let planAnswer = hit?.plan ?? null, fixes: Record<string, unknown> = hit?.fixes ?? {}, escalated = 0;
       if (!planAnswer) {
-        planAnswer = await ask(MODEL_FIRST, input, true);
+        planAnswer = await ask(input.mode === 'image' ? opt.modelImage : MODEL_FIRST, input, true);
         if ((!planAnswer || !checkPlan(planAnswer, input)) && opt.cascade) { planAnswer = await ask(MODEL_SECOND, input, false); escalated = -1; }
         if (!planAnswer || !checkPlan(planAnswer, input)) throw new Stop(502, 'ai_failed');
         const plan0 = checkPlan(planAnswer, input)!;

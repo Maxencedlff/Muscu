@@ -125,6 +125,50 @@ pour 0,0003 $ environ. Le gros gain est sur les photos manuscrites ou les tablea
 (32,9 % contre 16 à 19 % à partir du texte lu par Vision). La montée vers Sonnet coûte environ 0,02 $ par appel
 (8 600 tokens d'entrée), 20 fois un import Haiku.
 
+## Mesure sur les lots apprentissage et contrôle (28/11/2026, moteur du corpus réel + IA)
+
+`node tools/plan-import-ia/mesure.mjs --lots` (branche `import-final` : moteur amélioré de `corpus-reel` et renfort de
+`import-ia`). Un import = un document lu comme l'app le lirait (Apple Vision, pdf.js, Tesseract en approximation pour
+les photos locales sans sortie Vision) ou une dictée SFSpeechRecognizer (chaque voix) ; 131 imports, dont 29 sources
+photo (photos locales non libres envoyées à Anthropic seulement, jamais sur GitHub). Partage des lots fait avant toute
+modification du moteur (tools/plan-corpus/lots.json) ; le lot de contrôle ne donne que des chiffres. Sur ce corpus
+réel, le moteur hésite presque toujours : l'aide est proposée à 98 % des imports. **Dépense de la campagne : 3,44 $**
+(appels coupés comptés au pire cas), plafond 4 $.
+
+Variantes : (a) moteur seul ; (b) Haiku 5.5 sur les lignes douteuses (ou le texte entier), à partir du texte ; (c)
+comme (b), mais la photo part à Haiku pour une source photo ; (d) comme (c), photo lue par Sonnet 5.5 ; (e) cascade :
+(c) puis montée vers Sonnet 5.5 des lignes qui échouent à la validation.
+
+| Lot | Variante | Imports | Justes | Photos : justes | $ / import | $ / photo | Sans appel | Appels Sonnet |
+|---|---|---|---|---|---|---|---|---|
+| contrôle | (a) moteur seul | 53 | 14,0 % | 19,3 % (12) | 0 | 0 | 100 % | 0 |
+| contrôle | (b) Haiku, texte | 53 | 16,8 % | 16,3 % | 0,00094 | 0,00136 | 1,9 % | 0 |
+| contrôle | (c) Haiku, photo | 53 | **28,2 %** | **37,8 %** | 0,00130 | 0,00158 | 1,9 % | 0 |
+| contrôle | (d) Sonnet, photo | 53 | 22,1 % | 31,0 % | 0,01759 | 0,07492 | 1,9 % | 11 |
+| contrôle | (e) cascade | 53 | 27,9 % | 38,9 % | 0,00445 | 0,01125 | 1,9 % | 7 |
+| apprentissage | (a) moteur seul | 78 | 16,7 % | 24,1 % (17) | 0 | 0 | 100 % | 0 |
+| apprentissage | (b) Haiku, texte | 78 | 15,1 % | 13,3 % | 0,00089 | 0,00129 | 1,3 % | 0 |
+| apprentissage | (c) Haiku, photo | 78 | 22,5 % | 28,3 % | 0,00092 | 0,00147 | 1,3 % | 0 |
+| apprentissage | (d) Sonnet, photo | 78 | 16,9 % | 18,8 % | 0,01352 | 0,05926 | 1,3 % | 17 |
+| apprentissage | (e) cascade | 78 | 24,7 % | 39,6 % | 0,00449 | 0,01062 | 1,3 % | 10 |
+
+Lecture :
+- **la photo envoyée à Haiku est le seul vrai gain** : +18,5 points sur les photos du contrôle (19,3 → 37,8 %) pour
+  0,0016 $ ;
+- Haiku à partir du texte ne gagne presque rien sur ce corpus (contrôle +2,8 points, apprentissage −1,6) : deux passes
+  identiques de (b) ont différé de 4 points (20,6 % puis 16,8 % au contrôle), c'est le bruit de la mesure ; les
+  dictées de voix de synthèse (36 imports sur 53 au contrôle) restent illisibles même pour le modèle ;
+- **Sonnet sur la photo ne vaut pas son prix** : 20 à 40 fois plus cher (0,03 $ par photo réussie), 9 photos sur 29
+  coupées au délai de 55 s, et pas plus juste : sur les seules photos lues par les deux, 16/26 contre 6/29 au contrôle
+  (6 photos) mais 16/111 contre 24/105 à l'apprentissage (13 photos) ;
+- la montée vers Sonnet sur échec de la validation (e) triple le coût (0,0044 $ au lieu de 0,0013) pour 0 point au
+  contrôle (27,9 contre 28,2 %) et +2,2 points à l'apprentissage.
+
+Réglage recommandé : moteur d'abord ; si la source est une photo et que le moteur hésite, **proposer d'abord
+« Envoyer la photo »** (Haiku, second accord) ; sinon Haiku sur les lignes douteuses ; montée vers Sonnet coupée
+(`cascade: false`) tant qu'une mesure plus large ne montre pas de gain au contrôle ; pas de Sonnet pour la photo
+(option `modelImage` gardée dans core.ts pour une future mesure, non branchée en production).
+
 ## Coût estimé par import aidé
 
 - **Texte, quelques lignes douteuses** (cas courant) : 0,0003 à 0,0008 $ ;

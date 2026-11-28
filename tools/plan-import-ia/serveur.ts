@@ -8,10 +8,11 @@
 //   deno run --allow-net=127.0.0.1,api.anthropic.com --allow-read=<clé>,<dépôt>,<journal> --allow-write=<journal> --allow-env tools/plan-import-ia/serveur.ts
 // Journal de dépense de la campagne : PLAN_IA_DEPENSE (défaut ~/.local/share/mdlf/import-ia/depense.json).
 // Chemins : /cascade (réglage de production), /seul (Claude Haiku 5.5 seul, sans montée), /sans-cache (cascade sans
-// cache de résultats), /doute (montée aussi sur une réponse incertaine : réglage de la première mesure). Aucun n'est déployé.
+// cache de résultats), /sonnet-photo (Claude Sonnet 5.5 lit la photo, sans montée), /cascade-sonnet-photo (cascade, photo lue
+// par Sonnet), /doute (montée aussi sur une réponse incertaine : réglage de la première mesure). Aucun n'est déployé.
 import Anthropic from 'npm:@anthropic-ai/sdk@1.8.0';
 import { makeHandler, type ModelClient, type Store } from '../../supabase/functions/plan-import-ai/core.ts';
-import { costUsd, MODEL_FIRST } from '../../supabase/functions/plan-import-ai/plan-ai-policy.js';
+import { costUsd, MODEL_FIRST, MODEL_SECOND } from '../../supabase/functions/plan-import-ai/plan-ai-policy.js';
 
 const home = Deno.env.get('HOME') ?? '';
 const keyFile = Deno.env.get('PLAN_IA_CLE') || `${home}/.config/mdlf/anthropic_key`;
@@ -50,6 +51,8 @@ const routes: Record<string, (r: Request) => Promise<Response>> = {
   '/cascade': makeHandler({ caller, store: memory(true), client: () => client, options: { effort } }),
   '/seul': makeHandler({ caller, store: memory(false), client: () => client, options: { cascade: false, effort } }),
   '/sans-cache': makeHandler({ caller, store: memory(false), client: () => client, options: { effort } }),
+  '/sonnet-photo': makeHandler({ caller, store: memory(false), client: () => client, options: { cascade: false, effort, modelImage: MODEL_SECOND } }),
+  '/cascade-sonnet-photo': makeHandler({ caller, store: memory(false), client: () => client, options: { effort, modelImage: MODEL_SECOND } }),
   '/doute': makeHandler({ caller, store: memory(false), client: () => client, options: { effort, doubt: true } }),
 };
 
